@@ -19,17 +19,16 @@ func handleSelectionRange(
     let file = fileOf(snap, params.textDocument.uri) ?? return Nullable.Null
     let text = file.text(snap.analysis)
     let fileId = file.fileId(snap.analysis)
-    Nullable
-        .Value(
-            params
-                .positions
-                .map {
-                    position =>
-                    selectionRange(
-                        text,
-                        extendSelection(snap.analysis, fileId, offsetOf(snap, file, position)),
-                        snap.encoding
-                    )
-                }
-        )
+    Nullable.Value(
+        params
+            .positions
+            .map {
+                position =>
+                selectionRange(
+                    text,
+                    extendSelection(snap.analysis, fileId, offsetOf(snap, file, position)),
+                    snap.encoding
+                )
+            }
+    )
 }

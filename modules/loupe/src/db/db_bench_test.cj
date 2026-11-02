@@ -16,15 +16,14 @@ let BENCH_DB = AnalysisDatabase()
 let BENCH_FILES =
     Array<SourceFile>(BENCH_FILE_COUNT) { i => SourceFile(BENCH_DB, FileId(i), Rope()) }
 
-let BENCH_TABLE =
-    {
-        =>
-        let files = Files()
-        for (file in BENCH_FILES) {
-            files.add(file.fileId(BENCH_DB), file)
-        }
-        files
-    }()
+let BENCH_TABLE = {
+    =>
+    let files = Files()
+    for (file in BENCH_FILES) {
+        files.add(file.fileId(BENCH_DB), file)
+    }
+    files
+}()
 
 let BENCH_MISSING = FileId(BENCH_FILE_COUNT)
 

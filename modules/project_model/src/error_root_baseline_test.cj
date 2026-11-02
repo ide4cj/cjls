@@ -82,14 +82,9 @@ class ErrorRootBaselineTest {
     @TestCase
     func aShrinkingCountKeepsItsReasonAndAnAbsentGroupDisappears() {
         // arrange
-        let baseline =
-            ErrorRootBaseline(
-                [
-                    "# header",
-                    "a.cj: local: 3  # pipeline (#246)",
-                    "b.cj: local: 1  # callback (#551)"
-                ]
-            )
+        let baseline = ErrorRootBaseline(
+            ["# header", "a.cj: local: 3  # pipeline (#246)", "b.cj: local: 1  # callback (#551)"]
+        )
         let found = HashMap<String, Int64>([("a.cj: local", 1)])
 
         // act

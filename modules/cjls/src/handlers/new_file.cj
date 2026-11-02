@@ -66,18 +66,18 @@ func packageLineEdit(state: ServerState, path: VfsPath): ?ApplyWorkspaceEditPara
     let uri = path.toUri()
     let workspaceEdit =
         if (state.versionedEdits) {
-            let document =
-                TextDocumentEdit(
-                    textDocument: OptionalVersionedTextDocumentIdentifier(
-                        uri: uri,
-                        version: Nullable.Value(version)
-                    ),
-                    edits: [TextEditOrAnnotatedTextEditOrSnippetTextEdit.AsTextEdit(edit)]
-                )
+            let document = TextDocumentEdit(
+                textDocument: OptionalVersionedTextDocumentIdentifier(
+                    uri: uri,
+                    version: Nullable.Value(version)
+                ),
+                edits: [TextEditOrAnnotatedTextEditOrSnippetTextEdit.AsTextEdit(edit)]
+            )
             WorkspaceEdit(
                 documentChanges: [
-                    TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile
-                        .AsTextDocumentEdit(document)
+                    TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile.AsTextDocumentEdit(
+                        document
+                    )
                 ]
             )
         } else {
@@ -108,11 +108,10 @@ func applyEdit(loop: Loop, client: Client, logger: Logger, edit: ApplyWorkspaceE
                     return
                 }
             if (!result.applied) {
-                logger
-                    .debug(
-                        "the edit was not applied",
-                        [("label", edit.label ?? ""), ("reason", result.failureReason ?? "")]
-                    )
+                logger.debug(
+                    "the edit was not applied",
+                    [("label", edit.label ?? ""), ("reason", result.failureReason ?? "")]
+                )
             }
         }
 }

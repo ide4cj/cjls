@@ -35,9 +35,8 @@ class StructureTest {
     @TestCase
     func whatATypeDeclaresIsUnderIt() {
         // act
-        let result =
-            outline(
-                """
+        let result = outline(
+            """
             class A {
                 var x: Int64 = 1
                 A(let y: Int64) {}
@@ -48,7 +47,7 @@ class StructureTest {
                 func f() { let local = 1 }
             }
             """
-            )
+        )
 
         // assert - `local` is inside a body, not an outline entry
         @Expect(result, "Class A\n  Field x\n  Constructor A\n  Constructor init\n  Finalizer ~init\n  Property p\n  Method []\n  Method f")
@@ -57,9 +56,8 @@ class StructureTest {
     @TestCase
     func everyKindOfTopLevelDeclarationIsThere() {
         // act
-        let result =
-            outline(
-                """
+        let result = outline(
+            """
             package p
             import std.collection.*
             interface I { func g(): Unit }
@@ -72,7 +70,7 @@ class StructureTest {
             @M func m() {}
             main() { 0 }
             """
-            )
+        )
 
         // assert
         @Expect(result, "Interface I\n  Method g\nStruct S\nEnum E\n  EnumConstructor A\n  EnumConstructor B\nExtension Array<T>\n  Method g\nTypeAlias Alias\nConstant C\nVariable a\nVariable b\nFunction m\nMain main")
@@ -109,9 +107,8 @@ class StructureTest {
     @TestCase
     func constructorsFinalizersAndPropertiesAreMembers() {
         // act
-        let result =
-            outline(
-                """
+        let result = outline(
+            """
             class A {
                 A(let x: Int64) {}
                 init() {}
@@ -120,7 +117,7 @@ class StructureTest {
                 static const K = 1
             }
             """
-            )
+        )
 
         // assert
         @Expect(result, "Class A\n  Constructor A\n  Constructor init\n  Finalizer ~init\n  Property p\n  Constant K")
@@ -129,16 +126,15 @@ class StructureTest {
     @TestCase
     func whatAForeignBlockOrAMacroCallDeclaresIsInItsPlace() {
         // act
-        let result =
-            outline(
-                """
+        let result = outline(
+            """
             foreign {
                 func f(): Unit
             }
             @M
             class A {}
             """
-            )
+        )
 
         // assert
         @Expect(result, "Function f\nClass A")

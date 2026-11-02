@@ -555,14 +555,13 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database,
                         (unchanged || isEqual(memo.value, value)) => memo.changedAt
                 case _ => frame.changedAt
             }
-        let memo =
-            Memo(
-                storage.runtime.revision,
-                value,
-                changedAt,
-                frame.durability,
-                frame.dependencies.toArray()
-            )
+        let memo = Memo(
+            storage.runtime.revision,
+            value,
+            changedAt,
+            frame.durability,
+            frame.dependencies.toArray()
+        )
         synchronized (lock) {
             entry(databaseKey.id).memo.store(memo)
             touchLocked(databaseKey.id)

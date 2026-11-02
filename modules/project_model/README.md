@@ -86,7 +86,17 @@ otherwise the first active scoped membership. Package-driven analysis retains
 each graph's transitive selection. References inspect each context and deduplicate
 physical locations.
 The JSON projection preserves the optional `resolutionScope` on modules.
-Workspace dependency inheritance and mode-specific sections remain #516–#517.
+
+Workspace members inherit root ordinary and test dependencies, including the selected
+target's declarations, and root script dependencies in their build scripts. Paths
+remain relative to the manifest declaring them. Inheritance applies to members,
+not external dependencies; test and script visibility remain separate. Conflicting
+sources report recoverable problems rather than letting a member or target table
+silently overwrite a shared declaration. Local/Git declarations keep precedence
+over registry requirements. Discovery compares normalized local paths; pinned
+cjpm can instead reject equivalent relative member and absolute inherited paths
+when merging declarations. Use one absolute path in both manifests to avoid that
+SDK discrepancy. Mode-specific sections remain #517.
 
 Membership is explicit in the model. Loose-file loading has a byte budget and
 prioritizes open documents; a partial result records that fact so the server does
@@ -117,6 +127,12 @@ An editor's explicit option precedes environment, SDK-manager defaults and PATH
 discovery. PATH symlinks must resolve to a real SDK layout: finding a compiler
 launcher alone is insufficient. The selected home/source overlays are passed to
 project loading so `${CANGJIE_HOME}` and std agree with that selection.
+The editor's `cangjieStdxPath` overrides `CANGJIE_STDX_PATH` for project path
+expansion; otherwise the process environment is preserved. stdx is loaded only
+when declared in the manifest (for example, `path-option = ["${CANGJIE_STDX_PATH}"]`
+in the target's `bin-dependencies`). No SDK-relative stdx path is assumed.
+Changing this setting reloads projects. Missing variables are reported by path
+expansion. Macro builds use the resulting binary paths from the analysis model.
 Missing std sources reduce navigation, not binary analysis. Runtime discovery is
 distinct from the build shell's [pinned SDK setup](../../docs/development.md#select-the-pinned-sdk).
 

@@ -3,8 +3,9 @@ package cjsyntax
 import ginkgo.TokenSet
 import ginkgo.parsing.*
 
-let PATTERN_RECOVERY =
-    TokenSet<SyntaxKind>([Comma, RParen, Pipe, FatArrow, WhereKw, InKw, LArrow, Eq, Colon, RBrace])
+let PATTERN_RECOVERY = TokenSet<SyntaxKind>(
+    [Comma, RParen, Pipe, FatArrow, WhereKw, InKw, LArrow, Eq, Colon, RBrace]
+)
 
 func pattern(p: P): Unit {
     match (p.current()) {

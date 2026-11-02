@@ -62,15 +62,14 @@ func groupCompletionOverloads(items: Array<CompletionItem>): Array<CompletionIte
         if (let Some(key) <- completionOverloadKey(item) && let Some(group) <- groups.get(key) &&
             group.size > 1) {
             if (emitted.add(key)) {
-                result
-                    .add(
-                        CompletionItem(
-                            item.label,
-                            item.kind,
-                            item.relevance,
-                            OverloadSource(group.toArray())
-                        )
+                result.add(
+                    CompletionItem(
+                        item.label,
+                        item.kind,
+                        item.relevance,
+                        OverloadSource(group.toArray())
                     )
+                )
             }
         } else {
             result.add(item)

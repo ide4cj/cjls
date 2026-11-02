@@ -121,20 +121,19 @@ func headersOf(text: String): Array<String> {
 
 func addHeaders(node: SyntaxNode<SyntaxKind>, found: ArrayList<String>): Unit {
     for (child in node.children() where Decl.cast(child).isSome()) {
-        let body =
-            child
-                .children()
-                .filter {
-                    one =>
-                    match (one.kind) {
-                        case SyntaxKind.DeclBody |
-                            SyntaxKind.EnumBody |
-                            SyntaxKind.Block |
-                            SyntaxKind.PropBody => true
-                        case _ => false
-                    }
+        let body = child
+            .children()
+            .filter {
+                one =>
+                match (one.kind) {
+                    case SyntaxKind.DeclBody |
+                        SyntaxKind.EnumBody |
+                        SyntaxKind.Block |
+                        SyntaxKind.PropBody => true
+                    case _ => false
                 }
-                .next()
+            }
+            .next()
         let end = (body?.textRange.start ?? child.textRange.end) - child.textRange.start
         found.add(normalized(child.text()[..end]))
         if (
@@ -186,12 +185,10 @@ class StdExpansionDriftTest {
     func whatCjlsDeclaresForStdsMacrosTheSdksStdDeclaresToo() {
         // arrange
         let parsed = Fixture.parse(STD_MACRO_CASES)
-        let db =
-            parsed
-                .database(
-                    binaries: ["std.core", "std.deriving", "std.unittest", "std.unittest.testmacro"]
-                        .map { name => stdCjoRead(name, stdCjo(name)) }
-                )
+        let db = parsed.database(
+            binaries: ["std.core", "std.deriving", "std.unittest", "std.unittest.testmacro"]
+                .map { name => stdCjoRead(name, stdCjo(name)) }
+        )
         let file = db.sourceFile(parsed.file("/main.cj").fileId).getOrThrow()
         let own = ArrayList<(ItemId, String)>()
         for (call in expandedCalls(db, file)) {
@@ -204,16 +201,12 @@ class StdExpansionDriftTest {
 
         // act
         while (!pendingMacroRequests(db, file).isEmpty()) {
-            let requests =
-                sendableRequests(
-                    db,
-                    [file],
-                    HashMap<Package, MacroLibrary>(),
-                    stdLibrary: {
-                        pkg =>
-                        paths.stdMacroLibrary(pkg).map { path => path.toString() }
-                    }
-                )
+            let requests = sendableRequests(
+                db,
+                [file],
+                HashMap<Package, MacroLibrary>(),
+                stdLibrary: { pkg => paths.stdMacroLibrary(pkg).map { path => path.toString() } }
+            )
             setMacroOutputsByKey(db, expandAll(db, requests, testNumbers(), servers))
         }
         servers.close()

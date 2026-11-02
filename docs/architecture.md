@@ -184,7 +184,7 @@ host too. It synchronizes disk inputs before each Python script and defers updat
 throughout execution and result serialization. The script and response identify
 the same workspace revision; retained analysis handles reject later revisions.
 See [MCP lifecycle and freshness](../modules/cjmcp/README.md#python-api) and
-[D158](adr/0158-cjmcp-incremental-session.md).
+[D159](adr/0159-cjmcp-incremental-session.md).
 
 ## Source entry points
 

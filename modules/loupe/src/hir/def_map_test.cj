@@ -73,33 +73,28 @@ func checkDefMap(fixture: String): Unit {
             actual.add(all: defs.map { def => annotationOn(db, def.id, name, "${def.visibility}") })
         }
         for ((name, defs) in map.ctors) {
-            actual
-                .add(
-                    all: defs
-                        .map { def => annotationOn(db, def.id, name, "ctor ${def.visibility}") }
-                )
+            actual.add(
+                all: defs.map { def => annotationOn(db, def.id, name, "ctor ${def.visibility}") }
+            )
         }
         for ((name, defs) in map.commons) {
-            actual
-                .add(
-                    all: defs
-                        .map { def => annotationOn(db, def.id, name, "common ${def.visibility}") }
-                )
-        }
-        actual
-            .add(
-                all: map
-                    .errors
-                    .map {
-                        error =>
-                        annotationOn(
-                            db,
-                            error.def,
-                            error.name,
-                            "error: redefinition of '${error.name}'"
-                        )
-                    }
+            actual.add(
+                all: defs.map { def => annotationOn(db, def.id, name, "common ${def.visibility}") }
             )
+        }
+        actual.add(
+            all: map
+                .errors
+                .map {
+                    error =>
+                    annotationOn(
+                        db,
+                        error.def,
+                        error.name,
+                        "error: redefinition of '${error.name}'"
+                    )
+                }
+        )
     }
     expectAnnotations(fixture, actual.toArray())
 }
@@ -112,8 +107,12 @@ func checkLookUp(fixture: String): Unit {
     let parsed = Fixture.parse(fixture)
     let db = parsed.database()
     let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
-    let file =
-        parsed.files.iterator().filter { file => file.fileId == cursor.fileId }.next().getOrThrow()
+    let file = parsed
+        .files
+        .iterator()
+        .filter { file => file.fileId == cursor.fileId }
+        .next()
+        .getOrThrow()
     let source = db.sourceFile(file.fileId).getOrThrow()
     var name: ?String = None
     for (element in parse(db, source).syntaxNode().descendantsWithTokens()) {
@@ -366,11 +365,10 @@ class DefMapTest {
         let runs = defMapReaderRuns.load()
 
         // act
-        db
-            .setFileText(
-                parsed.files[0].fileId,
-                Rope("func f() {\n    let x = 1 + 2\n    x\n}\nclass C {}\n")
-            )
+        db.setFileText(
+            parsed.files[0].fileId,
+            Rope("func f() {\n    let x = 1 + 2\n    x\n}\nclass C {}\n")
+        )
         let again = defMapNames(db, pkg)
 
         // assert

@@ -176,13 +176,12 @@ class Workspace {
 
     private func position(path: String, offset: Int64): (WorkspaceState, FileId) {
         let (view, file) = resolve(path)
-        let text =
-            view
-                .vfs
-                .fileContents(file)
-                .getOrThrow { IllegalStateException("loaded file has no contents") }
-                .toString()
-                .toArray()
+        let text = view
+            .vfs
+            .fileContents(file)
+            .getOrThrow { IllegalStateException("loaded file has no contents") }
+            .toString()
+            .toArray()
         if (
             offset < 0 || offset > text.size ||
                 (offset < text.size && (text[offset] & 0xC0) == 0x80)
@@ -248,24 +247,22 @@ class PythonSession {
                         ("HoverItem", HoverItem.pyClass()),
                         ("Location", PythonLocation.pyClass()),
                         ("AnalysisRevision", AnalysisRevision.pyClass())
-                    ]
-                        .concat(analysisTypes())
+                    ].concat(analysisTypes())
                 )
             runner = Python.eval("__cjmcp_run")
         }
         let callable =
             runner.getOrThrow { IllegalStateException("Python runner was not initialized") }
-        let arguments =
-            PyTuple(
-                [
-                    PyString(code),
-                    workspaceProxy
-                        .getOrThrow {
-                            IllegalStateException("Python workspace proxy was not initialized")
-                        },
-                    types.getOrThrow { IllegalStateException("Python types were not initialized") }
-                ]
-            )
+        let arguments = PyTuple(
+            [
+                PyString(code),
+                workspaceProxy
+                    .getOrThrow {
+                        IllegalStateException("Python workspace proxy was not initialized")
+                    },
+                types.getOrThrow { IllegalStateException("Python types were not initialized") }
+            ]
+        )
         let gil =
             unsafe {
                 PyGILState_Ensure()

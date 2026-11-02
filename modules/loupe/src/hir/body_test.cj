@@ -55,9 +55,8 @@ class BodyTest {
     @TestCase
     func everyExpressionOfTheLanguageIsLowered() {
         // arrange
-        let (db, _, f) =
-            declOf(
-                #"
+        let (db, _, f) = declOf(
+            #"
             package m
             enum E { A(Int64) | B }
             class R {}
@@ -90,8 +89,8 @@ class BodyTest {
                 return
             }
             "#,
-                "f"
-            )
+            "f"
+        )
         // act
         let lowered = body(db, f)
         // assert
@@ -104,9 +103,8 @@ class BodyTest {
     @TestCase
     func anOptionalChainIsLoweredIntoAMatchOfEachQuestionMark() {
         // arrange
-        let (db, _, f) =
-            declOf(
-                #"
+        let (db, _, f) = declOf(
+            #"
             package m
             class C {
                 var b: ?C = None
@@ -116,8 +114,8 @@ class BodyTest {
                 a?.b?.c
             }
             "#,
-                "f"
-            )
+            "f"
+        )
         // act
         let lowered = bodyWithSourceMap(db, f)
         // assert: `match (a) { case Some($v) => match ($v.b) { case Some($v) => Some($v.c) case None => None }
@@ -149,26 +147,23 @@ class BodyTest {
         @Expect(lowered.sourceMap.locals[1], BodyOrigin.SyntheticSource)
         @Expect(lowered.sourceMap.locals.get(hir.locals.size), None<BodyOrigin>)
         // the chain's node is found as written, `$v.c`, not as the `match`es it is desugared into
-        let written =
-            lowered
-                .sourceMap
-                .exprAtSource(lowered.sourceMap.exprs[outer].written.getOrThrow())
-                .getOrThrow()
+        let written = lowered
+            .sourceMap
+            .exprAtSource(lowered.sourceMap.exprs[outer].written.getOrThrow())
+            .getOrThrow()
         @Expect(if (let FieldExpr(_, "c", _) <- hir[written]) { true } else { false })
     }
 
     @TestCase
     func aCommentInTheBodyLeavesItEqualAndWhatReadItAlone() {
         // arrange
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             package m
             func f(x: Int64): Int64 { x + 1 }
             func g(): Int64 { 2 }
             "#
-                )
+        )
         let db = parsed.database()
         let fileId = parsed.files[0].fileId
         let source = db.sourceFile(fileId).getOrThrow()
@@ -176,13 +171,12 @@ class BodyTest {
         exprCount(db, f)
         let before = bodyReaderRuns.load()
         // act
-        db
-            .setFileText(
-                fileId,
-                Rope(
-                    "package m\n\nfunc f(x: Int64): Int64 {\n    // one more\n    x + 1\n}\nfunc g(): Int64 { 3 }\n"
-                )
+        db.setFileText(
+            fileId,
+            Rope(
+                "package m\n\nfunc f(x: Int64): Int64 {\n    // one more\n    x + 1\n}\nfunc g(): Int64 { 3 }\n"
             )
+        )
         exprCount(db, f)
         // assert
         @Expect(bodyReaderRuns.load(), before)
@@ -191,14 +185,12 @@ class BodyTest {
     @TestCase
     func anEditOfTheBodyRunsAgainWhatReadIt() {
         // arrange
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             package m
             func f(x: Int64): Int64 { x }
             "#
-                )
+        )
         let db = parsed.database()
         let fileId = parsed.files[0].fileId
         let source = db.sourceFile(fileId).getOrThrow()
@@ -215,9 +207,8 @@ class BodyTest {
     @TestCase
     func aLetOpensAScopeForWhatFollowsIt() {
         // arrange
-        let (db, _, f) =
-            declOf(
-                #"
+        let (db, _, f) = declOf(
+            #"
             package m
             func f(): Int64 {
                 let x = 1
@@ -225,8 +216,8 @@ class BodyTest {
                 y
             }
             "#,
-                "f"
-            )
+            "f"
+        )
         let scopes = exprScopes(db, f)
         let lowered = body(db, f)
         // act
@@ -243,21 +234,24 @@ class BodyTest {
     func aMemberOfAClassOfStdIsFoundThroughItsSupertypes() {
         // N69: `message` is `Exception`'s, which `IllegalArgumentException` inherits from
         // arrange
-        let (db, _, x) =
-            declOf(
-                #"
+        let (db, _, x) = declOf(
+            #"
             package m
             class X <: IllegalArgumentException {
                 func f(): String { message }
             }
             "#,
-                "X",
-                binaries: [stdCjoRead("std.core", stdCjo("std.core"))]
-            )
+            "X",
+            binaries: [stdCjoRead("std.core", stdCjo("std.core"))]
+        )
         let f = DefId(db, x.file(db), named(itemOf(db, x).getOrThrow().members, "f").id)
         // act
-        let resolution =
-            resolveBodyName(db, f, exprScopes(db, f).scopeOf(useOf(db, f, "message")), "message")
+        let resolution = resolveBodyName(
+            db,
+            f,
+            exprScopes(db, f).scopeOf(useOf(db, f, "message")),
+            "message"
+        )
         // assert
         let targets =
             match (resolution) {

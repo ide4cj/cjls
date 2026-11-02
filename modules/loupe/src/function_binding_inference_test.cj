@@ -11,16 +11,14 @@ class FunctionBindingInferenceTest {
     @TestCase
     func addingTheCAnnotationInvalidatesTheCallbackType() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             func callback(x: Int32): Int32 { x }
             func test(): Unit {
                 let f: CFunc<(Int32) -> Int32> = callback
             }
             "#
-                )
+        )
         let db = deriveDatabase(fixture)
         let file = fixture.files[0]
         @Expect(diagnostics(db, file.fileId).size, 1)
@@ -113,16 +111,13 @@ class FunctionBindingInferenceTest {
     func aServedBindingKeepsItsCAnnotatedCallbackType() {
         // arrange
         let macros = trimIndent(EXPANSION_MACROS)
-        let fixture =
-            Fixture
-                .parse(
-                    "//- /main.cj module=m package=m\npackage m\nimport m.ms.A\n@A struct Bound {}\n${macros}"
-                )
+        let fixture = Fixture.parse(
+            "//- /main.cj module=m package=m\npackage m\nimport m.ms.A\n@A struct Bound {}\n${macros}"
+        )
         let db = deriveDatabase(fixture)
         let file = db.sourceFile(fixture.file("/main.cj").fileId).getOrThrow()
-        let output =
-            trimIndent(
-                #"
+        let output = trimIndent(
+            #"
             struct Bound {}
             @C
             func initialize(value: Int32): Int32 { value }
@@ -131,7 +126,7 @@ class FunctionBindingInferenceTest {
                 static func initializeClass(): Unit { setInit(initialize) }
             }
             "#
-            )
+        )
         answer(db, file, "A", output, [])
 
         // act

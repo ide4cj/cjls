@@ -273,7 +273,7 @@ public struct ArgTarget <: ByIndex & Equatable<ArgTarget> {
 /**
  * What inference finds in a body (D55), rust-analyzer's `InferenceResult`: the type of each of its
  * expressions, patterns and locals, by id; the members found after the `.` of a value; the
- * overload each call of several takes. A type not found is an error, or one the analysis cannot
+ * declaration each resolved call takes. A type not found is an error, or one the analysis cannot
  * find, and why (D77).
  */
 @DerivePython
@@ -349,8 +349,9 @@ public struct InferenceResult <: Equatable<InferenceResult> {
     }
 
     /**
-     * The declaration chosen for the call whose callee is `expr`: an overload, an enum constructor,
-     * or the initializer `this(...)` or `super(...)` calls; the operator function `expr` calls (8e).
+     * The declaration selected for a call whose callee is `expr`, including unambiguous functions
+     * and enum constructors; also the operator function `expr` invokes (8e). Type calls expose
+     * their explicit initializer via `initializerOf`; `this(...)` and `super(...)` expose it here.
      */
     public func calleeOf(expr: ExprId): ?DefId {
         findByIndex(callees, expr.index)
@@ -369,6 +370,7 @@ public struct InferenceResult <: Equatable<InferenceResult> {
     /**
      * What `calleeOf` names, and the `[]` taking a value the assignment `a[i] op= v` or `a[i]++`
      * calls, after its operator (#245), as Kotlin's K2 resolves `+=`.
+     * For a `CallExpr`, pass its callee's ID, not the call expression's ID.
      */
     public func calleesOf(expr: ExprId): Array<DefId> {
         let setter =
@@ -748,12 +750,16 @@ class Inference {
             }
         let propTy = sig.ty ?? error
         for (accessor in hir.accessors) {
-            // a getter returns the property's type, a setter takes it (N105)
-            let expected =
+            let params =
                 match (hir[accessor]) {
-                    case LambdaExpr(params, _) where params.isEmpty() => FuncTy([], propTy, false)
-                    case _ => FuncTy([propTy], prim("Unit"), false)
+                    case LambdaExpr(params, _) => params
+                    case _ => continue
                 }
+            let getter = hir.getters.contains(accessor)
+            // Declaration validation owns arity errors. Keep the body context even for malformed accessors.
+            let paramTys =
+                Array(params.size) { i => if (!getter && i == 0) { propTy } else { error } }
+            let expected = FuncTy(paramTys, if (getter) { propTy } else { prim("Unit") }, false)
             infer(accessor, Ty(db, expected))
         }
         for (attr in hir.attrs) {
@@ -2252,8 +2258,15 @@ class Inference {
         second!: Bool = false
     ): (Ty, ?Callable) {
         let args = indices.map { one => CallArg(None, one) }.concat([CallArg(None, value)])
-        let (ty, chosen) =
-            operatorCall(call, baseTy, "[]", args, None, setter: true, second: second)
+        let (ty, chosen) = operatorCall(
+            call,
+            baseTy,
+            "[]",
+            args,
+            None,
+            setter: true,
+            second: second
+        )
         if (
             chosen.isNone() && !hasUnknowns(db, baseTy) && !hasInferVars(db, baseTy) &&
                 !isMacroTyped(baseTy) &&
@@ -3139,33 +3152,20 @@ class Inference {
         expected: ?Ty,
         call!: ?ExprId = None
     ): Ty {
-        let all =
-            byLambdas(
-                overriding(callablesOf(callee, expected, arity: args.size, callArgs: args)),
-                args
-            )
+        let all = byLambdas(
+            overriding(callablesOf(callee, expected, arity: args.size, callArgs: args)),
+            args
+        )
         // Calls through a returned value retain conservative diagnostics for unsupported call shapes.
         let isOfCall =
             match (hir[callee]) {
                 case CallExpr(_, _) => !all.iterator().any { one => one.applied.isSome() }
                 case _ => false
             }
-        let isDelegation =
-            match (hir[callee]) {
-                case ThisExpr | SuperExpr => true
-                case _ => false
-            }
         match (choose(callee, all, args, expected)) {
             case Chose(callable, matched) =>
                 if (let Some(decl) <- callable.decl) {
-                    let kind = decl.item(db).kind
-                    if (
-                        all.size > 1 || isEnumCtor(callable) || isDelegation ||
-                            kind == ItemKind.Init ||
-                            kind == ItemKind.PrimaryInit
-                    ) {
-                        setCallee(callee, decl)
-                    }
+                    setCallee(callee, decl)
                 }
                 if (isOfCall) {
                     quiet++
@@ -3196,8 +3196,9 @@ class Inference {
                 let seenArgs = HashSet<Int64>(args.map { arg => arg.expr.index })
                 for (one in all) {
                     for (
-                        arg in applicationArgs(applicationsOf(one), args) where seenArgs
-                            .add(arg.expr.index)
+                        arg in applicationArgs(applicationsOf(one), args) where seenArgs.add(
+                            arg.expr.index
+                        )
                     ) {
                         failedArgs.add(arg)
                     }
@@ -3591,11 +3592,10 @@ class Inference {
             return
         }
         let size = callable.params.size
-        let defaulted =
-            (0..size)
-                .iterator()
-                .filter { j => callable.nameAt(j).isSome() && callable.hasDefault(j) }
-                .count()
+        let defaulted = (0..size)
+            .iterator()
+            .filter { j => callable.nameAt(j).isSome() && callable.hasDefault(j) }
+            .count()
         let isVariadic = isPossibleVariadic(callable, args)
         let failure =
             if (isVariadic || args.size >= size - defaulted && args.size <= size) {
@@ -3853,7 +3853,10 @@ class Inference {
      * Checks the argument `expr` against `expected`; while a candidate is tried, one known before
      * is compared, not inferred again.
      */
-    private func checkArg(expr: ExprId, expected: ?Ty): Ty {
+    private func checkArg(expr: ExprId, expected: ?Ty, asFunction!: Bool = false): Ty {
+        if (asFunction) {
+            return compositionArgTy(expr, expected)
+        }
         if (trying > 0 && let Some(ty) <- known.get(expr.index)) {
             if (let Some(one) <- expected && !fits(ty, one)) {
                 mismatches++
@@ -4103,6 +4106,11 @@ class Inference {
         outerArgs: Array<CallArg>,
         expected: ?Ty
     ): Ty {
+        let asFunctions =
+            match (hir[callee]) {
+                case BinaryExpr("~>", _, _) => true
+                case _ => false
+            }
         let base = nextVar
         let count = genericsOf(db, owner).size
         nextVar += count
@@ -4141,11 +4149,11 @@ class Inference {
                     } else if (isUntypedLambda(expr)) {
                         waiting.add(i)
                     } else {
-                        let ty = checkArg(expr, None)
+                        let ty = checkArg(expr, None, asFunction: asFunctions)
                         if (hasUnknowns(db, ty)) { waiting.add(i) } else { synthesized[i] = ty }
                     }
-                case Some(target) => checkArg(expr, target)
-                case None => checkArg(expr, None)
+                case Some(target) => checkArg(expr, target, asFunction: asFunctions)
+                case None => checkArg(expr, None, asFunction: asFunctions)
             }
         }
         let solve =
@@ -4175,7 +4183,12 @@ class Inference {
                 if (!isKnownEnough(target)) {
                     continue
                 }
-                let ty = infer(args[i].expr, target)
+                let ty =
+                    if (asFunctions) {
+                        compositionArgTy(args[i].expr, target)
+                    } else {
+                        infer(args[i].expr, target)
+                    }
                 if (isUntypedLambda(args[i].expr) || !hasUnknowns(db, ty)) {
                     synthesized[i] = ty
                     waiting.removeIf { one => one == i }
@@ -4197,7 +4210,7 @@ class Inference {
             let overloaded =
                 waiting
                     .toArray()
-                    .map { i => (i, overloadsOf(args[i].expr)) }
+                    .map { i => (i, overloadsOf(args[i].expr, asFunction: asFunctions)) }
                     .filter { one => !one[1].isEmpty() }
             let solutions = combinationSolutions(overloaded, synthesized, solve)
             if (solutions.size == 1) {
@@ -4228,7 +4241,11 @@ class Inference {
                     case _ => false
                 }
             if (ideal[i].isSome() || waiting.contains(i) || isLambda) {
-                infer(args[i].expr, final(target))
+                if (asFunctions) {
+                    compositionArgTy(args[i].expr, final(target))
+                } else {
+                    infer(args[i].expr, final(target))
+                }
             } else if (let Some(ty) <- synthesized[i] && !fits(ty, final(target))) {
                 mismatch(args[i].expr, final(target), ty)
             }
@@ -4246,10 +4263,39 @@ class Inference {
     }
 
     /**
-     * The functions `id` names, if it is a path to several, those that are not generic: what cjc's
-     * `GetArgTyPossibilities` tries for an argument; none otherwise.
+     * A composition operand passed as a function through its call operator. Keep the expression's
+     * own type: the function type constrains `composition`, while hover still describes the value.
      */
-    private func overloadsOf(id: ExprId): Array<Callable> {
+    private func compositionArgTy(id: ExprId, expected: ?Ty): Ty {
+        let ty = checkArg(id, None)
+        if (let FuncTy(_, _, _) <- ty.kind(db)) {
+            return checkArg(id, expected)
+        }
+        let all = valueCallables(ty)
+        if (all.isEmpty()) {
+            return checkArg(id, expected)
+        }
+        if (all.size == 1 && all[0].open.isNone()) {
+            return all[0].ty(db)
+        }
+        match (expected.map { one => one.kind(db) }) {
+            case Some(FuncTy(params, _, _)) => overloadOfParams(id, all, params)
+            case _ => error
+        }
+    }
+
+    /**
+     * The functions `id` names, if it is a path to several, those that are not generic: what cjc's
+     * `GetArgTyPossibilities` tries for an argument. A composition also tries the call operators
+     * of a value.
+     */
+    private func overloadsOf(id: ExprId, asFunction!: Bool = false): Array<Callable> {
+        if (asFunction && let Some(ty) <- inferredTyOf(id)) {
+            let operators = valueCallables(ty)
+            if (operators.size > 1) {
+                return operators.filter { one => one.open.isNone() }
+            }
+        }
         match (hir[id]) {
             case PathExpr(_, typeArgs) where typeArgs.isEmpty() => ()
             case _ => return []
@@ -4420,40 +4466,31 @@ class Inference {
                             match (target) {
                                 case LocalOf(local) =>
                                     let level = localLevel(callee, local)
-                                    found
-                                        .add(
-                                            all: localCallables(local, explicit: explicit)
-                                                .map { one => one.at(level) }
-                                        )
+                                    found.add(
+                                        all: localCallables(local, explicit: explicit)
+                                            .map { one => one.at(level) }
+                                    )
                                 case MemberOf(MemberDecl(ctor)) where ctor.item(db).kind ==
                                         ItemKind.EnumCtor =>
-                                    found
-                                        .add(
-                                            all: declCallables(ctor, explicit, expected)
-                                                .map { one => one.at(MEMBER_LEVEL) }
-                                        )
+                                    found.add(
+                                        all: declCallables(ctor, explicit, expected)
+                                            .map { one => one.at(MEMBER_LEVEL) }
+                                    )
                                 case MemberOf(member) =>
-                                    found
-                                        .add(
-                                            all: memberCallables(
-                                                member,
-                                                thisTy(),
-                                                explicit,
-                                                expected
-                                            )
-                                                .map { one => one.at(MEMBER_LEVEL) }
-                                        )
+                                    found.add(
+                                        all: memberCallables(member, thisTy(), explicit, expected)
+                                            .map { one => one.at(MEMBER_LEVEL) }
+                                    )
                                 case DeclOf(id) =>
-                                    found
-                                        .add(
-                                            all: declCallables(
-                                                id,
-                                                explicit,
-                                                expected,
-                                                callArgs: callArgs
-                                            )
-                                                .map { one => one.at(fileLevel(id)) }
+                                    found.add(
+                                        all: declCallables(
+                                            id,
+                                            explicit,
+                                            expected,
+                                            callArgs: callArgs
                                         )
+                                            .map { one => one.at(fileLevel(id)) }
+                                    )
                                 case TypeParamOf(_) => ()
                             }
                         }
@@ -4461,11 +4498,10 @@ class Inference {
                     case InFile(Found(ids)) =>
                         let found = ArrayList<Callable>()
                         for (id in ids) {
-                            found
-                                .add(
-                                    all: declCallables(id, explicit, expected, callArgs: callArgs)
-                                        .map { one => one.at(fileLevel(id)) }
-                                )
+                            found.add(
+                                all: declCallables(id, explicit, expected, callArgs: callArgs)
+                                    .map { one => one.at(fileLevel(id)) }
+                            )
                         }
                         found.toArray()
                     case InFile(Ctors(own, imported)) =>
@@ -4482,11 +4518,10 @@ class Inference {
                     case _ => []
                 }
             case CallExpr(inner, args) =>
-                let all =
-                    byLambdas(
-                        overriding(callablesOf(inner, None, arity: args.size, callArgs: args)),
-                        args
-                    )
+                let all = byLambdas(
+                    overriding(callablesOf(inner, None, arity: args.size, callArgs: args)),
+                    args
+                )
                 let pending = ArrayList<Callable>()
                 for (one in all) {
                     if (let FuncTy(params, ret, isC) <- one.ret.kind(db)) {
@@ -4505,18 +4540,17 @@ class Inference {
                             matches.add(found)
                         }
                         for (matched in matches) {
-                            pending
-                                .add(
-                                    Callable(
-                                        params,
-                                        ret,
-                                        open: one.open,
-                                        level: one.level,
-                                        isValue: true,
-                                        isC: isC,
-                                        applied: AppliedCall(callee, inner, one, matched, args)
-                                    )
+                            pending.add(
+                                Callable(
+                                    params,
+                                    ret,
+                                    open: one.open,
+                                    level: one.level,
+                                    isValue: true,
+                                    isC: isC,
+                                    applied: AppliedCall(callee, inner, one, matched, args)
                                 )
+                            )
                         }
                     }
                 }

@@ -362,10 +362,8 @@ class ReferencesSearchTest {
     @TestCase
     func aFileNamingTheNameOnlyInsideALongerWordIsNotParsed() {
         // arrange - `b.cj` has `foo` in `fooBar` and in `food`, never as a word of its own
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             //- /a.cj module=m package=m
             package m
             public func f$0oo(): Int64 { 1 }
@@ -373,7 +371,7 @@ class ReferencesSearchTest {
             package m
             public func fooBar(): Int64 { 2 } // food
             "#
-                )
+        )
         let db = parsed.database()
         let a = parsed.file("/a.cj").fileId
         parse(db, db.sourceFile(a).getOrThrow())
@@ -390,10 +388,8 @@ class ReferencesSearchTest {
     @TestCase
     func anEditMakesTheWordsOfTheEditedFileAgainAndNoOthers() {
         // arrange
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             //- /a.cj module=m package=m
             package m
             public func f$0oo(): Int64 { 1 }
@@ -404,7 +400,7 @@ class ReferencesSearchTest {
             package m
             func h(): Int64 { 3 }
             "#
-                )
+        )
         let db = parsed.database()
         let a = parsed.file("/a.cj").fileId
         let offset = parsed.cursor.getOrThrow().offset

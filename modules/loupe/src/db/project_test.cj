@@ -178,37 +178,35 @@ class ProjectTest {
     @TestCase
     func projectsMergedAreOneModulePerRootAndNameAndOnePackagePerName() {
         // arrange
-        let first =
-            ProjectModel(
-                Cfg([("os", "Linux")]),
-                [ModuleModel("a", at("one"), [PackageModel("a", at("one"), [at("one/x.cj")])])],
-                binaries: [BinaryModel("stdx", [at("stdx1")])]
-            )
-        let second =
-            ProjectModel(
-                Cfg([("os", "Windows")]),
-                [
-                    ModuleModel(
-                        "a",
-                        at("one"),
-                        [
-                            PackageModel("a", at("one"), [at("one/y.cj")]),
-                            PackageModel("a.b", at("one/b"), [])
-                        ]
-                    ),
-                    ModuleModel(
-                        "default",
-                        at("one"),
-                        [PackageModel("default", at("one"), [at("one/build.cj")])]
-                    ),
-                    ModuleModel(
-                        "default",
-                        at("two"),
-                        [PackageModel("default", at("two"), [at("two/build.cj")])]
-                    )
-                ],
-                binaries: [BinaryModel("stdx", [at("stdx2")])]
-            )
+        let first = ProjectModel(
+            Cfg([("os", "Linux")]),
+            [ModuleModel("a", at("one"), [PackageModel("a", at("one"), [at("one/x.cj")])])],
+            binaries: [BinaryModel("stdx", [at("stdx1")])]
+        )
+        let second = ProjectModel(
+            Cfg([("os", "Windows")]),
+            [
+                ModuleModel(
+                    "a",
+                    at("one"),
+                    [
+                        PackageModel("a", at("one"), [at("one/y.cj")]),
+                        PackageModel("a.b", at("one/b"), [])
+                    ]
+                ),
+                ModuleModel(
+                    "default",
+                    at("one"),
+                    [PackageModel("default", at("one"), [at("one/build.cj")])]
+                ),
+                ModuleModel(
+                    "default",
+                    at("two"),
+                    [PackageModel("default", at("two"), [at("two/build.cj")])]
+                )
+            ],
+            binaries: [BinaryModel("stdx", [at("stdx2")])]
+        )
 
         // act
         let merged = ProjectModel.merge([first, second], Cfg([]))
@@ -234,11 +232,10 @@ class ProjectTest {
             }
 
         // act
-        db
-            .setProject(
-                ProjectModel(Cfg([]), [module("a", "one"), module("b", "one"), module("b", "two")]),
-                paths
-            )
+        db.setProject(
+            ProjectModel(Cfg([]), [module("a", "one"), module("b", "one"), module("b", "two")]),
+            paths
+        )
 
         // assert
         let modules = db.project().getOrThrow().modules(db)
@@ -254,24 +251,22 @@ class ProjectTest {
         // arrange
         let db = AnalysisDatabase()
         let paths = PathInterner()
-        let sources =
-            BinarySources(
-                at("src/std"),
-                [
-                    PackageModel("std", at("src/std"), [at("src/std/std.cj")]),
-                    PackageModel(
-                        "std.collection",
-                        at("src/std/collection"),
-                        [at("src/std/collection/array_list.cj")]
-                    )
-                ]
-            )
-        let model =
-            ProjectModel(
-                Cfg([]),
-                appProject().modules,
-                binaries: [BinaryModel("std", [at("std")], sources: sources)]
-            )
+        let sources = BinarySources(
+            at("src/std"),
+            [
+                PackageModel("std", at("src/std"), [at("src/std/std.cj")]),
+                PackageModel(
+                    "std.collection",
+                    at("src/std/collection"),
+                    [at("src/std/collection/array_list.cj")]
+                )
+            ]
+        )
+        let model = ProjectModel(
+            Cfg([]),
+            appProject().modules,
+            binaries: [BinaryModel("std", [at("std")], sources: sources)]
+        )
 
         // act
         db.setProject(model, paths)
@@ -292,20 +287,18 @@ class ProjectTest {
         // arrange
         let db = AnalysisDatabase()
         let paths = PathInterner()
-        let sources =
-            BinarySources(
-                at("src/std"),
-                [PackageModel("std", at("src/std"), [at("src/std/std.cj")])]
-            )
-        db
-            .setProject(
-                ProjectModel(
-                    Cfg([]),
-                    [],
-                    binaries: [BinaryModel("std", [at("std")], sources: sources)]
-                ),
-                paths
-            )
+        let sources = BinarySources(
+            at("src/std"),
+            [PackageModel("std", at("src/std"), [at("src/std/std.cj")])]
+        )
+        db.setProject(
+            ProjectModel(
+                Cfg([]),
+                [],
+                binaries: [BinaryModel("std", [at("std")], sources: sources)]
+            ),
+            paths
+        )
 
         // act
         db.setProject(ProjectModel(Cfg([]), [], binaries: [BinaryModel("std", [at("std")])]), paths)
@@ -333,18 +326,17 @@ class ProjectTest {
     @TestCase
     func aNewFileInADirectoryOfNoPackageIsNamedAfterTheDirectoriesUnderItsModule() {
         // arrange
-        let model =
-            ProjectModel(
-                Cfg([]),
-                [
-                    ModuleModel(
-                        "app",
-                        at("app/src"),
-                        [PackageModel("app.util", at("app/src/util"), [at("app/src/util/u.cj")])]
-                    ),
-                    ModuleModel("org::lib", at("lib/src"), [])
-                ]
-            )
+        let model = ProjectModel(
+            Cfg([]),
+            [
+                ModuleModel(
+                    "app",
+                    at("app/src"),
+                    [PackageModel("app.util", at("app/src/util"), [at("app/src/util/u.cj")])]
+                ),
+                ModuleModel("org::lib", at("lib/src"), [])
+            ]
+        )
 
         // act
         let named =
@@ -361,14 +353,10 @@ class ProjectTest {
     @TestCase
     func aNewFileIsInTheNearestModuleAroundIt() {
         // arrange
-        let model =
-            ProjectModel(
-                Cfg([]),
-                [
-                    ModuleModel("outer", at("w/src"), []),
-                    ModuleModel("inner", at("w/src/inner/src"), [])
-                ]
-            )
+        let model = ProjectModel(
+            Cfg([]),
+            [ModuleModel("outer", at("w/src"), []), ModuleModel("inner", at("w/src/inner/src"), [])]
+        )
 
         // act
         let named = model.packageOfNewFile(at("w/src/inner/src/x/new.cj"))
@@ -380,17 +368,10 @@ class ProjectTest {
     @TestCase
     func aModuleNamingItsPackagesOtherwiseThanByDirectoryNamesNoNewOne() {
         // arrange: loose files, the package `app` in `w/one`
-        let model =
-            ProjectModel(
-                Cfg([]),
-                [
-                    ModuleModel(
-                        "app",
-                        at("w"),
-                        [PackageModel("app", at("w/one"), [at("w/one/a.cj")])]
-                    )
-                ]
-            )
+        let model = ProjectModel(
+            Cfg([]),
+            [ModuleModel("app", at("w"), [PackageModel("app", at("w/one"), [at("w/one/a.cj")])])]
+        )
 
         // act
         let named =
@@ -403,22 +384,21 @@ class ProjectTest {
     @TestCase
     func aNewFileOfTheDefaultPackageOrOfADirectoryNotAnIdentifierOrOfNoModuleHasNoPackageLine() {
         // arrange: a build script beside `src`
-        let model =
-            ProjectModel(
-                Cfg([]),
-                [
-                    ModuleModel(
-                        "app",
-                        at("app/src"),
-                        [PackageModel("app", at("app/src"), [at("app/src/a.cj")])]
-                    ),
-                    ModuleModel(
-                        "default",
-                        at("app"),
-                        [PackageModel("default", at("app"), [at("app/build.cj")])]
-                    )
-                ]
-            )
+        let model = ProjectModel(
+            Cfg([]),
+            [
+                ModuleModel(
+                    "app",
+                    at("app/src"),
+                    [PackageModel("app", at("app/src"), [at("app/src/a.cj")])]
+                ),
+                ModuleModel(
+                    "default",
+                    at("app"),
+                    [PackageModel("default", at("app"), [at("app/build.cj")])]
+                )
+            ]
+        )
 
         // act
         let named =

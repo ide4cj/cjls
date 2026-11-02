@@ -16,19 +16,19 @@ struct CjFile {
  */
 func generateCjFiles(cfg: Config, mm: MetaModel): Array<CjFile> {
     let resolver = TypeResolver(mm, cfg)
-    let files =
-        ArrayList<CjFile>(
-            mm
-                .enumerations
-                .filterMap { it => resolveEnum(cfg, it) }
-                .map {
-                    enumIr =>
-                    cjFileOf(cfg, mm, enumIr.ident) { emitter => emitter.emitEnum(enumIr) }
-                }
-        )
+    let files = ArrayList<CjFile>(
+        mm
+            .enumerations
+            .filterMap { it => resolveEnum(cfg, it) }
+            .map {
+                enumIr =>
+                cjFileOf(cfg, mm, enumIr.ident) { emitter => emitter.emitEnum(enumIr) }
+            }
+    )
 
-    let structs =
-        ArrayList<StructIr>(mm.structures.filterMap { it => resolveStruct(cfg, resolver, it) })
+    let structs = ArrayList<StructIr>(
+        mm.structures.filterMap { it => resolveStruct(cfg, resolver, it) }
+    )
     let aliasLines = resolveAliases(cfg, resolver, mm)
     let messages = resolveMessages(resolver, mm)
     // a literal may hold further literals and unions of its own, met only once it is resolved
@@ -38,41 +38,37 @@ func generateCjFiles(cfg: Config, mm: MetaModel): Array<CjFile> {
         resolvedLiterals++
     }
 
-    files
-        .add(
-            all: structs
-                .toArray()
-                .map {
-                    structIr =>
-                    cjFileOf(cfg, mm, structIr.ident) { emitter => emitter.emitStruct(structIr) }
-                }
-        )
-    files
-        .add(
-            all: resolver
-                .unions
-                .map {
-                    unionIr =>
-                    cjFileOf(cfg, mm, unionIr.ident) { emitter => emitter.emitUnion(unionIr) }
-                }
-        )
-    files
-        .add(
-            all: messages
-                .map {
-                    messageIr =>
-                    cjFileOf(cfg, mm, messageIr.ident) { emitter => emitter.emitMessage(messageIr) }
-                }
-        )
+    files.add(
+        all: structs
+            .toArray()
+            .map {
+                structIr =>
+                cjFileOf(cfg, mm, structIr.ident) { emitter => emitter.emitStruct(structIr) }
+            }
+    )
+    files.add(
+        all: resolver
+            .unions
+            .map {
+                unionIr =>
+                cjFileOf(cfg, mm, unionIr.ident) { emitter => emitter.emitUnion(unionIr) }
+            }
+    )
+    files.add(
+        all: messages
+            .map {
+                messageIr =>
+                cjFileOf(cfg, mm, messageIr.ident) { emitter => emitter.emitMessage(messageIr) }
+            }
+    )
     let configuredAliases = cfg.typeMap.aliases()
     if (!configuredAliases.isEmpty() || !aliasLines.isEmpty()) {
-        files
-            .add(
-                cjFileOf(cfg, mm, "aliases") {
-                    emitter =>
-                    emitter.emitAliases(configuredAliases, aliasLines)
-                }
-            )
+        files.add(
+            cjFileOf(cfg, mm, "aliases") {
+                emitter =>
+                emitter.emitAliases(configuredAliases, aliasLines)
+            }
+        )
     }
     files.add(cjFileOf(cfg, mm, "spec") { emitter => emitter.emitSpecDeclarations() })
     checkUniquePaths(files)
@@ -107,12 +103,11 @@ private func cjFileOf(
     let contents =
         emittedBy {
             emitter =>
-            emitter
-                .emitPreamble(
-                    mm.metaData.version,
-                    Token(PACKAGE_IDENTIFIER, cfg.outputPackage),
-                    cfg.imports
-                )
+            emitter.emitPreamble(
+                mm.metaData.version,
+                Token(PACKAGE_IDENTIFIER, cfg.outputPackage),
+                cfg.imports
+            )
             body(emitter)
         }
 

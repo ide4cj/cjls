@@ -81,15 +81,18 @@ private func formatNode(
         from--
     }
     let isLineStart = from == 0 || text[from - 1] == b'\n'
-    let result =
-        Printer(lineBreakIn(text), width: options.lineWidth, indentWidth: options.indentWidth)
-            .print(
-                LayoutBuilder(text, options: options).node(selected, includeLeading: true),
-                indentation: position.indentation,
-                column: if (isLineStart) { 0 } else { position.column },
-                lineIndent: position.lineIndent,
-                reserved: position.reserved
-            )
+    let result = Printer(
+        lineBreakIn(text),
+        width: options.lineWidth,
+        indentWidth: options.indentWidth
+    )
+        .print(
+            LayoutBuilder(text, options: options).node(selected, includeLeading: true),
+            indentation: position.indentation,
+            column: if (isLineStart) { 0 } else { position.column },
+            lineIndent: position.lineIndent,
+            reserved: position.reserved
+        )
     var to = nodeRange.end
     while (to < text.size && (text[to] == b' ' || text[to] == b'\t')) {
         to++

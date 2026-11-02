@@ -159,28 +159,27 @@ let SIMPLE_KIND_NAMES: HashMap<SyntaxKind, String> = HashMap<SyntaxKind, String>
 /**
  * Every kind `macroTokens` sends: an SDK whose `Tokens.inc` lacks one is sent nothing.
  */
-let SENT_KINDS: Array<String> =
-    SIMPLE_KINDS
-        .map { k => k[1] }
-        .concat(
-            [
-                "GT",
-                "GE",
-                "RSHIFT",
-                "RSHIFT_ASSIGN",
-                "QUEST",
-                "COALESCING",
-                "NOT",
-                "NOT_IN",
-                "NL",
-                "STRING_LITERAL",
-                "MULTILINE_STRING",
-                "JSTRING_LITERAL",
-                "MULTILINE_RAW_STRING",
-                "RUNE_LITERAL",
-                "RUNE_BYTE_LITERAL"
-            ]
-        )
+let SENT_KINDS: Array<String> = SIMPLE_KINDS
+    .map { k => k[1] }
+    .concat(
+        [
+            "GT",
+            "GE",
+            "RSHIFT",
+            "RSHIFT_ASSIGN",
+            "QUEST",
+            "COALESCING",
+            "NOT",
+            "NOT_IN",
+            "NL",
+            "STRING_LITERAL",
+            "MULTILINE_STRING",
+            "JSTRING_LITERAL",
+            "MULTILINE_RAW_STRING",
+            "RUNE_LITERAL",
+            "RUNE_BYTE_LITERAL"
+        ]
+    )
 
 /**
  * The tokens cjc's lexer makes of `text`, as a macro is given them: no comment and no whitespace, an `NL` for each
@@ -429,16 +428,15 @@ class MacroTokenWriter {
         valueEnd!: Int64 = end,
         delimiterNum!: UInt32 = 1
     ): Unit {
-        out
-            .add(
-                TokenData(
-                    kind: numbers.numberOf(name),
-                    value: text[valueStart..valueEnd],
-                    begin: position(start),
-                    end: endPosition(start, end),
-                    delimiterNum: delimiterNum
-                )
+        out.add(
+            TokenData(
+                kind: numbers.numberOf(name),
+                value: text[valueStart..valueEnd],
+                begin: position(start),
+                end: endPosition(start, end),
+                delimiterNum: delimiterNum
             )
+        )
     }
 
     /**

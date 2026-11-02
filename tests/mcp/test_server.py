@@ -606,7 +606,13 @@ result = i + 1
             assert isinstance(caller, CallHierarchyEntry) and caller.name == 'caller'
             assert caller.kind == StructureKind.Function()
             assert isinstance(caller.target, NavigationTarget)
+            assert caller.definition is None and leaf.definition is None
             assert caller == CallHierarchyEntry(caller.name, caller.kind, caller.target)
+            assert caller == CallHierarchyEntry(caller.name, caller.kind, caller.target, definition=None)
+            identity = a.declarations('src/caller.cj')[0]
+            identified = CallHierarchyEntry(caller.name, caller.kind, caller.target, definition=identity)
+            assert identified.definition == identity and identified != caller
+            assert identified == CallHierarchyEntry(caller.name, caller.kind, caller.target, definition=identity)
             assert caller != leaf
             assert a.prepareCallHierarchy('src/caller.cj', caller_text.index(b'leaf')) == [leaf]
             outgoing = a.outgoingCalls(caller)

@@ -61,10 +61,9 @@ class FoldingRangesTest {
     @TestCase
     func importsOneUnderTheOtherAreOneFoldABlankLineParts() {
         // act
-        let result =
-            folded(
-                "package p\nimport a.b\nimport c.{\n    d,\n    e\n}\n\nimport f.g\nimport h.i\n"
-            )
+        let result = folded(
+            "package p\nimport a.b\nimport c.{\n    d,\n    e\n}\n\nimport f.g\nimport h.i\n"
+        )
 
         // assert - a list of names folds inside
         @Expect(result, [
@@ -83,10 +82,9 @@ class FoldingRangesTest {
     @TestCase
     func listsLiteralsLambdasAndMatchesFold() {
         // act
-        let result =
-            folded(
-                "main() {\n    f(\n        1\n    )\n    let a = [\n        (1,\n        2)\n    ]\n    match (a) {\n        case _ =>\n            g { x =>\n                x\n            }\n    }\n    \"\"\"\n    s\n    \"\"\"\n}"
-            )
+        let result = folded(
+            "main() {\n    f(\n        1\n    )\n    let a = [\n        (1,\n        2)\n    ]\n    match (a) {\n        case _ =>\n            g { x =>\n                x\n            }\n    }\n    \"\"\"\n    s\n    \"\"\"\n}"
+        )
 
         // assert
         @Expect(result, [

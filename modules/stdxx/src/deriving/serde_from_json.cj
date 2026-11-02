@@ -87,17 +87,16 @@ private func structFromJson(model: StructModel): Tokens {
 
     let (locals, branches) = fieldReaders(model.fields, quote(r))
     let unknown = unknownJsonField(denyUnknownFields: model.denyUnknownFields)
-    let ctorArgs =
-        commaSeparated(
-            model
-                .fields
-                .map {
-                    field =>
-                    let value = fieldValue(field, typeName)
-                    let ident = field.ident
-                    if (field.isNamed) { quote($ident: $value) } else { value }
-                }
-        )
+    let ctorArgs = commaSeparated(
+        model
+            .fields
+            .map {
+                field =>
+                let value = fieldValue(field, typeName)
+                let ident = field.ident
+                if (field.isNamed) { quote($ident: $value) } else { value }
+            }
+    )
 
     quote(
         $tagLocal
@@ -192,8 +191,10 @@ private func scalarEnumFromJson(model: EnumModel, isInteger: Bool, other: ?Deriv
             case Some(o) where isInteger =>
                 let ident = o.ident
                 let payloadType = o.payloadTypes[0]
-                let outOfRange =
-                    Token(TokenKind.STRING_LITERAL, "`${typeName.value}` value out of range: ")
+                let outOfRange = Token(
+                    TokenKind.STRING_LITERAL,
+                    "`${typeName.value}` value out of range: "
+                )
                 quote(
                     case value => $ident(
                         try {
@@ -269,8 +270,10 @@ private func untaggedEnumFromJson(model: EnumModel): Tokens {
             } catch (_: Exception) {}
         )
     }
-    let unmatched =
-        Token(TokenKind.STRING_LITERAL, "no `${typeName.value}` variant matched the value at byte ")
+    let unmatched = Token(
+        TokenKind.STRING_LITERAL,
+        "no `${typeName.value}` variant matched the value at byte "
+    )
 
     quote(
         let mark = r.mark()
@@ -300,8 +303,9 @@ private func taggedEnumFromJson(model: EnumModel, tag: String): Tokens {
         }
         let (locals, branches) = fieldReaders(variant.payloadFields, quote(r))
         let unknown = unknownJsonField(denyUnknownFields: model.denyUnknownFields)
-        let args =
-            commaSeparated(variant.payloadFields.map { field => fieldValue(field, typeName) })
+        let args = commaSeparated(
+            variant.payloadFields.map { field => fieldValue(field, typeName) }
+        )
         let construct =
             if (variant.payloadFields.isEmpty()) { quote($ident) } else { quote($ident($args)) }
         cases += quote(

@@ -11,14 +11,12 @@ import loupe.syntax.parse
  */
 func checkDefinitionWithDerive(fixture: String): Unit {
     let parsed = Fixture.parse(fixture)
-    let db =
-        parsed
-            .database(
-                binaries: [
-                    stdCjoRead("std.core", stdCjo("std.core")),
-                    stdCjoRead("std.deriving", stdCjo("std.deriving"))
-                ]
-            )
+    let db = parsed.database(
+        binaries: [
+            stdCjoRead("std.core", stdCjo("std.core")),
+            stdCjoRead("std.deriving", stdCjo("std.deriving"))
+        ]
+    )
     let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
     let targets = definitionAt(db, cursor.fileId, cursor.offset)
     let annotations =

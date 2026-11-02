@@ -22,19 +22,18 @@ public func tokenize(text: String): Lexed<SyntaxKind> {
  * `LEXED_PUNCTUATION` by its first byte, each still longest first: a token is looked for among the few
  * starting as it does.
  */
-let PUNCTUATION_BY_FIRST_BYTE: Array<Array<(Array<Byte>, SyntaxKind)>> =
-    {
-        =>
-        let buckets =
-            Array<ArrayList<(Array<Byte>, SyntaxKind)>>(256) {
-                _ =>
-                ArrayList<(Array<Byte>, SyntaxKind)>()
-            }
-        for ((text, kind) in LEXED_PUNCTUATION) {
-            buckets[Int64(text[0])].add((text, kind))
+let PUNCTUATION_BY_FIRST_BYTE: Array<Array<(Array<Byte>, SyntaxKind)>> = {
+    =>
+    let buckets =
+        Array<ArrayList<(Array<Byte>, SyntaxKind)>>(256) {
+            _ =>
+            ArrayList<(Array<Byte>, SyntaxKind)>()
         }
-        buckets.map { bucket => bucket.toArray() }
-    }()
+    for ((text, kind) in LEXED_PUNCTUATION) {
+        buckets[Int64(text[0])].add((text, kind))
+    }
+    buckets.map { bucket => bucket.toArray() }
+}()
 
 /**
  * The lexer's context: code, whose `{`s it counts to find the `}` ending an interpolation, or a string.
@@ -63,14 +62,13 @@ class Lexer {
             if (frame.inString) { stringPiece(frame) } else { codeToken(frame) }
         }
         if (frames.size > 1 && lexed.size > 0) {
-            lexed
-                .error(
-                    if (frames[frames.size - 1].inString) {
-                        "unterminated string"
-                    } else {
-                        "unterminated interpolation"
-                    }
-                )
+            lexed.error(
+                if (frames[frames.size - 1].inString) {
+                    "unterminated string"
+                } else {
+                    "unterminated interpolation"
+                }
+            )
         }
         lexed
     }

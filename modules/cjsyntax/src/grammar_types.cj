@@ -3,10 +3,9 @@ package cjsyntax
 import ginkgo.TokenSet
 import ginkgo.parsing.*
 
-let TYPE_RECOVERY =
-    TokenSet<SyntaxKind>(
-        [Comma, Gt, RParen, RBracket, LBrace, RBrace, Eq, Semicolon, Arrow, WhereKw, Amp, LtColon]
-    )
+let TYPE_RECOVERY = TokenSet<SyntaxKind>(
+    [Comma, Gt, RParen, RBracket, LBrace, RBrace, Eq, Semicolon, Arrow, WhereKw, Amp, LtColon]
+)
 
 /**
  * A type; the kind of its node, `ErrorNode` if there is none.

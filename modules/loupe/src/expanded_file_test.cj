@@ -83,8 +83,10 @@ class ExpandFileTest {
         // assert
         @Expect(source.contains("@M[x]\nclass C {}"))
         let formatted = written.replace("{ C() }", "{\n    C()\n}")
-        let replaced =
-            source.replace("@M[x]\nclass C {}", "// @M[x] expanded by cjls\n${formatted}")
+        let replaced = source.replace(
+            "@M[x]\nclass C {}",
+            "// @M[x] expanded by cjls\n${formatted}"
+        )
         @Expect(expanded.text, "// header\n${replaced}")
     }
 
@@ -135,8 +137,9 @@ class ExpandFileTest {
 
         // act
         let fromSource = expanded.fromSource(TextRange(import_, import_ + 6))
-        let fromReplaced =
-            expanded.fromSource(TextRange(offsetIn(source, "C {}"), offsetIn(source, "C {}") + 1))
+        let fromReplaced = expanded.fromSource(
+            TextRange(offsetIn(source, "C {}"), offsetIn(source, "C {}") + 1)
+        )
         let fromExpansion = expanded.fromExpansion(call, TextRange(gen, gen + 3))
 
         // assert
@@ -150,10 +153,8 @@ class ExpandFileTest {
     @TestCase
     func aStdDeriveIsFollowedByTheAnalysissSignatures(): Unit {
         // arrange
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
@@ -161,7 +162,7 @@ class ExpandFileTest {
             struct S {}
             func f() {}
             "#
-                )
+        )
         let db = deriveDatabase(parsed)
         let file = parsed.file("/main.cj")
 
@@ -185,13 +186,12 @@ class ExpandFileTest {
     @TestCase
     func aFileWithNoExpansionHasNone(): Unit {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             class C {}
             "#
-            )
+        )
 
         // act
         let expanded = expandFile(db, file.fileId(db), "// header")

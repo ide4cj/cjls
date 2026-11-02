@@ -63,13 +63,12 @@ class FoldingRangeTranslationTest {
         let (encoding, expected) = row
 
         // act
-        let result =
-            shownFolds(
-                "😀 {\n}",
-                [Fold(TextRange(5, 8), FoldKind.Block)],
-                encoding: encoding,
-                lineFoldingOnly: false
-            )
+        let result = shownFolds(
+            "😀 {\n}",
+            [Fold(TextRange(5, 8), FoldKind.Block)],
+            encoding: encoding,
+            lineFoldingOnly: false
+        )
 
         // assert
         @Expect(result, [expected])
@@ -110,11 +109,10 @@ class FoldingRangeTranslationTest {
     @TestCase
     func aFoldLeftWithOneLineIsDropped() {
         // act
-        let result =
-            shownFolds(
-                "f({\n}, {\n})",
-                [Fold(TextRange(2, 5), FoldKind.Block), Fold(TextRange(7, 10), FoldKind.Block)]
-            )
+        let result = shownFolds(
+            "f({\n}, {\n})",
+            [Fold(TextRange(2, 5), FoldKind.Block), Fold(TextRange(7, 10), FoldKind.Block)]
+        )
 
         // assert - the second ends with `)` after it
         @Expect(result, Array<String>())
@@ -162,17 +160,16 @@ class FoldingRangeTest {
     @TestCase
     func foldingIsAdvertised() {
         // act
-        let result =
-            handleInitialize(
-                ServerState(),
-                Client(),
-                NoopLogger(),
-                InitializeParams(
-                    processId: Nullable.Null,
-                    rootUri: Nullable.Null,
-                    capabilities: ClientCapabilities()
-                )
+        let result = handleInitialize(
+            ServerState(),
+            Client(),
+            NoopLogger(),
+            InitializeParams(
+                processId: Nullable.Null,
+                rootUri: Nullable.Null,
+                capabilities: ClientCapabilities()
             )
+        )
 
         // assert
         match (result.capabilities.foldingRangeProvider) {

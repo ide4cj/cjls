@@ -10,10 +10,8 @@ class ItemLookupTest {
     @TestCase
     func nestedDeclarationsResolveByTheirOwnIdentity() {
         // arrange
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             //- /main.cj
             class First {
                 var value: Int64 = 1
@@ -25,7 +23,7 @@ class ItemLookupTest {
             }
             enum Choice { Left | Right(Int64) }
             "#
-                )
+        )
         let db = parsed.database()
         let file = ItemFile.Source(db.sourceFile(parsed.files[0].fileId).getOrThrow())
         let items = itemTreeOf(db, file).items

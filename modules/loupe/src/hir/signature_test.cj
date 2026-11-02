@@ -132,14 +132,12 @@ class SignatureTest {
     @TestCase
     func anEditOfABodyLeavesTheSignatureAndWhatReadItAlone() {
         // arrange
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             package m
             func f(x: Int64): Int64 { x }
             "#
-                )
+        )
         let db = parsed.database()
         let fileId = parsed.files[0].fileId
         let source = db.sourceFile(fileId).getOrThrow()
@@ -157,14 +155,12 @@ class SignatureTest {
     @TestCase
     func anEditOfATypeRunsAgainWhatReadTheSignature() {
         // arrange
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             package m
             func f(x: Int64): Int64 { x }
             "#
-                )
+        )
         let db = parsed.database()
         let fileId = parsed.files[0].fileId
         let source = db.sourceFile(fileId).getOrThrow()

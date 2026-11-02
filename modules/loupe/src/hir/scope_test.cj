@@ -34,8 +34,12 @@ func checkScope(fixture: String, ns!: Namespace = Namespace.Values): Unit {
     let parsed = Fixture.parse(fixture)
     let db = parsed.database()
     let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
-    let file =
-        parsed.files.iterator().filter { file => file.fileId == cursor.fileId }.next().getOrThrow()
+    let file = parsed
+        .files
+        .iterator()
+        .filter { file => file.fileId == cursor.fileId }
+        .next()
+        .getOrThrow()
     let source = db.sourceFile(file.fileId).getOrThrow()
     var use: ?(String, TextRange) = None
     for (element in parse(db, source).syntaxNode().descendantsWithTokens()) {
@@ -736,10 +740,8 @@ class ScopeTest {
     @TestCase
     func aNameAddedToAGlobbedPackageLeavesTheFileImportsAlone() {
         // arrange
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -747,7 +749,7 @@ class ScopeTest {
             package m
             import m.a.*
             "#
-                )
+        )
         let db = parsed.database()
         let mainFile = parsed.files[1]
         let source = db.sourceFile(mainFile.fileId).getOrThrow()
@@ -755,11 +757,10 @@ class ScopeTest {
         importedNameCount(db, pkg, source)
         let before = fileImportsReaderRuns.load()
         // act
-        db
-            .setFileText(
-                parsed.files[0].fileId,
-                Rope("package m.a\npublic class X {}\npublic class Y {}\n")
-            )
+        db.setFileText(
+            parsed.files[0].fileId,
+            Rope("package m.a\npublic class X {}\npublic class Y {}\n")
+        )
         importedNameCount(db, pkg, source)
         // assert
         @Expect(fileImportsReaderRuns.load(), before)

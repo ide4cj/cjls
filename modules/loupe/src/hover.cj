@@ -340,8 +340,9 @@ class Hovers {
         let sourceMap = lowered.sourceMap
         if (isOperator(token)) {
             let expr =
-                sourceMap
-                    .exprAtSource(BodySource(SyntaxNodePtr(token.parent), expansion: expansion)) ??
+                sourceMap.exprAtSource(
+                    BodySource(SyntaxNodePtr(token.parent), expansion: expansion)
+                ) ??
                     return []
             return match (inferBody(db, def).calleeOf(expr)) {
                 case Some(decl) => ofDecl(decl)
@@ -350,8 +351,9 @@ class Hovers {
         }
         if (let Some(ref) <- RefExpr.cast(node)) {
             let expr =
-                sourceMap
-                    .exprAtSource(BodySource(SyntaxNodePtr(ref.syntax), expansion: expansion)) ??
+                sourceMap.exprAtSource(
+                    BodySource(SyntaxNodePtr(ref.syntax), expansion: expansion)
+                ) ??
                     return []
             if (let Some(decl) <- inferBody(db, def).calleeOf(expr)) {
                 return ofDecl(decl)
@@ -660,16 +662,15 @@ class Hovers {
                 ""
             } else {
                 " where " +
-                    String
-                        .join(
-                            sig
-                                .bounds
-                                .map {
-                                    bound =>
-                                    "${ty(bound.ty)} <: ${String.join(bound.bounds.map {one => ty(one)}, delimiter: " & ")}"
-                                },
-                            delimiter: ", "
-                        )
+                    String.join(
+                        sig
+                            .bounds
+                            .map {
+                                bound =>
+                                "${ty(bound.ty)} <: ${String.join(bound.bounds.map {one => ty(one)}, delimiter: " & ")}"
+                            },
+                        delimiter: ", "
+                    )
             }
         let modifiers = modifiersText(item)
         // a type of the compiler's own has no doc comment: our words of it
@@ -950,18 +951,17 @@ func genericList(generics: Array<String>): String {
  */
 func modifiersText(item: Item): String {
     let access = [Modifier.Public, Modifier.Protected, Modifier.Internal, Modifier.Private]
-    let shown =
-        item
-            .modifiers
-            .filter { one => access.contains(one) }
-            .concat(
-                item
-                    .modifiers
-                    .filter {
-                        one =>
-                        !access.contains(one) && one != Modifier.Common && one != Modifier.Specific
-                    }
-            )
+    let shown = item
+        .modifiers
+        .filter { one => access.contains(one) }
+        .concat(
+            item
+                .modifiers
+                .filter {
+                    one =>
+                    !access.contains(one) && one != Modifier.Common && one != Modifier.Specific
+                }
+        )
     String.join(shown.map { one => "${one} " }, delimiter: "")
 }
 
@@ -995,17 +995,16 @@ func docText(comments: Array<String>): String {
         let split = inner.split("\n")
         for (i in 0..split.size) {
             let trimmed = split[i].trimAsciiStart()
-            lines
-                .add(
-                    if (trimmed.startsWith("*")) {
-                        dropSpace(trimmed.removePrefix("*"))
-                    } else if (i == 0) {
-                        // the text after the opening, `/** text`
-                        trimmed
-                    } else {
-                        split[i]
-                    }
-                )
+            lines.add(
+                if (trimmed.startsWith("*")) {
+                    dropSpace(trimmed.removePrefix("*"))
+                } else if (i == 0) {
+                    // the text after the opening, `/** text`
+                    trimmed
+                } else {
+                    split[i]
+                }
+            )
         }
     }
     let kept = lines.toArray().map { one => one.trimAsciiEnd() }

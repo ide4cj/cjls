@@ -192,14 +192,9 @@ func exprFile(p: P): Unit {
     let found = expr(p, Restrictions.NONE)
     if (!p.atEof()) {
         let rest = p.start()
-        p
-            .error(
-                if (found) {
-                    "expected the end of the expression"
-                } else {
-                    "expected an expression"
-                }
-            )
+        p.error(
+            if (found) { "expected the end of the expression" } else { "expected an expression" }
+        )
         while (!p.atEof()) {
             p.bumpAny()
         }
@@ -297,21 +292,9 @@ func atDeclStart(p: P): Bool {
  * The keywords starting a declaration only a file holds (a foreign block aside): the compiler rejects each in a
  * block and in a type's body.
  */
-let TOP_LEVEL_ONLY =
-    TokenSet<SyntaxKind>(
-        [
-            ClassKw,
-            StructKw,
-            InterfaceKw,
-            EnumKw,
-            ExtendKw,
-            TypeKw,
-            MainKw,
-            MacroKw,
-            ImportKw,
-            PackageKw
-        ]
-    )
+let TOP_LEVEL_ONLY = TokenSet<SyntaxKind>(
+    [ClassKw, StructKw, InterfaceKw, EnumKw, ExtendKw, TypeKw, MainKw, MacroKw, ImportKw, PackageKw]
+)
 
 /**
  * Whether a line starts here with a declaration only a file holds, behind builtin annotations and modifiers. Such
@@ -463,28 +446,27 @@ func funcDecl(p: P, m: Marker, ctx: DeclContext): Unit {
     m.complete(p, FuncDecl)
 }
 
-let OVERLOADABLE_OPERATORS =
-    TokenSet<SyntaxKind>(
-        [
-            Bang,
-            Plus,
-            Minus,
-            StarStar,
-            Star,
-            Slash,
-            Percent,
-            LtLt,
-            Lt,
-            LtEq,
-            Gt,
-            EqEq,
-            BangEq,
-            Amp,
-            Caret,
-            Pipe,
-            Tilde
-        ]
-    )
+let OVERLOADABLE_OPERATORS = TokenSet<SyntaxKind>(
+    [
+        Bang,
+        Plus,
+        Minus,
+        StarStar,
+        Star,
+        Slash,
+        Percent,
+        LtLt,
+        Lt,
+        LtEq,
+        Gt,
+        EqEq,
+        BangEq,
+        Amp,
+        Caret,
+        Pipe,
+        Tilde
+    ]
+)
 
 /**
  * A name, `main`, or for an `operator func`, the operator: `[]`, `()`, `>>`, `>=` and the plain ones.

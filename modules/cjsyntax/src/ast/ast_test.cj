@@ -200,8 +200,8 @@ class AstTest {
     @TestCase
     func aFunctionHasItsNameParametersAndBody() {
         // act
-        let root =
-            parse("public func f<T>(a: Int64, b!: T = x): Unit where T <: A { a }").syntaxNode()
+        let root = parse("public func f<T>(a: Int64, b!: T = x): Unit where T <: A { a }")
+            .syntaxNode()
         let sut = SourceFile.cast(root).getOrThrow().decls().next().getOrThrow()
 
         // assert
@@ -219,8 +219,9 @@ class AstTest {
     @TestCase
     func aStatementIsADeclarationOrAnExpression() {
         // act
-        let sut =
-            collectArray(first<IfExpr>("if (a) {\nlet x = 1\nx\n}").then().getOrThrow().stmts())
+        let sut = collectArray(
+            first<IfExpr>("if (a) {\nlet x = 1\nx\n}").then().getOrThrow().stmts()
+        )
 
         // assert
         @Expect(sut.size, 2)
@@ -264,10 +265,9 @@ class AstTest {
     @TestCase
     func anOperatorIsNamedByItsTokens() {
         // act
-        let sut =
-            declared<FuncDecl>("class C {\n    operator func [](i: Int64): Int64 { i }\n}")
-                .name()
-                .getOrThrow()
+        let sut = declared<FuncDecl>("class C {\n    operator func [](i: Int64): Int64 { i }\n}")
+            .name()
+            .getOrThrow()
 
         // assert
         @Expect(sut.text(), "[]")
@@ -276,10 +276,9 @@ class AstTest {
     @TestCase
     func modifiersTellTheVisibilityAndWhatElseIsWritten() {
         // act
-        let sut =
-            declared<FuncDecl>("class C {\n    protected static func f() {}\n}")
-                .modifiers()
-                .getOrThrow()
+        let sut = declared<FuncDecl>("class C {\n    protected static func f() {}\n}")
+            .modifiers()
+            .getOrThrow()
 
         // assert
         @Expect(sut.visibility().map {t => t.kind}, Some(SyntaxKind.ProtectedKw))
@@ -353,10 +352,9 @@ class AstTest {
     @TestCase
     func anEnumConstructorWithAnAnnotationOrInAMacroCallHasTheCommentsBeforeItsPipe() {
         // act
-        let sut =
-            enumCtorDocs(
-                "enum E {\n    // a\n    | @Deprecated A\n    // b\n    | @M B\n    // c\n    | @M[x] @N C\n}\n"
-            )
+        let sut = enumCtorDocs(
+            "enum E {\n    // a\n    | @Deprecated A\n    // b\n    | @M B\n    // c\n    | @M[x] @N C\n}\n"
+        )
 
         // assert
         @Expect(sut, [["// a"], ["// b"], ["// c"]])
@@ -403,10 +401,9 @@ class AstTest {
     @TestCase
     func theParametersWrittenAreThoseOfTheListAndThoseInMacroCallsInOrder() {
         // arrange
-        let list =
-            declared<ParamList>(
-                "struct S {\n    S(let a: Int64, @M let b: Int64, @A[x] @B let c: Int64, d: Int64) {}\n}\n"
-            )
+        let list = declared<ParamList>(
+            "struct S {\n    S(let a: Int64, @M let b: Int64, @A[x] @B let c: Int64, d: Int64) {}\n}\n"
+        )
 
         // act
         let sut = list.writtenParams().map { param => param.name()?.text() ?? "_" }

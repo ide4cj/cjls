@@ -82,8 +82,9 @@ enum Derivable {
             case DeriveHashable => ["public func hashCode(): Int64 ${body}"]
             case DeriveToString => ["public func toString(): String ${body}"]
             case DeriveComparable =>
-                ["public func compare(other: ${selfTy}): Ordering ${body}"]
-                    .concat(operators(["<", "<=", ">", ">="]))
+                ["public func compare(other: ${selfTy}): Ordering ${body}"].concat(
+                    operators(["<", "<=", ">", ">="])
+                )
             case DeriveArbitrary =>
                 ["public static func arbitrary(random: RandomSource): Generator<${selfTy}> ${body}"]
             case DeriveShrink => ["public func shrink(): Iterable<${selfTy}> ${body}"]

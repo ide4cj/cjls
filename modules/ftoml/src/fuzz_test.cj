@@ -156,8 +156,9 @@ class FtFuzzTest {
 }
 
 /** A byte TOML's grammar turns on, or any byte at all. */
-let SIGNIFICANT_BYTES: Array<Byte> =
-    "\"'[]{}=.,#\n\r\\ \t0-+:TZe_xtfin".toArray().concat([0x00, 0x7F, 0x80, 0xC3, 0xFF])
+let SIGNIFICANT_BYTES: Array<Byte> = "\"'[]{}=.,#\n\r\\ \t0-+:TZe_xtfin"
+    .toArray()
+    .concat([0x00, 0x7F, 0x80, 0xC3, 0xFF])
 
 /** Bytes dropped, replaced and inserted in one of the suite's valid documents. */
 struct Mutation <: Arbitrary<Mutation> & Shrink<Mutation> & ToString {

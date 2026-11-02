@@ -85,11 +85,10 @@ class DiagnosticsPush {
         try {
             synchronized (lock) {
                 latest.remove(path)
-                client
-                    .notify(
-                        PublishDiagnosticsNotificationSpec(),
-                        PublishDiagnosticsParams(uri: path.toUri(), diagnostics: [])
-                    )
+                client.notify(
+                    PublishDiagnosticsNotificationSpec(),
+                    PublishDiagnosticsParams(uri: path.toUri(), diagnostics: [])
+                )
             }
         } catch (e: Exception) {
             failed(e)
@@ -117,22 +116,20 @@ class DiagnosticsPush {
     ): Unit {
         synchronized (lock) {
             if (latest.get(path) != generation) {
-                logger
-                    .debug(
-                        "push dropped",
-                        [("reason", "a newer one was scheduled"), ("uri", path.toUri())]
-                    )
+                logger.debug(
+                    "push dropped",
+                    [("reason", "a newer one was scheduled"), ("uri", path.toUri())]
+                )
                 return
             }
-            client
-                .notify(
-                    PublishDiagnosticsNotificationSpec(),
-                    PublishDiagnosticsParams(
-                        uri: path.toUri(),
-                        version: version,
-                        diagnostics: diagnostics
-                    )
+            client.notify(
+                PublishDiagnosticsNotificationSpec(),
+                PublishDiagnosticsParams(
+                    uri: path.toUri(),
+                    version: version,
+                    diagnostics: diagnostics
                 )
+            )
         }
     }
 }

@@ -61,16 +61,12 @@ func gateFindings(root: VfsPath): Array<String> {
     let servers = MacroServers(paths, Duration.minute, NoopLogger())
     try {
         while (true) {
-            let requests =
-                sendableRequests(
-                    db,
-                    files,
-                    libraries,
-                    stdLibrary: {
-                        pkg =>
-                        paths.stdMacroLibrary(pkg).map { path => path.toString() }
-                    }
-                )
+            let requests = sendableRequests(
+                db,
+                files,
+                libraries,
+                stdLibrary: { pkg => paths.stdMacroLibrary(pkg).map { path => path.toString() } }
+            )
             if (requests.isEmpty()) {
                 break
             }

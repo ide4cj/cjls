@@ -166,6 +166,11 @@ explicit call sites in the caller's file: the returned item's target for incomin
 calls, the input entry's target for outgoing calls. Anonymous lambdas belong to
 their enclosing callable; function values are not followed through assignments.
 
+Binary callables carry their canonical identity in `entry.definition`, including
+when attached sources provide `entry.target`. Without attached sources, the target
+points to the referring name. Preserve `definition` when reconstructing an entry;
+incoming calls use it to distinguish binary overloads. Source-only entries use `None`.
+
 ```python
 analysis = workspace.analysis()
 path = "src/main.cj"

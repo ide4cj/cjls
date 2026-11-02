@@ -188,11 +188,10 @@ private func trackedExtend(decl: ExtendDecl, input: Tokens): Tokens {
             )
             return input
         }
-        marked
-            .add(
-                name,
-                if (message.hasItem("attrs")) { message.getTokens("attrs") } else { Tokens() }
-            )
+        marked.add(
+            name,
+            if (message.hasItem("attrs")) { message.getTokens("attrs") } else { Tokens() }
+        )
     }
     let receiver = decl.extendType.toTokens()
     var receiverName = ""

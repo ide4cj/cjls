@@ -19,12 +19,11 @@ func lowerEverySignature(
         for (def in defsOf(ws, file)) {
             let types = signatureTypes(ws.db, def)
             let bounds = types.bounds.map { bound => [bound.ty].concat(bound.bounds) }
-            let all =
-                types
-                    .params
-                    .concat(types.ty.map { ty => [ty] } ?? [])
-                    .concat(types.supers)
-                    .concat(bounds.iterator().flatMap { one => one.iterator() } |> collectArray)
+            let all = types
+                .params
+                .concat(types.ty.map { ty => [ty] } ?? [])
+                .concat(types.supers)
+                .concat(bounds.iterator().flatMap { one => one.iterator() } |> collectArray)
             var failed = !types.errors.isEmpty()
             for (ty in all) {
                 let (size, errors) = sizeOf(ws.db, ty)

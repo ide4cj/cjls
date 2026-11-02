@@ -36,8 +36,9 @@ class ItemTreeTest {
     @TestCase
     func theCAnnotationIsKeptApartFromWorkspaceMacros() {
         // act
-        let tree =
-            treeOf("@C func callback(value: Int32): Int32 { value }\n@C @Wrap struct Record {}\n")
+        let tree = treeOf(
+            "@C func callback(value: Int32): Int32 { value }\n@C @Wrap struct Record {}\n"
+        )
 
         // assert
         @Expect(tree.items[0].isC)
@@ -49,16 +50,14 @@ class ItemTreeTest {
     @TestCase
     func filteringConditionalMembersPreservesTheCAnnotation() {
         // arrange
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             //- /main.cj cfg=os:Linux
             @C struct Record {
                 @When[os == "Linux"] var value: Int64 = 0
             }
             "#
-                )
+        )
         let db = parsed.database()
         let file = db.sourceFile(parsed.files[0].fileId).getOrThrow()
 
@@ -74,18 +73,19 @@ class ItemTreeTest {
     func anEditInsideABodyLeavesTheItemTreeEqualAndWhatReadItAlone() {
         // arrange
         let db = AnalysisDatabase()
-        let file =
-            db.setFileText(FileId(0), Rope("func f() {\n    1\n}\nclass C {\n    func m() {}\n}\n"))
+        let file = db.setFileText(
+            FileId(0),
+            Rope("func f() {\n    1\n}\nclass C {\n    func m() {}\n}\n")
+        )
         let names = itemNames(db, file)
         let map = itemIdMap(db, file)
         let runs = itemNamesRuns.load()
 
         // act
-        db
-            .setFileText(
-                FileId(0),
-                Rope("func f() {\n    let x = 1 + 2\n    x\n}\nclass C {\n    func m() {}\n}\n")
-            )
+        db.setFileText(
+            FileId(0),
+            Rope("func f() {\n    let x = 1 + 2\n    x\n}\nclass C {\n    func m() {}\n}\n")
+        )
         let again = itemNames(db, file)
         let movedMap = itemIdMap(db, file)
 
@@ -166,8 +166,9 @@ class ItemTreeTest {
         let before = idsOf("extend C <: Hashable {}\nextend C <: Equatable<C> {}\n")
 
         // act
-        let after =
-            idsOf("extend   C<:Equatable < C > {}\nextend C <: Hashable {\n    func f() {}\n}\n")
+        let after = idsOf(
+            "extend   C<:Equatable < C > {}\nextend C <: Hashable {\n    func f() {}\n}\n"
+        )
 
         // assert
         @Expect(before[0] != before[1], true)
@@ -276,16 +277,14 @@ class ItemTreeTest {
     @TestCase
     func aNameInBackquotesIsThatNameWithItsId() {
         // arrange
-        let plain =
-            treeOf(
-                "import a.b as c\nfunc foo() {}\nclass C {\n    let x = 1\n}\nextend C {}\nlet (y, z) = (1, 2)\n"
-            )
+        let plain = treeOf(
+            "import a.b as c\nfunc foo() {}\nclass C {\n    let x = 1\n}\nextend C {}\nlet (y, z) = (1, 2)\n"
+        )
 
         // act
-        let quoted =
-            treeOf(
-                "import `a`.b as `c`\nfunc `foo`() {}\nclass `C` {\n    let `x` = 1\n}\nextend `C` {}\nlet (`y`, z) = (1, 2)\n"
-            )
+        let quoted = treeOf(
+            "import `a`.b as `c`\nfunc `foo`() {}\nclass `C` {\n    let `x` = 1\n}\nextend `C` {}\nlet (`y`, z) = (1, 2)\n"
+        )
 
         // assert
         @Expect(quoted.items[0].names, ["foo"])

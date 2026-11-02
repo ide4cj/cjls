@@ -17,11 +17,9 @@ func handleDocumentSymbol(
     let file = fileOf(snap, params.textDocument.uri) ?? return Nullable.Null
     let text = file.text(snap.analysis)
     let structure = fileStructure(snap.analysis, file.fileId(snap.analysis))
-    Nullable
-        .Value(
-            SymbolInformationsOrDocumentSymbols
-                .AsDocumentSymbols(
-                    structure.map { node => documentSymbol(text, node, snap.encoding) }
-                )
+    Nullable.Value(
+        SymbolInformationsOrDocumentSymbols.AsDocumentSymbols(
+            structure.map { node => documentSymbol(text, node, snap.encoding) }
         )
+    )
 }

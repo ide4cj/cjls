@@ -410,13 +410,12 @@ class AnalysisRevision {
     }
     private func position(path: String, offset: Int64): FileId {
         let file = resolve(path)
-        let text =
-            state
-                .vfs
-                .fileContents(file)
-                .getOrThrow { IllegalStateException("loaded file has no contents") }
-                .toString()
-                .toArray()
+        let text = state
+            .vfs
+            .fileContents(file)
+            .getOrThrow { IllegalStateException("loaded file has no contents") }
+            .toString()
+            .toArray()
         checkOffset(text, offset)
         file
     }

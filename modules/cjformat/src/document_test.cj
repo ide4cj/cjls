@@ -8,17 +8,16 @@ class DocumentTest {
     @TestCase
     func aGroupFitsExactlyOrBreaksWithIndentation(): Unit {
         // arrange
-        let doc =
-            group(
-                concat(
-                    [
-                        textDoc("call("),
-                        indent(concat([softbreak(), textDoc("one,"), softline(), textDoc("two")])),
-                        softbreak(),
-                        textDoc(")")
-                    ]
-                )
+        let doc = group(
+            concat(
+                [
+                    textDoc("call("),
+                    indent(concat([softbreak(), textDoc("one,"), softline(), textDoc("two")])),
+                    softbreak(),
+                    textDoc(")")
+                ]
             )
+        )
 
         // act
         let printed1 = Printer("\n", width: 14).print(doc)
@@ -33,16 +32,15 @@ class DocumentTest {
     func nestedGroupsDecideIndependentlyAndIfBreakUsesTheEnclosingGroup(): Unit {
         // arrange
         let inner = group(concat([textDoc("b"), softline(), textDoc("c")]))
-        let doc =
-            group(
-                concat(
-                    [
-                        textDoc("aaaa"),
-                        indent(concat([softline(), inner])),
-                        ifBreak(textDoc("!"), textDoc("?"))
-                    ]
-                )
+        let doc = group(
+            concat(
+                [
+                    textDoc("aaaa"),
+                    indent(concat([softline(), inner])),
+                    ifBreak(textDoc("!"), textDoc("?"))
+                ]
             )
+        )
 
         // act
         let printed1 = Printer("\n", width: 20).print(doc)
@@ -56,19 +54,18 @@ class DocumentTest {
     @TestCase
     func hardlinesAndSuffixesPreventFlatteningAndDropTrailingSpaces(): Unit {
         // arrange
-        let doc =
-            group(
-                concat(
-                    [
-                        textDoc("a"),
-                        lineSuffix(textDoc(" // c")),
-                        softline(),
-                        textDoc("b"),
-                        textDoc(" "),
-                        hardline()
-                    ]
-                )
+        let doc = group(
+            concat(
+                [
+                    textDoc("a"),
+                    lineSuffix(textDoc(" // c")),
+                    softline(),
+                    textDoc("b"),
+                    textDoc(" "),
+                    hardline()
+                ]
             )
+        )
 
         // act
         let printed1 = Printer("\r\n", width: 100).print(doc)
@@ -80,8 +77,9 @@ class DocumentTest {
     @TestCase
     func fittingAccountsForTheUnbreakableSuffixOutsideAGroup(): Unit {
         // arrange
-        let doc =
-            concat([group(concat([textDoc("abc"), softline(), textDoc("def")])), textDoc(");")])
+        let doc = concat(
+            [group(concat([textDoc("abc"), softline(), textDoc("def")])), textDoc(");")]
+        )
 
         // act
         let printed1 = Printer("\n", width: 8).print(doc)
@@ -90,6 +88,49 @@ class DocumentTest {
         // assert
         @Expect(printed1, "abc\ndef);")
         @Expect(printed2, "abc def);")
+    }
+
+    @TestCase
+    func aChoiceFitsThePrefixWithoutFlatteningItsNestedList(): Unit {
+        // arrange
+        let call = group(
+            concat(
+                [
+                    textDoc("call("),
+                    indent(concat([softbreak(), textDoc("first,"), softline(), textDoc("second")])),
+                    softbreak(),
+                    textDoc(")")
+                ]
+            )
+        )
+        let doc = choice(
+            concat([textDoc("x = "), call]),
+            concat([textDoc("x ="), indent(concat([hardline(), call]))])
+        )
+
+        // act
+        let inline = Printer("\n", width: 9).print(doc)
+        let broken = Printer("\n", width: 8).print(doc)
+        let flat = Printer("\n", width: 100).print(group(doc))
+
+        // assert
+        @Expect(inline, "x = call(\n    first,\n    second\n)")
+        @Expect(broken, "x =\n    call(\n        first,\n        second\n    )")
+        @Expect(flat, "x = call(first, second)")
+    }
+
+    @TestCase
+    func aChoiceReservesPunctuationOnlyForAnUnbrokenFirstLine(): Unit {
+        // arrange
+        let doc = concat([choice(textDoc("abcd"), textDoc("a\nbcd")), textDoc(".")])
+
+        // act
+        let exact = Printer("\n", width: 5).print(doc)
+        let narrow = Printer("\n", width: 4).print(doc)
+
+        // assert
+        @Expect(exact, "abcd.")
+        @Expect(narrow, "a\nbcd.")
     }
 
     @TestCase

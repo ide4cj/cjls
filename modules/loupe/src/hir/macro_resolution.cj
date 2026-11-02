@@ -37,13 +37,12 @@ public func resolveMacroPath(
                 found.add(Resolution.NotFound)
                 None<PackageRef>
         }
-    found
-        .add(
-            match (qualifier) {
-                case Some(one) => macroOfPackage(db, pkg, one, path[1])
-                case None => Resolution.NotFound
-            }
-        )
+    found.add(
+        match (qualifier) {
+            case Some(one) => macroOfPackage(db, pkg, one, path[1])
+            case None => Resolution.NotFound
+        }
+    )
     for (_ in 2..path.size) {
         found.add(Resolution.NotFound)
     }

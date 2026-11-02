@@ -42,8 +42,10 @@ class ResolveUnionTest {
         let sut = resolverOf(metaModelOf())
 
         // act
-        let t =
-            sut.resolve(Type.Or([base(BaseTypes.String), ref("MarkupContent")]), context: "Hover")
+        let t = sut.resolve(
+            Type.Or([base(BaseTypes.String), ref("MarkupContent")]),
+            context: "Hover"
+        )
 
         // assert
         @Expect("StringOrMarkupContent", t.toString())
@@ -56,10 +58,14 @@ class ResolveUnionTest {
         let sut = resolverOf(metaModelOf())
 
         // act
-        let first =
-            sut.resolve(Type.Or([base(BaseTypes.String), ref("MarkupContent")]), context: "A")
-        let second =
-            sut.resolve(Type.Or([ref("MarkupContent"), base(BaseTypes.String)]), context: "B")
+        let first = sut.resolve(
+            Type.Or([base(BaseTypes.String), ref("MarkupContent")]),
+            context: "A"
+        )
+        let second = sut.resolve(
+            Type.Or([ref("MarkupContent"), base(BaseTypes.String)]),
+            context: "B"
+        )
 
         // assert
         @Expect(first.toString(), second.toString())
@@ -72,8 +78,10 @@ class ResolveUnionTest {
         let sut = resolverOf(metaModelOf())
 
         // act
-        let t =
-            sut.resolve(Type.Or([ref("Location"), Type.Array(ref("Location"))]), context: "Result")
+        let t = sut.resolve(
+            Type.Or([ref("Location"), Type.Array(ref("Location"))]),
+            context: "Result"
+        )
 
         // assert
         @Expect("LocationOrLocations", t.toString())
@@ -84,15 +92,14 @@ class ResolveUnionTest {
     func theFirstAliasDefiningAUnionNamesItAndLaterOnesAliasThatName() {
         // arrange
         let locations = Type.Or([ref("Location"), Type.Array(ref("Location"))])
-        let sut =
-            resolverOf(
-                metaModelOf(
-                    typeAliases: [
-                        TypeAlias(name: "Definition", typeAliasType: locations),
-                        TypeAlias(name: "Declaration", typeAliasType: locations)
-                    ]
-                )
+        let sut = resolverOf(
+            metaModelOf(
+                typeAliases: [
+                    TypeAlias(name: "Definition", typeAliasType: locations),
+                    TypeAlias(name: "Declaration", typeAliasType: locations)
+                ]
             )
+        )
 
         // act
         let definition = sut.resolve(locations, context: "Definition")
@@ -108,12 +115,10 @@ class ResolveUnionTest {
         let sut = resolverOf(metaModelOf())
 
         // act
-        let t =
-            sut
-                .resolve(
-                    Type.Or([ref("Location"), Type.Array(ref("Location")), base(BaseTypes.Null)]),
-                    context: "Result"
-                )
+        let t = sut.resolve(
+            Type.Or([ref("Location"), Type.Array(ref("Location")), base(BaseTypes.Null)]),
+            context: "Result"
+        )
 
         // assert
         @Expect("Nullable<LocationOrLocations>", t.toString())
@@ -122,11 +127,10 @@ class ResolveUnionTest {
     @TestCase
     func aTypeWithNullAmongItsOwnValuesIsNotWrappedAgain() {
         // arrange
-        let anyValue =
-            TypeAlias(
-                name: "LSPAny",
-                typeAliasType: Type.Or([base(BaseTypes.String), base(BaseTypes.Null)])
-            )
+        let anyValue = TypeAlias(
+            name: "LSPAny",
+            typeAliasType: Type.Or([base(BaseTypes.String), base(BaseTypes.Null)])
+        )
         let sut = resolverOf(metaModelOf(typeAliases: [anyValue]))
 
         // act
@@ -139,22 +143,17 @@ class ResolveUnionTest {
     @TestCase
     func theMemberRequiringMoreKeysIsTriedFirst() {
         // arrange
-        let codeAction =
-            structureOf(
-                "CodeAction",
-                [
-                    property("title", base(BaseTypes.String)),
-                    property("command", ref("Command"), optional: true)
-                ]
-            )
-        let command =
-            structureOf(
-                "Command",
-                [
-                    property("title", base(BaseTypes.String)),
-                    property("command", base(BaseTypes.String))
-                ]
-            )
+        let codeAction = structureOf(
+            "CodeAction",
+            [
+                property("title", base(BaseTypes.String)),
+                property("command", ref("Command"), optional: true)
+            ]
+        )
+        let command = structureOf(
+            "Command",
+            [property("title", base(BaseTypes.String)), property("command", base(BaseTypes.String))]
+        )
         let sut = resolverOf(metaModelOf(structures: [codeAction, command]))
 
         // act
@@ -182,13 +181,13 @@ class ResolveUnionTest {
     func aConfigAliasedUnionIsReferredToButNotDeclared() {
         // arrange
         let token = Type.Or([base(BaseTypes.Integer), base(BaseTypes.String)])
-        let typeMap =
-            TypeMap(entries: HashMap([("ProgressToken", TypeBinding.Aliased("IntegerOrString"))]))
-        let sut =
-            resolverOf(
-                metaModelOf(typeAliases: [TypeAlias(name: "ProgressToken", typeAliasType: token)]),
-                typeMap: typeMap
-            )
+        let typeMap = TypeMap(
+            entries: HashMap([("ProgressToken", TypeBinding.Aliased("IntegerOrString"))])
+        )
+        let sut = resolverOf(
+            metaModelOf(typeAliases: [TypeAlias(name: "ProgressToken", typeAliasType: token)]),
+            typeMap: typeMap
+        )
 
         // act
         let t = sut.resolve(token, context: "Token")
@@ -201,10 +200,12 @@ class ResolveUnionTest {
     @TestCase
     func aUnionOfTwoLiteralsIsRefusedRatherThanMergedIntoOne() {
         // arrange
-        let first =
-            Type.Literal(StructureLiteral(properties: [property("text", base(BaseTypes.String))]))
-        let second =
-            Type.Literal(StructureLiteral(properties: [property("uri", base(BaseTypes.String))]))
+        let first = Type.Literal(
+            StructureLiteral(properties: [property("text", base(BaseTypes.String))])
+        )
+        let second = Type.Literal(
+            StructureLiteral(properties: [property("uri", base(BaseTypes.String))])
+        )
         let sut = resolverOf(metaModelOf())
 
         // act & assert
@@ -214,8 +215,9 @@ class ResolveUnionTest {
     @TestCase
     func anAliasOfAUnionHoldingALiteralIsRefusedRatherThanClashingWithIt() {
         // arrange
-        let union =
-            Type.Or([base(BaseTypes.Boolean), Type.Literal(StructureLiteral(properties: []))])
+        let union = Type.Or(
+            [base(BaseTypes.Boolean), Type.Literal(StructureLiteral(properties: []))]
+        )
         let alias = TypeAlias(name: "RangeOption", typeAliasType: union)
         let sut = resolverOf(metaModelOf(typeAliases: [alias]))
 
@@ -229,23 +231,21 @@ class ResolveStructTest {
     @TestCase
     func inheritedPropertiesComeFirstAndARedeclaredOneIsReplacedInPlace() {
         // arrange
-        let resourceOperation =
-            structureOf(
-                "ResourceOperation",
-                [
-                    property("kind", base(BaseTypes.String)),
-                    property("annotationId", base(BaseTypes.String), optional: true)
-                ]
-            )
-        let deleteFile =
-            structureOf(
-                "DeleteFile",
-                [
-                    property("kind", Type.StringLiteral("delete")),
-                    property("uri", base(BaseTypes.DocumentUri))
-                ],
-                extends: [ref("ResourceOperation")]
-            )
+        let resourceOperation = structureOf(
+            "ResourceOperation",
+            [
+                property("kind", base(BaseTypes.String)),
+                property("annotationId", base(BaseTypes.String), optional: true)
+            ]
+        )
+        let deleteFile = structureOf(
+            "DeleteFile",
+            [
+                property("kind", Type.StringLiteral("delete")),
+                property("uri", base(BaseTypes.DocumentUri))
+            ],
+            extends: [ref("ResourceOperation")]
+        )
         let mm = metaModelOf(structures: [resourceOperation, deleteFile])
 
         // act
@@ -258,14 +258,13 @@ class ResolveStructTest {
     @TestCase
     func aStringLiteralPropertyIsTheTagInsteadOfAField() {
         // arrange
-        let deleteFile =
-            structureOf(
-                "DeleteFile",
-                [
-                    property("kind", Type.StringLiteral("delete")),
-                    property("uri", base(BaseTypes.String))
-                ]
-            )
+        let deleteFile = structureOf(
+            "DeleteFile",
+            [
+                property("kind", Type.StringLiteral("delete")),
+                property("uri", base(BaseTypes.String))
+            ]
+        )
         let mm = metaModelOf(structures: [deleteFile])
         let cfg = configOf()
 
@@ -281,23 +280,18 @@ class ResolveStructTest {
     @TestCase
     func aLiteralIsDeclaredUnderTheNameOfWhereItAppears() {
         // arrange
-        let options =
-            structureOf(
-                "SemanticTokensOptions",
-                [
-                    property(
-                        "range",
-                        Type
-                            .Or(
-                                [
-                                    base(BaseTypes.Boolean),
-                                    Type.Literal(StructureLiteral(properties: []))
-                                ]
-                            ),
-                        optional: true
-                    )
-                ]
-            )
+        let options = structureOf(
+            "SemanticTokensOptions",
+            [
+                property(
+                    "range",
+                    Type.Or(
+                        [base(BaseTypes.Boolean), Type.Literal(StructureLiteral(properties: []))]
+                    ),
+                    optional: true
+                )
+            ]
+        )
         let mm = metaModelOf(structures: [options])
         let cfg = configOf()
         let resolver = TypeResolver(mm, cfg)
@@ -313,16 +307,18 @@ class ResolveStructTest {
     @TestCase
     func anInheritedLiteralKeepsTheNameOfWhereItIsDeclared() {
         // arrange
-        let rangeType =
-            Type.Or([base(BaseTypes.Boolean), Type.Literal(StructureLiteral(properties: []))])
-        let options =
-            structureOf("SemanticTokensOptions", [property("range", rangeType, optional: true)])
-        let registrationOptions =
-            structureOf(
-                "SemanticTokensRegistrationOptions",
-                [],
-                extends: [ref("SemanticTokensOptions")]
-            )
+        let rangeType = Type.Or(
+            [base(BaseTypes.Boolean), Type.Literal(StructureLiteral(properties: []))]
+        )
+        let options = structureOf(
+            "SemanticTokensOptions",
+            [property("range", rangeType, optional: true)]
+        )
+        let registrationOptions = structureOf(
+            "SemanticTokensRegistrationOptions",
+            [],
+            extends: [ref("SemanticTokensOptions")]
+        )
         let mm = metaModelOf(structures: [options, registrationOptions])
         let cfg = configOf()
         let resolver = TypeResolver(mm, cfg)
@@ -343,17 +339,15 @@ class EmitStructTest {
     @TestCase
     func anOptionalOfAnEnumWithItsOwnNoneSpellsOutWhichNone() {
         // arrange
-        let syncKind =
-            Enumeration(
-                name: "TextDocumentSyncKind",
-                enumerationType: EnumerationType(name: EnumerationBaseType.UInteger),
-                values: [EnumerationEntry(name: "None", value: IntegerOrString.Integer(0))]
-            )
-        let options =
-            structureOf(
-                "TextDocumentSyncOptions",
-                [property("change", ref("TextDocumentSyncKind"), optional: true)]
-            )
+        let syncKind = Enumeration(
+            name: "TextDocumentSyncKind",
+            enumerationType: EnumerationType(name: EnumerationBaseType.UInteger),
+            values: [EnumerationEntry(name: "None", value: IntegerOrString.Integer(0))]
+        )
+        let options = structureOf(
+            "TextDocumentSyncOptions",
+            [property("change", ref("TextDocumentSyncKind"), optional: true)]
+        )
         let mm = metaModelOf(structures: [options], enumerations: [syncKind])
         let cfg = configOf()
         let ir = resolveStruct(cfg, TypeResolver(mm, cfg), options).getOrThrow()

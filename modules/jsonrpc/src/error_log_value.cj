@@ -14,10 +14,9 @@ public class ErrorLogValue <: LogValue {
         w.startArray()
         w.writeString(error.toString())
         for (frame in error.getStackTrace()) {
-            w
-                .writeString(
-                    "${frame.declaringClass}.${frame.methodName}(${frame.fileName}:${frame.lineNumber})"
-                )
+            w.writeString(
+                "${frame.declaringClass}.${frame.methodName}(${frame.fileName}:${frame.lineNumber})"
+            )
         }
         w.endArray()
     }
