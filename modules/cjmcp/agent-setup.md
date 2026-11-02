@@ -53,8 +53,11 @@ rule to the target project's `AGENTS.md`, `CLAUDE.md`, or equivalent persistent
 project instructions so tool selection does not depend on a user reminder:
 
 ```text
-cjmcp is optional. When connected, use runPython for Cangjie symbol, usage,
-type or diagnostic queries and follow its server instructions.
+Use cjmcp runPython for all Cangjie source analysis, reading and editing.
+Do not use shell commands (rg, sed, cat, shell-launched Python or subprocesses)
+for these operations. Trust cjmcp analysis; report unavailable or partial
+analysis without a shell fallback. Save edits with Python I/O inside runPython.
+Use shell for builds, tests, Git and non-Cangjie files.
 ```
 
 For an agent host you control, retain the MCP initialization instructions in the
@@ -106,7 +109,8 @@ with the first useful query instead.
 Then ask it to find a known declaration and its usages, showing resolved paths,
 byte ranges and a bounded source excerpt. Use the
 [recipes](skills/cangjie-mcp/references/navigation.md#find-declarations-and-their-usages).
-Finally, save a small code edit and ask for diagnostics in a new call. The
+Finally, save a small code edit through `runPython` using the
+[editing recipe](skills/cangjie-mcp/references/editing.md), and ask for diagnostics in a new call. The
 revision should change for an observed input change and the answer should use
 new text. Check that it queried the edited worktree, not another clone.
 
@@ -116,8 +120,8 @@ client-launched process and server stderr. If results are partial, inspect
 `problems` and `hasExpandedMacros`; an empty result does not establish correctness.
 If the agent keeps grepping usages, check that project instructions and the skill
 are actually loaded and that the host exposes the server's instructions. Do not
-solve missing guidance by disabling ordinary tools: docs, edits, Git and tests
-still need them. A timed-out script may have performed effects; inspect state
+fall back to shell for Cangjie source work. Keep shell available for non-Cangjie
+files, Git, builds and tests. A timed-out script may have performed effects; inspect state
 before retrying. cjmcp has no editor-buffer integration or dedicated refactoring API.
 
 ## Design references
