@@ -22,12 +22,7 @@ public struct MacroServerPaths {
      * Those of the SDK at `home` for the host `target` (`linux_x86_64_cjnative`).
      */
     public static func inSdk(home: Path, target: String): MacroServerPaths {
-        let exe =
-            if (target.startsWith("windows")) {
-                ".exe"
-            } else {
-                ""
-            }
+        let exe = if (target.startsWith("windows")) { ".exe" } else { "" }
         MacroServerPaths(
             server: home.join("tools").join("bin").join("LSPMacroServer${exe}"),
             cjc: home.join("bin").join("cjc${exe}"),
@@ -91,11 +86,7 @@ public class MacroServerProcess {
                 from++
             }
             let text = String.fromUtf8(buffer[from..count])
-            if (start > 0) {
-                "[macro output truncated]\n${text}"
-            } else {
-                text
-            }
+            if (start > 0) { "[macro output truncated]\n${text}" } else { text }
         } catch (_: Exception) {
             "[macro output could not be decoded]"
         } finally {

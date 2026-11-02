@@ -22,18 +22,8 @@ func conflictingLibraries(
         let leaf = root.join(name).join("leaf")
         Directory.create(source, recursive: true)
         Directory.create(leaf, recursive: true)
-        let value =
-            if (name == "First") {
-                "1"
-            } else {
-                "2"
-            }
-        let pkg =
-            if (sameName) {
-                "toy.ms"
-            } else {
-                "toy.${name}"
-            }
+        let value = if (name == "First") { "1" } else { "2" }
+        let pkg = if (sameName) { "toy.ms" } else { "toy.${name}" }
         File.writeTo(
             leaf.join("leaf.cj"),
             "package leaf\npublic func which(): Int64 { ${value} }\n".toArray()
