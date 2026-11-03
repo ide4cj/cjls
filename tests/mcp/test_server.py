@@ -11,6 +11,9 @@ import textwrap
 import threading
 import unittest
 
+from output_checks import OutputChecks
+from diagnostic_checks import DiagnosticChecks
+
 ROOT = Path(__file__).resolve().parents[2]
 BINARY = os.environ.get("CJMCP_BIN", str(ROOT / "target/release/bin/cjmcp"))
 
@@ -24,7 +27,7 @@ def server_environment():
 
 
 @unittest.skipUnless(sys.platform.startswith("linux"), "embedded CPython experiment supports native Linux")
-class McpStdioTest(unittest.TestCase):
+class McpStdioTest(DiagnosticChecks, OutputChecks, unittest.TestCase):
     def test_repeated_native_proxy_allocation(self):
         # Reentering through enum constructors and payload getters exposed invalid GC roots.
         # This needs the real process: an interpreter crash cannot become a tool error.
@@ -146,9 +149,12 @@ result = i + 1
                 self.assertNotIn("error", reply)
                 return reply["result"]
 
-            def run(code, *, error=False):
+            def run(code, *, error=False, max_output_bytes=None):
+                arguments = {"code": textwrap.dedent(code)}
+                if max_output_bytes is not None:
+                    arguments["maxOutputBytes"] = max_output_bytes
                 result = rpc("tools/call", {
-                    "name": "runPython", "arguments": {"code": textwrap.dedent(code)},
+                    "name": "runPython", "arguments": arguments,
                 })
                 self.assertEqual(result["isError"], error, result)
                 self.assertEqual(json.loads(result["content"][0]["text"]), result["structuredContent"])
@@ -205,8 +211,8 @@ result = i + 1
                         'symbols': [node.name for node in nodes],
                         'hover': hover.items[0].code,
                         'target': location.path,
-                        'problems': workspace.problems,
-                        'hasExpandedMacros': workspace.hasExpandedMacros,
+                        'loadDiagnostics': workspace.loadDiagnostics,
+                        'macros': workspace.macros,
                         'diagnostics': [item.message for item in workspace.diagnostics('src/main.cj')],
                     }}
                     print('прямые объекты loupe')
@@ -221,13 +227,17 @@ result = i + 1
                 self.assertIn("answer", data["hover"])
                 self.assertEqual(data["target"], str(root / "src/helper.cj"))
                 self.assertEqual(data["diagnostics"], [])
-                self.assertTrue(data["hasExpandedMacros"])
+                self.assertEqual(data["macros"], {"state": "settled", "diagnostics": []})
                 self.assertIn("прямые объекты loupe", native["stdout"])
 
                 unchanged = run("result = workspace.revision")
                 self.assertEqual(unchanged["revision"], native["revision"])
                 self.assertEqual(unchanged["result"], native["revision"])
 
+                self._check_structured_diagnostics(run)
+                self._check_output_budgets(root, run)
+                self._check_source_excerpts(run)
+                self._check_large_source_workflow(run)
                 self._check_source_editing(run)
                 self._check_source_changes(run)
 
@@ -464,7 +474,7 @@ result = i + 1
 
                 # act - edits/additions/deletions are synchronized automatically before each script
                 (root / "src/main.cj").write_text(
-                    "package sample\nmain() { let value: Int64 = true }\n", encoding="utf-8", newline="\n",
+                    "package sample\n// комментарий\nmain() { /* привет */ let value: Int64 = true }\n", encoding="utf-8", newline="\n",
                 )
                 (root / "src/new.cj").write_text(
                     "package sample\npublic func added() {}\n", encoding="utf-8", newline="\n",
@@ -472,7 +482,7 @@ result = i + 1
                 stale = run("result = [node.name for node in workspace.structure('src/main.cj')]")
                 changed = run("""
                     diagnostics = workspace.diagnostics('src/main.cj')
-                    assert all(isinstance(item, Diagnostic) for item in diagnostics)
+                    assert all(isinstance(item, WorkspaceDiagnostic) for item in diagnostics)
                     assert all(isinstance(item.severity, Severity) for item in diagnostics)
                     analysis = workspace.analysis()
                     main = next(d for d in analysis.declarations('src/main.cj') if analysis.item(d).kind == ItemKind.Main())
@@ -483,7 +493,7 @@ result = i + 1
                     assert analysis.typeText(mismatch.field2) == 'Bool'
                     assert isinstance(Severity.Error(), Severity)
                     result = dict(
-                        diagnostics=[item.message for item in diagnostics],
+                        diagnostics=diagnostics,
                         added=[node.name for node in workspace.structure('src/new.cj')])
                 """)
                 (root / "src/new.cj").unlink()
@@ -492,7 +502,17 @@ result = i + 1
                 # assert
                 self.assertNotIn("answer", stale["result"])
                 self.assertGreater(stale["revision"], recovered["revision"])
-                self.assertTrue(any("mismatched types" in message for message in changed["result"]["diagnostics"]))
+                self.assertTrue(any("mismatched types" in d["message"] for d in changed["result"]["diagnostics"]))
+                diagnostic = next(d for d in changed["result"]["diagnostics"] if "mismatched types" in d["message"])
+                source = (root / "src/main.cj").read_bytes()
+                offset = source.index(b"true")
+                self.assertEqual(diagnostic["source"], "analysis")
+                self.assertEqual(diagnostic["severity"], "error")
+                self.assertEqual(diagnostic["path"], str(root / "src/main.cj"))
+                self.assertEqual(diagnostic["range"], {"start": offset, "end": offset + 4})
+                self.assertEqual(diagnostic["line"], 3)
+                self.assertEqual(diagnostic["column"], offset - source.rindex(b"\n", 0, offset))
+                self.assertFalse(diagnostic["unnecessary"])
                 self.assertIn("added", changed["result"]["added"])
                 self.assertNotIn(str(root / "src/new.cj"), after_delete["result"])
 
@@ -800,6 +820,7 @@ result = i + 1
         """)
         self.assertGreater(renamed['revision'], checked['revision'])
 
+
     def _check_source_editing(self, run):
         # arrange - create and then edit UTF-8 source entirely inside runPython.
         created = run("""
@@ -876,8 +897,8 @@ main() { generated() }
         expanded = run(f"""
             from pathlib import Path
             workspace.reload()
-            assert workspace.hasExpandedMacros, workspace.problems
-            assert workspace.problems == [], workspace.problems
+            assert workspace.macros.state == MacroState.Settled() and not workspace.macros.diagnostics, workspace.macros
+            assert workspace.loadDiagnostics == [], workspace.loadDiagnostics
             old = workspace.analysis()
             call = old.macroCall('src/main.cj', {macro_use.index('@Pass')})
             assert call is not None
@@ -921,7 +942,7 @@ main() { generated() }
             macro_path.write_text(macro_path.read_text().replace('{{ 41 }}', '{{ 42 }}'))
             os.utime(macro_path, ns=(stamp.st_atime_ns, stamp.st_mtime_ns))
             workspace.reload()
-            assert workspace.hasExpandedMacros, workspace.problems
+            assert workspace.macros.state == MacroState.Settled() and not workspace.macros.diagnostics, workspace.macros
             # Even reload cannot change the revision halfway through this script.
             current = workspace.analysis()
             current_call = current.macroCall('src/main.cj', {macro_use.index('@Pass')})
@@ -929,12 +950,12 @@ main() { generated() }
             assert old.revision == current.revision == workspace.revision
             import builtins
             builtins._cjmcp_old_analysis = old
-            result = workspace.problems
+            result = workspace.macros.diagnostics
         """)
         self.assertEqual(expanded["result"], [])
         changed = run(f"""
             import builtins
-            assert workspace.hasExpandedMacros, workspace.problems
+            assert workspace.macros.state == MacroState.Settled() and not workspace.macros.diagnostics, workspace.macros
             current = workspace.analysis()
             current_call = current.macroCall('src/main.cj', {macro_use.index('@Pass')})
             assert '42' in current.expansion(current_call.call).text, current.expansion(current_call.call).text
@@ -949,16 +970,16 @@ main() { generated() }
         """)
         self.assertGreater(changed['revision'], expanded['revision'])
         self.assertEqual(changed['result'], changed['revision'])
-        unchanged = run('result = workspace.hasExpandedMacros')
-        self.assertTrue(unchanged['result'])
+        unchanged = run('result = workspace.macros')
+        self.assertEqual(unchanged['result'], {'state': 'settled', 'diagnostics': []})
         self.assertEqual(unchanged['revision'], changed['revision'])
 
         count = counter.read_text()
         # A regular function edit must reuse existing expansions, not just compiler artifacts.
         with (root / "src/helper.cj").open("a", encoding="utf-8") as helper:
             helper.write("\npublic func unrelated(): Int64 { 7 }\n")
-        regular_edit = run('result = workspace.hasExpandedMacros')
-        self.assertTrue(regular_edit['result'])
+        regular_edit = run('result = workspace.macros')
+        self.assertEqual(regular_edit['result'], {'state': 'settled', 'diagnostics': []})
         self.assertGreater(regular_edit['revision'], unchanged['revision'])
         self.assertEqual(counter.read_text(), count)
 
@@ -987,16 +1008,18 @@ main() { generated() }
             encoding="utf-8", newline="\n",
         )
         failed_expansion = run("""
-            assert not workspace.hasExpandedMacros
-            result = workspace.problems
+            assert workspace.macros.state == MacroState.Settled() and workspace.macros.diagnostics
+            result = workspace.macros.diagnostics
         """)
-        self.assertTrue(any('@Emit failed' in problem for problem in failed_expansion["result"]),
+        self.assertTrue(any(d['code'] == 'macro_expansion' and '@Emit failed' in d['message'] for d in failed_expansion["result"]),
                         failed_expansion)
-        self.assertTrue(any('expansion probe failed' in problem for problem in failed_expansion["result"]),
+        self.assertTrue(any('expansion probe failed' in d['message'] for d in failed_expansion["result"]),
                         failed_expansion)
-        self.assertTrue(any(f'{root / "src/main.cj"}:4:7:' in problem
-                            for problem in failed_expansion["result"]), failed_expansion)
-        # SDK stderr may belong to the background worker; problems remain the stable tool contract.
+        self.assertTrue(any(d['path'] == str(root / "src/main.cj") and d['line'] == 4 and d['column'] == 7
+                            and d['range'] == {'start': macro_use.encode().index(b'@Emit'),
+                                               'end': macro_use.encode().index(b'@Emit') + len(b'@Emit')}
+                            for d in failed_expansion["result"]), failed_expansion)
+        # Structured diagnostics retain source locations independently of worker stderr.
 
         # Build failure is visible without making a partially expanded revision look complete.
         (macro_dir / "macros.cj").write_text(
@@ -1004,14 +1027,14 @@ main() { generated() }
             encoding="utf-8", newline="\n",
         )
         failed_build = run("""
-            assert not workspace.hasExpandedMacros
-            result = workspace.problems
+            assert workspace.macros.state == MacroState.Settled() and workspace.macros.diagnostics
+            result = workspace.macros.diagnostics
         """)
-        self.assertTrue(any('macro library not built' in problem for problem in failed_build["result"]))
-        self.assertTrue(any('macro call was not sent' in problem for problem in failed_build["result"]))
+        self.assertTrue(any(d['code'] == 'macro_build' and d['severity'] == 'error' for d in failed_build["result"]))
+        self.assertTrue(any(d['code'] == 'macro_not_sent' for d in failed_build["result"]))
         (macro_dir / "macros.cj").write_text(macro_source, encoding="utf-8", newline="\n")
-        recovered_macros = run("result = workspace.hasExpandedMacros")
-        self.assertTrue(recovered_macros["result"])
+        recovered_macros = run("result = workspace.macros")
+        self.assertEqual(recovered_macros["result"], {"state": "settled", "diagnostics": []})
 
 
 if __name__ == "__main__":

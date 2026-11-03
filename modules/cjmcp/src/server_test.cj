@@ -155,12 +155,33 @@ class McpServerTest {
             ]
 
         // act
+        let invalidBudgets =
+            [JsonInteger(-1), JsonBool(true), JsonString("24000"), JsonNull, JsonFloat(1.5)]
+        let budgetResponses =
+            invalidBudgets
+                .map {
+                    budget =>
+                    request(
+                        server,
+                        "tools/call",
+                        params: obj(
+                            [
+                                ("name", JsonString("runPython")),
+                                (
+                                    "arguments",
+                                    obj([("code", JsonString("")), ("maxOutputBytes", budget)])
+                                )
+                            ]
+                        )
+                    )
+                }
         let responses = calls.map { params => request(server, "tools/call", params: params) }
         let unknown = request(server, "unknown")
 
         // assert
         @Expect(responses.iterator().all { response => response["error"]["code"].asInteger() == -32602 })
         @Expect(unknown["error"]["code"].asInteger(), -32601)
+        @Expect(budgetResponses.iterator().all { response => response["error"]["code"].asInteger() == -32602 })
     }
 
     @TestCase

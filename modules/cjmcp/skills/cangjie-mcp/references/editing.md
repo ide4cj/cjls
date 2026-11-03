@@ -3,19 +3,51 @@
 Read loaded source through the current revision and use native `SourceChange`
 values for checked project edits. All Cangjie source work stays in `runPython`.
 
-```python
+Prefer semantic selection before implementing. Keep full expectedText in Python;
+the model usually needs the selected declaration/member, then a compact diff and
+the application report. This example changes the unique "{ 1 }" body inside a
+function named target to "{ 2 }"; adapt the name and expected fragment to the task:
+
+~~~python
+import difflib
 a = workspace.analysis()
 path = "src/main.cj"
 before = a.text(path)
-# Select range from a semantic query in this revision.
-change = SourceChange([
-    FileChange.EditFile(path, before, [TextEdit(range, replacement)]),
-    FileChange.CreateFile("src/added.cj", "package sample\nfunc added() {}\n"),
-])
-report = workspace.applyChange(change, a.revision)
-result = {"revision": report.revision, "applied": report.applied,
-          "failed": report.failed, "error": report.error}
-```
+data = before.encode("utf-8")
+node = next(s for s in a.fileSymbols(path) if s.name == "target")
+expected = b"{ 1 }"
+assert data[node.range.start:node.range.end].count(expected) == 1
+start = data.index(expected, node.range.start, node.range.end)
+span = TextRange(start, start + len(expected))
+replacement = "{ 2 }"
+after = (data[:span.start] + replacement.encode("utf-8") + data[span.end:]).decode("utf-8")
+diff = list(difflib.unified_diff(before.splitlines(), after.splitlines(),
+                               fromfile=path, tofile=path, n=2, lineterm=""))
+report = workspace.applyChange(
+    SourceChange([FileChange.EditFile(path, before, [TextEdit(span, replacement)])]),
+    a.revision)
+result = {"success": report.isSuccess, "applied": report.applied,
+          "failed": report.failed, "error": report.error,
+          "diff": diff}
+~~~
+
+For larger edits, select diff hunks or changed semantic ranges and report any
+omissions. See [runtime recovery](runtime.md) if the response exceeds its budget;
+the edit has already executed, so retrieve evidence without replaying it.
+
+Use a fresh call for diagnostics and semantic verification:
+
+~~~python
+a = workspace.analysis()
+paths = ["src/main.cj"]
+rows = [d for p in paths for d in workspace.diagnostics(p)]
+result = {"revision": a.revision, "diagnostics": rows[:20],
+          "total": len(rows), "omitted": max(0, len(rows)-20)}
+~~~
+
+Diagnostic values serialize directly. Also inspect changed references, selected
+callees or inferred types when they matter; empty diagnostics do not replace
+compiler/tests.
 
 `EditFile(path, expectedText, edits)` accepts unordered UTF-8 byte edits against
 one original string. Pass formatting results directly as `edits`. Same-position
