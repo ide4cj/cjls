@@ -52,6 +52,21 @@ class RedeclarationDiagnosticsTest {
     }
 
     @TestCase
+    func repeatedMethodsReportEveryConflict(): Unit {
+        // arrange
+        const METHOD = "    func f(x: Int64): Int64 { x + 1 }\n"
+        let methods = String.join(Array(2000) { _ => METHOD })
+        let fixture = Fixture.parse("class A {\n${methods}}\n")
+        let db = fixture.database()
+        // act
+        let found = diagnostics(db, fixture.file("/main.cj").fileId)
+
+        // assert
+        @Expect(found.size, 1999)
+        @Expect(found.all { one => one.message == "function 'f' has overload conflicts" })
+    }
+
+    @TestCase
     func parametersShareTheOutermostBodyScope(): Unit {
         checkDiagnostics(
             #"

@@ -4,6 +4,7 @@ import std.collection.{ArrayList, HashMap, collectArray}
 import std.sort.sort
 import cjsyntax.{CjSyntaxNode, SyntaxKind, parse}
 import ginkgo.TextRange
+import source_change.{TextEdit, applyEdits}
 
 /**
  * An import's condition and visibility travel with every leaf when lists are regrouped.

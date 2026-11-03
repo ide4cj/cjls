@@ -4,6 +4,7 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import cjsyntax.parse
 import ginkgo.TextRange
+import source_change.applyEdits
 
 @Test
 class ImportFormatTest {

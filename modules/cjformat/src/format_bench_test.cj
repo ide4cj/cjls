@@ -3,6 +3,7 @@ package cjformat
 import std.unittest.*
 import std.unittest.testmacro.*
 import cjsyntax.{CjParse, parse}
+import source_change.TextEdit
 
 let BENCH_FILES =
     [100, 1000, 10000]

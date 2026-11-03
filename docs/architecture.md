@@ -41,6 +41,11 @@ boundary, URIs, LSP positions and negotiated encodings become `FileId`, UTF-8 by
 offsets and analysis-owned results. Position conversion uses the text of the same
 snapshot as the answer ([D5](adr/0005-loupe-knows-no-lsp.md)).
 
+Source changes share a protocol-independent model in `source_change`: checked UTF-8
+text edits and file creation, rename and deletion. The formatter uses its text
+application; frontends own path resolution, freshness and application. See
+[D162](adr/0162-source-change.md).
+
 ## A read request and an edit
 
 For `textDocument/documentSymbol`, the read loop checks lifecycle and routing and

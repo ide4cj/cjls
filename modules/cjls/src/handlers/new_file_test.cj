@@ -130,8 +130,8 @@ class NewFilePackageTest {
         @Expect(changesOf(edit, uriOf(path))[0].newText, "macro package app.ms\n")
     }
 
-    @TestCase
-    func aClientTakingVersionsIsGivenTheLineOfTheVersionOpened() {
+    @TestCase[text in ["", "\n", " \t\r\n\n"]]
+    func aClientTakingVersionsIsGivenTheLineOfTheVersionOpened(text: String): Unit {
         // arrange
         let root = appModule()
         let loop = editableWith(root, versioned: true)
@@ -140,7 +140,7 @@ class NewFilePackageTest {
         let path = root.join("src").join("util").join("new.cj")
 
         // act
-        openBlank(loop, client, path, text: "")
+        openBlank(loop, client, path, text: text)
         client.close()
         remove(root, recursive: true)
 
