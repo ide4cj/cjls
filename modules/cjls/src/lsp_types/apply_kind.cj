@@ -5,9 +5,9 @@ package cjls.lsp_types
 import std.collection.*
 import std.deriving.*
 import fjson.*
+import jsonrpc.*
 import stdxx.{IntegerOrString, Nullable}
 import stdxx.deriving.*
-import jsonrpc.*
 
 /**
  * Defines how values from a set of defaults and an individual item will be

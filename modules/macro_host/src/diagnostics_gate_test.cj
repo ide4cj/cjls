@@ -7,10 +7,10 @@ import std.sort.sort
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import loupe.{diagnostics, Severity}
+import loupe.{Severity, diagnostics}
 import loupe.db.*
 import loupe.hir.{macroBuildPlan, macroCallHeadOf, macroOutputOf, serverCalls, setMacroOutputsByKey}
-import loupe.vfs.{readCjoFiles, readFiles, Vfs, VfsPath}
+import loupe.vfs.{Vfs, VfsPath, readCjoFiles, readFiles}
 import project_model.findProject
 
 /**

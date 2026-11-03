@@ -2,24 +2,24 @@ package loupe
 
 import std.unittest.*
 import std.unittest.testmacro.*
+import rope.Rope
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.fixture.{Fixture, FixtureException, stdCjo, stdCjoRead, stdWithSources}
 import loupe.hir.{
-    canonicalDef,
     DefId,
     ExtendedType,
     ItemFile,
+    Namespace,
+    Resolution,
+    canonicalDef,
     itemTree,
     lookUp,
     memberLookup,
-    Namespace,
     packageExports,
     packageOfFile,
-    Resolution,
     resolutionPackage,
     signatureTypes
 }
-import rope.Rope
 
 /**
  * The loaded attachment, independent of any workspace root or open-document discovery.

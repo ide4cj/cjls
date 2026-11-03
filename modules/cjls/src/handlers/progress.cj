@@ -2,8 +2,8 @@ package cjls.handlers
 
 import std.sync.AtomicBool
 import stdx.log.Logger
-import stdxx.IntegerOrString
 import fjson.{JsonValue, RawJson, ToJson}
+import stdxx.IntegerOrString
 import cjls.lsp_types.*
 import cjls.server.Client
 

@@ -2,8 +2,8 @@ package loupe
 
 import std.unittest.*
 import std.unittest.testmacro.*
-import loupe.fixture.*
 import rope.Rope
+import loupe.fixture.*
 
 @Test
 class RedeclarationDiagnosticsTest {

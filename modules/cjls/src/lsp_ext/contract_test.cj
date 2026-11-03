@@ -1,7 +1,7 @@
 package cjls.lsp_ext
 
-import std.fs.*
 import std.convert.Formattable
+import std.fs.*
 import std.sort.sort
 import std.unittest.*
 import std.unittest.testmacro.*

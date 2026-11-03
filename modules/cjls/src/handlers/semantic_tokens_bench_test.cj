@@ -4,14 +4,14 @@ import std.collection.*
 import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import stdxx.{IntegerOrString, Nullable}
 import fjson.*
 import jsonrpc.*
-import rope.{Encoding, Rope}
 import loupe.*
 import loupe.db.AnalysisDatabase
 import loupe.fixture.*
 import loupe.vfs.FileId
+import rope.{Encoding, Rope}
+import stdxx.{IntegerOrString, Nullable}
 import cjls.lsp_types.*
 
 /*

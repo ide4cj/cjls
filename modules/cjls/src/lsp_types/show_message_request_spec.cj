@@ -5,9 +5,9 @@ package cjls.lsp_types
 import std.collection.*
 import std.deriving.*
 import fjson.*
+import jsonrpc.*
 import stdxx.{IntegerOrString, Nullable}
 import stdxx.deriving.*
-import jsonrpc.*
 
 /**
  * The show message request is sent from the server to the client to show a message

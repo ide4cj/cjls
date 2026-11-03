@@ -3,8 +3,8 @@ package project_model
 import std.collection.*
 import std.sort.*
 import ftoml.*
-import stdxx.deriving.*
 import loupe.db.Cfg
+import stdxx.deriving.*
 
 /**
  * `[[source-set]]` of a multiplatform module (CJMP, `[profile] experimental = true`): a directory

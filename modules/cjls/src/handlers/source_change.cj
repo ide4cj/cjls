@@ -1,13 +1,12 @@
 package cjls.handlers
 
 import std.collection.HashMap
-import cjls.lsp_types.*
-import cjls.lsp_types.Range as LspRange
 import loupe.vfs.VfsPath
 import rope.{Encoding, Rope}
-import source_change.TextEdit as SourceTextEdit
-import source_change.{FileChange, SourceChange, validatedEdits}
+import source_change.{FileChange, SourceChange, TextEdit as SourceTextEdit, validatedEdits}
 import stdxx.Nullable
+import cjls.lsp_types.*
+import cjls.lsp_types.Range as LspRange
 
 /**
  * Translates a change prepared from captured document text and versions to an LSP workspace edit.

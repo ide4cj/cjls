@@ -4,11 +4,11 @@ import std.fs.{FSException, Path}
 import std.runtime.*
 import std.time.MonoTime
 import jsonrpc.{ErrorCode, RpcException}
-import cjls.lsp_types.*
-import cjls.lsp_ext.*
-import cjls.server.*
-import cjls.macros.LspHandler
 import platform.dumpsHeap as runtimeDumpsHeap
+import cjls.lsp_ext.*
+import cjls.lsp_types.*
+import cjls.macros.LspHandler
+import cjls.server.*
 
 /**
  * How long `collect` waits for the collection it asked for.

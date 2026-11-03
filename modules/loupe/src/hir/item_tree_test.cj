@@ -7,9 +7,9 @@ import calca.*
 import calca.macros.*
 import cjsyntax.parse as parseText
 import rope.Rope
-import loupe.vfs.FileId
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.fixture.Fixture
+import loupe.vfs.FileId
 
 let itemNamesRuns = AtomicInt64(0)
 

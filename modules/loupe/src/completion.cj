@@ -3,9 +3,9 @@ package loupe
 import std.collection.*
 import std.deriving.*
 import std.sort.*
-import ginkgo.{Direction, SyntaxElement, SyntaxNodePtr, TextRange, TokenAtOffset}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind, reparse}
 import cjsyntax.ast.{Decl, MemberAccessExpr, RefExpr}
+import ginkgo.{Direction, SyntaxElement, SyntaxNodePtr, TextRange, TokenAtOffset}
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse

@@ -1,6 +1,6 @@
 package cjls
 
-import std.fs.{Directory, File, FileInfo, FSException, Path, exists, removeIfExists, rename}
+import std.fs.{Directory, FSException, File, FileInfo, Path, exists, removeIfExists, rename}
 import std.io.OutputStream
 import std.process.{ProcessException, executeWithOutput}
 import platform.executableFile

@@ -5,11 +5,11 @@ import std.fs.{Path, remove}
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import stdxx.Nullable
 import fjson.{JsonValue, RawJson}
 import jsonrpc.*
 import loupe.vfs.VfsPath
 import platform.{hostArch, hostOs}
+import stdxx.Nullable
 import cjls.lsp_types.*
 import cjls.server.*
 

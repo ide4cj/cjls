@@ -1,8 +1,8 @@
 package stdxx
 
 import std.deriving.*
-import stdxx.deriving.*
 import fjson.*
+import stdxx.deriving.*
 
 // The fixtures of `deriving_json_test.cj`, which also pins what a user of `@DeriveExt[ToJson,
 // FromJson]` has to import: `fjson.*` and `stdxx.deriving.*`, plus `std.deriving.*` for `@Derive`.

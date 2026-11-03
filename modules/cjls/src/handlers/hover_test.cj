@@ -4,8 +4,8 @@ import std.fs.Path
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import stdxx.Nullable
 import loupe.builtinTypeDoc
+import stdxx.Nullable
 import cjls.lsp_types.*
 import cjls.server.*
 

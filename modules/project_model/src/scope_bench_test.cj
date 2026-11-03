@@ -5,14 +5,14 @@ import std.env.{getVariable, getWorkingDirectory}
 import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import ginkgo.SyntaxElement
 import cjsyntax.SyntaxKind
 import cjsyntax.ast.identText
-import rope.Rope
+import ginkgo.SyntaxElement
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
-import loupe.vfs.{FileId, PathInterner, readCjoFiles, readFiles, Vfs, VfsPath}
+import loupe.vfs.{FileId, PathInterner, Vfs, VfsPath, readCjoFiles, readFiles}
+import rope.Rope
 
 /**
  * The workspace this repository is, loaded as the server loads one: its project, the `.cjo` of

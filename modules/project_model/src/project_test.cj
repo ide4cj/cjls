@@ -7,8 +7,8 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import fjson.*
 import loupe.db.*
-import loupe.hir.{defMap, PackageRef}
-import loupe.vfs.{readFiles, Vfs, VfsPath}
+import loupe.hir.{PackageRef, defMap}
+import loupe.vfs.{Vfs, VfsPath, readFiles}
 
 /**
  * A directory of its own under the temporary one, holding `files` (paths relative to it, with `/`

@@ -4,6 +4,7 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import cjsyntax.ast.Decl
 import ginkgo.{SyntaxNodePtr, TextRange}
+import rope.Rope
 import loupe.db.{
     AnalysisDatabase,
     MacroDiagnostic,
@@ -17,7 +18,6 @@ import loupe.db.{
 }
 import loupe.fixture.FixtureException
 import loupe.syntax.parse
-import rope.Rope
 
 /**
  * A call of `serverCalls` as a line: its macro, its ordinal, `/` if it is in its item (D117), `!` if it is read.

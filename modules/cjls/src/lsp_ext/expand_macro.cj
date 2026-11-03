@@ -1,9 +1,9 @@
 package cjls.lsp_ext
 
 import fjson.*
+import jsonrpc.*
 import stdxx.Nullable
 import stdxx.deriving.*
-import jsonrpc.*
 import cjls.lsp_types.{LspInboundRequest, MessageDirection, TextDocumentPositionParams}
 
 /**

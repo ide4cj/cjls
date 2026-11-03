@@ -3,12 +3,11 @@ package cjls.handlers
 import std.env.getTempDirectory
 import std.unittest.*
 import std.unittest.testmacro.*
-import cjls.lsp_types.*
 import loupe.TextRange
 import loupe.vfs.VfsPath
 import rope.Encoding
-import source_change.TextEdit as SourceTextEdit
-import source_change.{FileChange, SourceChange}
+import source_change.{FileChange, SourceChange, TextEdit as SourceTextEdit}
+import cjls.lsp_types.*
 
 @Test
 class SourceChangeEditTest {

@@ -5,7 +5,7 @@ import std.fs.*
 import std.sort.*
 import fjson.*
 import loupe.db.*
-import loupe.vfs.{isCangjieFile, isScanned, VfsPath}
+import loupe.vfs.{VfsPath, isCangjieFile, isScanned}
 
 /**
  * Where a project was found.

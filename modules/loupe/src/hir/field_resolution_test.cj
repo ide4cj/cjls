@@ -1,8 +1,8 @@
 package loupe.hir
 
+import std.collection.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import std.collection.*
 import loupe.db.AnalysisDatabase
 import loupe.fixture.*
 

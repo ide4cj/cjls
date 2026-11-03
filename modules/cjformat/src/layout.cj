@@ -69,6 +69,15 @@ class LayoutBuilder {
                 concat([sequence(parts, n.kind, statements: true), hardline()])
             case Block | DeclBody | EnumBody | PropBody | MatchBody | ForeignBlock =>
                 body(parts, n.kind)
+            case ImportTreeList =>
+                // Keep delimiters when removing them would strand a comment or a trailing comma.
+                if (
+                    parts.size == 3 && parts[1].kind == ImportTree &&
+                        !n.descendantsWithTokens().any { e => isComment(e.kind) }
+                ) {
+                    return element(parts[1])
+                }
+                group(sequence(parts, n.kind))
             case LambdaExpr => lambda(parts)
             case IfExpr => ifExpression(n, parts)
             case MatchCase => matchCase(parts)

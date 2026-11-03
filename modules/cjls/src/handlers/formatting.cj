@@ -2,13 +2,13 @@ package cjls.handlers
 
 import cjformat.FormatOptions
 import cjformat.config.{FormatConfigException, optionsFor}
-import cjls.lsp_types.*
-import cjls.macros.LspHandler
-import cjls.server.{ReadOnlyContext, ServerSnapshot}
 import jsonrpc.{ErrorCode, RpcException}
 import loupe.{TextRange, formatting, rangeFormatting}
 import loupe.vfs.VfsPath
 import stdxx.Nullable
+import cjls.lsp_types.*
+import cjls.macros.LspHandler
+import cjls.server.{ReadOnlyContext, ServerSnapshot}
 
 /**
  * The edits that format a document; `null` for one with syntax errors or not known. The style is

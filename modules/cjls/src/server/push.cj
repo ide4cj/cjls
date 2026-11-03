@@ -4,8 +4,8 @@ import std.collection.HashMap
 import std.sync.Mutex
 import stdx.log.Logger
 import calca.CancelledException
-import loupe.vfs.VfsPath
 import jsonrpc.ErrorLogValue
+import loupe.vfs.VfsPath
 import cjls.lsp_types.*
 
 /**

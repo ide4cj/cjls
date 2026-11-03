@@ -1,11 +1,11 @@
 package cjls.handlers
 
-import cjls.lsp_types.*
-import cjls.macros.LspHandler
-import cjls.server.*
 import loupe.definitionAt
 import rope.Encoding
 import stdxx.Nullable
+import cjls.lsp_types.*
+import cjls.macros.LspHandler
+import cjls.server.*
 
 /**
  * Where the name at the position is declared, each candidate of an ambiguity or an overload: as

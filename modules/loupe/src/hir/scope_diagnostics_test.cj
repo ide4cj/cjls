@@ -3,8 +3,8 @@ package loupe.hir
 import std.collection.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import ginkgo.TextRange
 import cjsyntax.ast.{ImportDecl, ImportTree}
+import ginkgo.TextRange
 import loupe.db.AnalysisDatabase
 import loupe.fixture.*
 import loupe.syntax.parse

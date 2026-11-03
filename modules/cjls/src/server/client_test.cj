@@ -5,9 +5,9 @@ import std.sync.AtomicBool
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.*
-import stdxx.Nullable
 import fjson.RawJson
 import jsonrpc.*
+import stdxx.Nullable
 import cjls.lsp_types.*
 
 /**

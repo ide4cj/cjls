@@ -4,11 +4,11 @@ import std.fs.Path
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import cjls.lsp_types.*
-import cjls.server.*
 import loupe.vfs.VfsPath
 import rope.Rope
 import stdxx.Nullable
+import cjls.lsp_types.*
+import cjls.server.*
 
 func completionOf(
     state: ServerState,

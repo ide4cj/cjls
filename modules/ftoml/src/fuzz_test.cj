@@ -3,8 +3,8 @@ package ftoml
 import std.collection.*
 import std.fs.*
 import std.unittest.*
-import std.unittest.testmacro.*
 import std.unittest.prop_test.*
+import std.unittest.testmacro.*
 
 /*
  * Whatever the bytes, `parseToml` either reads them or throws `FtException`: any other exception,

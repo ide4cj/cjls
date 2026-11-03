@@ -2,10 +2,10 @@ package syntax_codegen
 
 import std.collection.ArrayList
 import std.env.getTempDirectory
-import cjformat.config.optionsFor
 import std.fs.{Directory, File, Path, remove}
 import std.unittest.*
 import std.unittest.testmacro.*
+import cjformat.config.optionsFor
 
 const KINDS_FILE = "modules/cjsyntax/syntax_kinds.toml"
 

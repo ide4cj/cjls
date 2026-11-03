@@ -4,10 +4,10 @@ import std.collection.ArrayList
 import std.fs.{FSException, Path}
 import std.time.MonoTime
 import fjson.RawJson
-import rope.Encoding
 import jsonrpc.*
-import cjls.lsp_types.*
+import rope.Encoding
 import cjls.lsp_ext.*
+import cjls.lsp_types.*
 
 @Test
 class MemoryUsageTest {

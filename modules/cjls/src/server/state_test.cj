@@ -3,9 +3,9 @@ package cjls.server
 import std.env.getTempDirectory
 import std.unittest.*
 import std.unittest.testmacro.*
-import rope.Rope
-import loupe.vfs.VfsPath
 import loupe.db.{Cfg, ModuleModel, PackageModel, ProjectModel}
+import loupe.vfs.VfsPath
+import rope.Rope
 
 func pathOf(name: String): VfsPath {
     VfsPath.file(getTempDirectory().join(name))

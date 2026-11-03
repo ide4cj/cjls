@@ -3,8 +3,8 @@ package loupe
 import std.unittest.*
 import std.unittest.testmacro.*
 import rope.Rope
-import loupe.vfs.FileId
 import loupe.db.AnalysisDatabase
+import loupe.vfs.FileId
 
 /**
  * The folds of `text` as `kind@range text`, line breaks in the text written `⏎`.

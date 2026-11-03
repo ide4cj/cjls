@@ -2,13 +2,12 @@ package cjls.handlers
 
 import std.collection.collectArray
 import stdx.log.Logger
-import cjls.lsp_types.*
-import cjls.server.*
 import loupe.TextRange
 import loupe.vfs.VfsPath
 import rope.Rope
-import source_change.TextEdit as SourceTextEdit
-import source_change.{FileChange, SourceChange}
+import source_change.{FileChange, SourceChange, TextEdit as SourceTextEdit}
+import cjls.lsp_types.*
+import cjls.server.*
 
 /**
  * A document opened blank is given its `package` line (#294), as Metals gives it: at once if no

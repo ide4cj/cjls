@@ -1,9 +1,9 @@
 package loupe.hir
 
 import std.collection.*
-import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
 import cjsyntax.{CjSyntaxNode, SyntaxKind}
 import cjsyntax.ast.MacroExpandDecl
+import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
 import loupe.db.*
 import loupe.syntax.parse
 

@@ -6,8 +6,8 @@ import std.env.getTempDirectory
 import std.sort.*
 import ginkgo.TextRange
 import rope.Rope
-import loupe.vfs.*
 import loupe.db.*
+import loupe.vfs.*
 
 /**
  * A fixture that does not say what it means: a header of an unknown key, a `$0` too many, an

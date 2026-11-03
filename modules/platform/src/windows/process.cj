@@ -3,7 +3,7 @@ package platform
 
 import std.env.getVariables
 import std.fs.{File, Path}
-import std.io.{InputStream, IOException, OutputStream}
+import std.io.{IOException, InputStream, OutputStream}
 
 // A piped child on Windows (D87, D91): it reads and writes two pipe handles it inherits, named by number on its
 // command line, which `std.process` cannot pass, so it is started by `CreateProcessW` as cjc's own client starts

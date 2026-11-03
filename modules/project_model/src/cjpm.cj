@@ -5,9 +5,9 @@ import std.deriving.Derive
 import std.fs.*
 import std.sort.*
 import ftoml.*
-import stdxx.deriving.*
 import loupe.db.*
-import loupe.vfs.{cjoFilesIn, VfsPath}
+import loupe.vfs.{VfsPath, cjoFilesIn}
+import stdxx.deriving.*
 
 /**
  * The script cjpm runs around a build, beside its `cjpm.toml`.

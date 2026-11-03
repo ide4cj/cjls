@@ -8,12 +8,12 @@ import std.sync.AtomicBool
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.{Logger, NoopLogger}
-import stdxx.Nullable
 import fjson.RawJson
 import jsonrpc.*
-import rope.{Encoding, Rope}
 import loupe.fixture.stdSourcesDir
 import loupe.vfs.VfsPath
+import rope.{Encoding, Rope}
+import stdxx.Nullable
 import cjls.lsp_types.*
 import cjls.server.*
 

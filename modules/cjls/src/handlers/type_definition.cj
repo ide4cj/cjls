@@ -1,11 +1,11 @@
 package cjls.handlers
 
 import std.collection.{collectArray, filterMap}
+import loupe.{ExpandedPlace, NavigationTarget, typeDefinitionAt, typeDefinitionInExpansion}
+import stdxx.Nullable
 import cjls.lsp_types.*
 import cjls.macros.LspHandler
 import cjls.server.{ReadOnlyContext, ServerSnapshot}
-import loupe.{ExpandedPlace, NavigationTarget, typeDefinitionAt, typeDefinitionInExpansion}
-import stdxx.Nullable
 
 /**
  * The declaration of a symbol's type, using this snapshot's text and method-specific link support.

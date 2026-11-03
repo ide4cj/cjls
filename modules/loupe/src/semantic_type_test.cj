@@ -4,9 +4,9 @@ import std.sync.AtomicBool
 import std.unittest.*
 import std.unittest.testmacro.*
 import calca.CancelledException
+import rope.Rope
 import loupe.fixture.*
 import loupe.hir.*
-import rope.Rope
 
 @Test
 class SemanticTypeTest {

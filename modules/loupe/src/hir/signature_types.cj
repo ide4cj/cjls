@@ -6,9 +6,18 @@ import std.deriving.*
 import std.sort.sort
 import calca.*
 import calca.macros.*
-import cjo.{Attribute, DeclInfo, FbException, FullId, openCjo, SemaTy, SemaTyInfo, TypeKind}
-import cjo.Decl as CjoDecl
-import cjo.Package as CjoPackage
+import cjo.{
+    Attribute,
+    Decl as CjoDecl,
+    DeclInfo,
+    FbException,
+    FullId,
+    Package as CjoPackage,
+    SemaTy,
+    SemaTyInfo,
+    TypeKind,
+    openCjo
+}
 import loupe.db.{AnalysisDatabase, BinaryPackageFile}
 
 /**

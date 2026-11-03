@@ -4,8 +4,8 @@ import std.collection.*
 import std.convert.*
 import std.sort.sort
 import std.unittest.*
-import std.unittest.testmacro.*
 import std.unittest.prop_test.*
+import std.unittest.testmacro.*
 
 /*
  * What a fuzzer finds: values std.unittest generates and shrinks, and bytes it mutates, guided by

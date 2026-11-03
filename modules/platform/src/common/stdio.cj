@@ -2,7 +2,7 @@
 features {}
 package platform
 
-import std.io.{InputStream, IOException}
+import std.io.{IOException, InputStream}
 
 const STDIN_FILENO: Int32 = 0
 const STDOUT_FILENO: Int32 = 1

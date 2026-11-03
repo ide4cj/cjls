@@ -1,7 +1,7 @@
 package macro_server
 
 import std.env.{getTempDirectory, getVariable}
-import std.fs.{Directory, exists, File, Path, remove}
+import std.fs.{Directory, File, Path, exists, remove}
 import std.unittest.*
 import std.unittest.testmacro.*
 import platform.{hostArch, sharedLibrarySuffix}

@@ -4,8 +4,8 @@ import std.collection.*
 import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import rope.Rope
 import cjsyntax.{SyntaxKind, tokenize}
+import rope.Rope
 import loupe.fixture.stdSourcesDir
 import loupe.vfs.isCangjieFile
 

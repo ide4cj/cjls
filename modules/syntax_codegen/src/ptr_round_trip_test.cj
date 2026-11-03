@@ -4,8 +4,8 @@ import std.collection.*
 import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import ginkgo.*
 import cjsyntax.*
+import ginkgo.*
 
 @Test
 class PtrRoundTripTest {

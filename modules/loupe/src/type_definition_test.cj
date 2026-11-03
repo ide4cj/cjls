@@ -2,6 +2,7 @@ package loupe
 
 import std.unittest.*
 import std.unittest.testmacro.*
+import rope.Rope
 import loupe.db.{MappedSpan, SpanOrigin}
 import loupe.fixture.{
     Annotation,
@@ -13,7 +14,6 @@ import loupe.fixture.{
     stdSourcesDir,
     stdWithSources
 }
-import rope.Rope
 
 /**
  * Type targets at the cursor, annotated at the selected declaration names; no annotations means no targets.

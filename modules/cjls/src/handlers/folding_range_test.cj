@@ -3,9 +3,9 @@ package cjls.handlers
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import stdxx.Nullable
-import rope.{Encoding, Rope}
 import loupe.{Fold, FoldKind, TextRange}
+import rope.{Encoding, Rope}
+import stdxx.Nullable
 import cjls.lsp_types.*
 import cjls.server.*
 

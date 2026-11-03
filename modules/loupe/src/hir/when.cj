@@ -3,13 +3,18 @@ package loupe.hir
 import std.collection.*
 import std.convert.Parsable
 import std.deriving.*
-import ginkgo.TextRange
-import cjsyntax.CjSyntaxNode
-import cjsyntax.ast.{AnyHasAnnotations, BinExpr, RefExpr, StringLit}
-import cjsyntax.ast.Annotation as AnnotationNode
-import cjsyntax.ast.Expr as AstExpr
 import calca.*
 import calca.macros.*
+import cjsyntax.CjSyntaxNode
+import cjsyntax.ast.{
+    Annotation as AnnotationNode,
+    AnyHasAnnotations,
+    BinExpr,
+    Expr as AstExpr,
+    RefExpr,
+    StringLit
+}
+import ginkgo.TextRange
 import loupe.db.{AnalysisDatabase, Cfg, SourceFile}
 import loupe.syntax.parse
 

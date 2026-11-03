@@ -4,14 +4,14 @@ import std.collection.ArrayList
 import std.deriving.Derive
 import calca.*
 import calca.macros.CalcaTracked
-import cjo.{openCjo, Position as CjoPosition}
+import cjo.{Position as CjoPosition, openCjo}
 import cjsyntax.ast.AnyHasName
 import ginkgo.TextRange
 import index_map.IndexMap
+import rope.{Encoding, LineColumn, Rope}
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package, SourceFile}
 import loupe.syntax.parse
 import loupe.vfs.FileId
-import rope.{Encoding, LineColumn, Rope}
 
 /**
  * A binary declaration's checked source position, shared by navigation and source identity.

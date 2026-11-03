@@ -3,8 +3,8 @@ package project_model
 import std.fs.File
 import std.unittest.*
 import std.unittest.testmacro.*
-import loupe.db.*
 import loupe.findReferences
+import loupe.db.*
 import loupe.hir.*
 import loupe.vfs.*
 import rope.Rope

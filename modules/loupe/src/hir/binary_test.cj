@@ -7,9 +7,9 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import cjo.openCjo
 import rope.Rope
-import loupe.vfs.{FileId, PathInterner}
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, Cfg, ProjectModel}
 import loupe.fixture.{stdCjo, stdCjoRead}
+import loupe.vfs.{FileId, PathInterner}
 
 /**
  * The input of the package `name` of `std`, holding `bytes`, in `db`.

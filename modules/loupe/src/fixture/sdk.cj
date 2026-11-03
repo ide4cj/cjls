@@ -2,10 +2,10 @@ package loupe.fixture
 
 import std.env.{getTempDirectory, getVariable}
 import std.fs.*
-import std.time.DateTime
 import std.process.executeWithOutput
+import std.time.DateTime
 import loupe.db.{BinaryModel, BinarySources, PackageModel}
-import loupe.vfs.{CjoFile, CjoFileRead, FileStamp, isCangjieFile, VfsPath}
+import loupe.vfs.{CjoFile, CjoFileRead, FileStamp, VfsPath, isCangjieFile}
 
 /**
  * The bytes of `<name>.cjo` of the SDK's std, of whichever target it has first.

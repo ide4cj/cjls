@@ -5,13 +5,13 @@ import std.deriving.*
 import cjo.DeclInfo
 import ginkgo.{Direction, SyntaxElement, SyntaxNodePtr, TokenSet}
 // the API's ranges, for whoever asks for a part of a file
-public import ginkgo.TextRange
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{Annotation, Decl, isIdent}
-import loupe.vfs.FileId
+public import ginkgo.TextRange
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
+import loupe.vfs.FileId
 
 /**
  * What a token is: by the tree, and a name at its use by what it means (D72). In a file of no

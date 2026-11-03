@@ -1,8 +1,8 @@
 package cjls.lsp_ext
 
 import fjson.*
-import stdxx.deriving.*
 import jsonrpc.*
+import stdxx.deriving.*
 import cjls.lsp_types.{LspInboundRequest, MessageDirection}
 
 /**

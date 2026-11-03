@@ -4,8 +4,8 @@ import std.collection.*
 import std.deriving.*
 import calca.*
 import calca.macros.*
-import rope.Rope
 import cjsyntax.isIdentLike
+import rope.Rope
 import loupe.db.{AnalysisDatabase, SourceFile}
 
 // the hash of no byte, which every word's starts from

@@ -8,8 +8,8 @@ import std.unittest.testmacro.*
 import stdx.log.NoopLogger
 import fjson.RawJson
 import jsonrpc.*
-import rope.Rope
 import loupe.vfs.VfsPath
+import rope.Rope
 import cjls.lsp_types.*
 import cjls.lsp_types.Range as LspRange
 

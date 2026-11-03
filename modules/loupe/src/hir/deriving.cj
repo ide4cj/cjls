@@ -2,9 +2,9 @@ package loupe.hir
 
 import std.collection.*
 import std.deriving.*
-import ginkgo.{SyntaxElement, TextRange}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{AnyHasName, Decl, MacroAttr, MacroExpandDecl, identText}
+import ginkgo.{SyntaxElement, TextRange}
 
 /**
  * An interface `@Derive[...]` lists: the last segment of its path, where that is written, and the bounds of its

@@ -6,8 +6,8 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import calca.*
 import calca.macros.*
-import ginkgo.{SyntaxElement, TextRange}
 import cjsyntax.ast.identText
+import ginkgo.{SyntaxElement, TextRange}
 import rope.Rope
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.fixture.*

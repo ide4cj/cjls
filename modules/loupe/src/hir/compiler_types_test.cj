@@ -2,8 +2,8 @@ package loupe.hir
 
 import std.unittest.*
 import std.unittest.testmacro.*
-import loupe.fixture.{Fixture, FixtureException}
 import rope.Rope
+import loupe.fixture.{Fixture, FixtureException}
 
 @Test
 class CompilerTypesTest {

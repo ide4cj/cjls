@@ -3,10 +3,10 @@ package cjls.handlers
 import std.collection.ArrayList
 import std.io.ByteBuffer
 import stdx.log.NoopLogger
-import stdxx.{IntegerOrString, Nullable}
 import fjson.{JsonValue, RawJson}
-import rope.Encoding
 import jsonrpc.*
+import rope.Encoding
+import stdxx.{IntegerOrString, Nullable}
 import cjls.lsp_types.*
 import cjls.server.*
 

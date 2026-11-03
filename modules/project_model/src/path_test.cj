@@ -2,9 +2,9 @@ package project_model
 
 import std.collection.ArrayList
 import std.env.getTempDirectory
-import loupe.vfs.VfsPath
 import std.unittest.*
 import std.unittest.testmacro.*
+import loupe.vfs.VfsPath
 
 @Test
 class PathExpansionTest {

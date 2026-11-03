@@ -6,9 +6,9 @@ import std.runtime.getMaxHeapSize
 import stdx.log.Logger
 import jsonrpc.{ErrorLogValue, FramedJsonRpcTransport}
 import platform.{StdinStream, useBinaryStdio}
-import cjls.server.{serve, ServerState}
-import cjls.macro_host.MacroHost
 import cjls.handlers.router
+import cjls.macro_host.MacroHost
+import cjls.server.{ServerState, serve}
 
 main(args: Array<String>): Int64 {
     runCommand(args)

@@ -1,8 +1,8 @@
 package cjls
 
-import stdxx.Nullable
 import fjson.*
 import jsonrpc.*
+import stdxx.Nullable
 import cjls.lsp_types.*
 
 private func read<T>(json: String): T where T <: FromJson<T> {

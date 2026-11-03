@@ -1,12 +1,12 @@
 package loupe.db
 
-import std.collection.{ArrayList, collectArray, filter, HashMap, HashSet}
+import std.collection.{ArrayList, HashMap, HashSet, collectArray, filter}
 import std.collection.concurrent.ConcurrentHashMap
 import calca.*
 import calca.macros.*
 import index_map.IndexMap
-import loupe.vfs.*
 import rope.Rope
+import loupe.vfs.*
 
 /**
  * One file's text as the analysis sees it, and what the macro server answered for its macro calls

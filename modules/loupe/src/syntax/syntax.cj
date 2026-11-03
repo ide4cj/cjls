@@ -2,8 +2,7 @@ package loupe.syntax
 
 import calca.*
 import calca.macros.*
-import cjsyntax.CjParse
-import cjsyntax.parse as parseText
+import cjsyntax.{CjParse, parse as parseText}
 import loupe.db.*
 
 /**

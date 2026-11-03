@@ -1,29 +1,34 @@
 package cjls.handlers
 
 import std.collection.collectArray
-import std.fs.{Directory, exists, File, FileInfo, FSException, Path, remove}
+import std.fs.{Directory, FSException, File, FileInfo, Path, exists, remove}
 import stdx.log.Logger
-import stdxx.Nullable
 import fjson.{JsonValue, RawJson}
 import jsonrpc.{ErrorCode, ErrorLogValue, RpcException}
-import rope.Rope
-import loupe.{expandedMacro, ExpansionKind, macroCallAt, ShownExpansion}
-import loupe.{expandFile, ExpandedFile, ExpandedPlace}
 import loupe.{
+    ExpandedFile,
+    ExpandedPlace,
+    ExpansionKind,
+    NavigationTarget,
+    RelatedHighlight,
+    ShownExpansion,
     definitionAt,
     definitionInExpansion,
+    expandFile,
+    expandedMacro,
     highlightRelated,
     hoverAt,
     hoverInExpansion,
-    NavigationTarget,
-    RelatedHighlight
+    macroCallAt
 }
 import loupe.db.SourceFile
 import loupe.vfs.{FileId, VfsPath}
-import cjls.lsp_types.*
+import rope.Rope
+import stdxx.Nullable
 import cjls.lsp_ext.{EXPAND_MACRO_COMMAND, MacroExpansion}
-import cjls.server.*
+import cjls.lsp_types.*
 import cjls.macros.LspHandler
+import cjls.server.*
 
 /**
  * What the macro call at the position, or the item it is in (`macroCallAt`), expands to, formatted (D150); one of std,

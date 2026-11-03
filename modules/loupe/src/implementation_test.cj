@@ -4,7 +4,7 @@ import std.collection.ArrayList
 import std.unittest.*
 import std.unittest.testmacro.*
 import loupe.fixture.*
-import loupe.hir.{overriddenMembers}
+import loupe.hir.overriddenMembers
 import loupe.syntax.parse
 
 /**

@@ -6,9 +6,9 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import calca.*
 import calca.macros.*
-import ginkgo.{SyntaxElement, TextRange}
 import cjsyntax.CjSyntaxNode
 import cjsyntax.ast.{ImportDecl, ImportTree}
+import ginkgo.{SyntaxElement, TextRange}
 import rope.Rope
 import loupe.db.AnalysisDatabase
 import loupe.fixture.*

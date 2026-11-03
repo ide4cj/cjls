@@ -2,12 +2,12 @@ package loupe
 
 import std.collection.*
 import std.deriving.*
-import ginkgo.{SyntaxElement, TextRange}
 import cjsyntax.{CjParse, CjSyntaxNode, CjSyntaxToken}
 import cjsyntax.ast.{AnyHasName, Decl, ExtendDecl, Name, Pattern, SourceFile, VarDecl, identText}
-import loupe.vfs.FileId
+import ginkgo.{SyntaxElement, TextRange}
 import loupe.db.AnalysisDatabase
 import loupe.syntax.parse
+import loupe.vfs.FileId
 
 @Derive[Equatable]
 public enum StructureKind <: ToString {

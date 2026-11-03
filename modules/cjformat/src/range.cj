@@ -6,10 +6,11 @@ import source_change.TextEdit
 
 /**
  * Formats the smallest complete statement/declaration enclosing the selected non-whitespace
- * bytes, or their enclosing body when several siblings are selected. An empty range selects
+ * bytes, or their enclosing body when several siblings are selected. An import-only selection
+ * normalizes only its enclosing imports and trailing comments. An empty range selects
  * the node at the cursor. Syntax errors anywhere refuse formatting, as for the whole file.
- * The replacement can extend outside the requested range, but never outside the selected node
- * and its adjacent whitespace. Invalid byte ranges return no edits.
+ * The replacement can extend outside the requested range to the selected syntax, its adjacent
+ * whitespace and attached trailing import comments. Invalid byte ranges return no edits.
  */
 public func formatRange(
     parse: CjParse,
@@ -23,6 +24,9 @@ public func formatRange(
     let text = root.text()
     if (range.start < 0 || range.end > text.size) {
         return Some([])
+    }
+    if (let Some(edits) <- formatImportRange(root, text, range, options)) {
+        return Some(edits)
     }
     let selected = rangeNode(root, text, range)
     if (selected == root) {
@@ -139,7 +143,7 @@ private func isRangeNode(n: CjSyntaxNode): Bool {
 /**
  * Whether a byte is layout whitespace around a selection.
  */
-private func isAsciiSpace(b: UInt8): Bool {
+func isAsciiSpace(b: UInt8): Bool {
     b == b' ' || b == b'\t' || b == b'\r' || b == b'\n'
 }
 

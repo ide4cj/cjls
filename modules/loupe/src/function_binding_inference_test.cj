@@ -2,9 +2,9 @@ package loupe
 
 import std.unittest.*
 import std.unittest.testmacro.*
+import rope.Rope
 import loupe.fixture.*
 import loupe.hir.*
-import rope.Rope
 
 @Test
 class FunctionBindingInferenceTest {

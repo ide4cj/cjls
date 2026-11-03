@@ -1,8 +1,8 @@
 package cjls.handlers
 
-import rope.LineColumn
-import loupe.vfs.VfsPath
 import loupe.db.SourceFile
+import loupe.vfs.VfsPath
+import rope.LineColumn
 import cjls.lsp_types.*
 import cjls.server.ServerSnapshot
 

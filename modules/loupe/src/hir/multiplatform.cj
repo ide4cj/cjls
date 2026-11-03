@@ -2,10 +2,10 @@ package loupe.hir
 
 import std.collection.*
 import std.deriving.*
-import cjsyntax.CjSyntaxNode
-import cjsyntax.ast.{FuncDecl, InitDecl, PropDecl, VarDecl}
 import calca.*
 import calca.macros.*
+import cjsyntax.CjSyntaxNode
+import cjsyntax.ast.{FuncDecl, InitDecl, PropDecl, VarDecl}
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.syntax.parse
 import loupe.vfs.FileId

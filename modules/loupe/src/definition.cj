@@ -2,7 +2,6 @@ package loupe
 
 import std.collection.*
 import std.deriving.*
-import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{
     AnyHasName,
@@ -15,10 +14,11 @@ import cjsyntax.ast.{
     PathType,
     PostfixExpr,
     RefExpr,
+    SourceFile as SourceFileNode,
     UnaryExpr,
     isIdent
 }
-import cjsyntax.ast.SourceFile as SourceFileNode
+import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse

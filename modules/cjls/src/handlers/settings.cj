@@ -4,8 +4,8 @@ import std.collection.ArrayList
 import stdx.log.Logger
 import fjson.JsonValue
 import cjls.lsp_types.*
-import cjls.server.*
 import cjls.macros.LspHandler
+import cjls.server.*
 
 /**
  * The settings changed in the client. One that answers `workspace/configuration` is asked for them,

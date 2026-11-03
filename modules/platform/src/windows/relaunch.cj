@@ -2,7 +2,7 @@ features {os.windows}
 package platform
 
 import std.env.{getCommand, getCommandLine}
-import std.process.{launch, ProcessRedirect}
+import std.process.{ProcessRedirect, launch}
 
 public specific func relaunch(): Int64 {
     let child = launch(

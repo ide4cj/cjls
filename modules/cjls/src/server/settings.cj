@@ -2,8 +2,8 @@ package cjls.server
 
 import std.collection.ArrayList
 import std.deriving.Derive
-import std.fs.Path
 import std.env.getVariable
+import std.fs.Path
 import fjson.JsonValue
 import loupe.vfs.VfsPath
 import project_model.{BuildMode, expandPath}

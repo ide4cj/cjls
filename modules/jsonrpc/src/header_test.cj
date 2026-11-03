@@ -1,9 +1,9 @@
 package jsonrpc
 
-import std.io.{ByteBuffer, BufferedInputStream}
+import std.io.{BufferedInputStream, ByteBuffer}
 import std.unittest.*
-import std.unittest.testmacro.*
 import std.unittest.prop_test.*
+import std.unittest.testmacro.*
 
 @Test
 @Configure[randomSeed: 100500]

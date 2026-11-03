@@ -3,8 +3,8 @@ package loupe
 import std.unittest.*
 import std.unittest.testmacro.*
 import rope.Rope
-import loupe.vfs.FileId
 import loupe.db.AnalysisDatabase
+import loupe.vfs.FileId
 
 // what tests/perf opens: its block of declarations, 36 times, about 2000 lines
 let benchSource: String = {

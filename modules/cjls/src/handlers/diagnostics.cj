@@ -4,8 +4,8 @@ import fjson.toJsonBytes
 import loupe.diagnostics
 import loupe.vfs.VfsPath
 import cjls.lsp_types.*
-import cjls.server.*
 import cjls.macros.LspHandler
+import cjls.server.*
 
 /**
  * What is wrong in a document, or `unchanged` when the client's `previousResultId` is the report's

@@ -3,9 +3,9 @@ package loupe
 import std.env.getTempDirectory
 import std.unittest.*
 import std.unittest.testmacro.*
+import rope.Rope
 import loupe.db.{Cfg, ModuleModel, PackageModel, ProjectModel}
 import loupe.vfs.VfsPath
-import rope.Rope
 
 @Test
 class NewFilePackageLineTest {
