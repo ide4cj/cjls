@@ -7,7 +7,6 @@
 # `UPDATE_EXPECT=1 cjpm test --target-dir target/test '--filter=ErrorRootsGateTest.*'` writes it.
 # Local-root attribution and all inspected positions: error_roots_audit.md (#425).
 modules/cjls/src/command.cj: member found: 1
-modules/cjls/src/command_test.cj: member found: 1  # test-app registration needs @JianCallback's generated overload (#176)
 modules/cjls/src/fetch_src.cj: other: 1
 modules/cjls/src/handlers/document_sync.cj: member found: 2
 modules/cjls/src/handlers/expand_macro.cj: member found: 3

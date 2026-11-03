@@ -131,13 +131,11 @@ func checkItemRedeclarations(
         for (name in names) {
             let text = name.text()
             var message: ?String = None
-            if (!inPattern.add(text) && item.kind != ItemKind.PrimaryInit) {
-                message = "redefinition of declaration '${text}'"
-            }
-            // Only one diagnostic is emitted per name. Search backwards to preserve the
-            // last conflicting declaration's message without checking every earlier pair.
-            for (index in 0..previous.size) {
-                let (otherFile, other) = previous[previous.size - index - 1]
+            let repeatsBinding = !inPattern.add(text) && item.kind != ItemKind.PrimaryInit
+            // The last conflicting declaration determines the message. Search backwards so a
+            // repeated overload stops at that declaration instead of rechecking every older one.
+            for (i in previous.size - 1..=0: -1) {
+                let (otherFile, other) = previous[i]
                 let otherNames =
                     if (other.kind == ItemKind.PrimaryInit) {
                         let (otherRoot, otherIds) = syntaxOf(db, otherFile) ?? continue
@@ -165,14 +163,13 @@ func checkItemRedeclarations(
                 if (item.kind == ItemKind.Macro || other.kind == ItemKind.Macro) {
                     continue
                 }
-                var conflict: ?String = None
                 if (item.kind == ItemKind.Func && other.kind == ItemKind.Func) {
                     if (item.has(Modifier.Static) != other.has(Modifier.Static)) {
-                        conflict = "overloaded functions '${text}' cannot mix static and non-static"
+                        message = "overloaded functions '${text}' cannot mix static and non-static"
                     } else if (
                         sameOverload(db, DefId(db, file, item.id), DefId(db, otherFile, other.id))
                     ) {
-                        conflict = "function '${text}' has overload conflicts"
+                        message = "function '${text}' has overload conflicts"
                     }
                 } else if (
                     let Some(owner) <- enumName && item.kind == ItemKind.EnumCtor &&
@@ -183,15 +180,17 @@ func checkItemRedeclarations(
                         signatureTypes(db, DefId(db, file, item.id)).params.size ==
                             signatureTypes(db, DefId(db, otherFile, other.id)).params.size
                     ) {
-                        conflict = "'${text}' is already exist in enum '${owner}'"
+                        message = "'${text}' is already exist in enum '${owner}'"
                     }
                 } else {
-                    conflict = "redefinition of declaration '${text}'"
+                    message = "redefinition of declaration '${text}'"
                 }
-                if (let Some(conflict) <- conflict) {
-                    message = conflict
+                if (message.isSome()) {
                     break
                 }
+            }
+            if (message.isNone() && repeatsBinding) {
+                message = "redefinition of declaration '${text}'"
             }
             if (let Some(message) <- message) {
                 found.add(Diagnostic(name.syntax.textRange, Severity.Error, message))

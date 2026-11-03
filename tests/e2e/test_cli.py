@@ -3,6 +3,8 @@
 import json
 import subprocess
 
+import pytest
+
 from conftest import CJLS
 
 
@@ -74,3 +76,22 @@ def test_fmt_checks_relative_paths_then_formats_them(tmp_path):
 
     # assert
     assert rechecked.returncode == 0, rechecked.stderr.decode()
+
+
+@pytest.mark.parametrize("args,usage", [
+    (["help"], "Usage: cjls"),
+    (["help", "fmt"], "Usage: cjls fmt"),
+    (["help", "project"], "Usage: cjls project"),
+    (["help", "fetch-src"], "Usage: cjls fetch-src"),
+])
+def test_help_commands_exit_without_starting_the_server(args, usage):
+    # arrange
+    command = [CJLS, *args]
+
+    # act
+    run = subprocess.run(command, capture_output=True, text=True, timeout=60)
+
+    # assert
+    assert run.returncode == 0, run.stderr
+    assert usage in run.stdout
+    assert run.stderr == ""

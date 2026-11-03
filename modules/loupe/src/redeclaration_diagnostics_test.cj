@@ -63,23 +63,6 @@ class RedeclarationDiagnosticsTest {
     }
 
     @TestCase
-    func lastConflictDeterminesTheMessage(): Unit {
-        checkDiagnostics(
-            #"
-            class C {
-                static func f(): Unit {}
-                func f(x: Int64): Unit {}
-            //       ^ error: overloaded functions 'f' cannot mix static and non-static
-                func f(x: Int64): Unit {}
-            //       ^ error: function 'f' has overload conflicts
-                func f(): Unit {}
-            //       ^ error: overloaded functions 'f' cannot mix static and non-static
-            }
-            "#
-        )
-    }
-
-    @TestCase
     func parametersShareTheOutermostBodyScope(): Unit {
         checkDiagnostics(
             #"
@@ -122,6 +105,23 @@ class RedeclarationDiagnosticsTest {
             class C {
                 static func f(x: Int64): Unit {}
                 func f(x: String): Unit {}
+            //       ^ error: overloaded functions 'f' cannot mix static and non-static
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func theLastConflictingOverloadDeterminesTheMessage(): Unit {
+        checkDiagnostics(
+            #"
+            class C {
+                static func f(x: Int64): Unit {}
+                func f(x: UInt32): Unit {}
+            //       ^ error: overloaded functions 'f' cannot mix static and non-static
+                func f(x: UInt32): Unit {}
+            //       ^ error: function 'f' has overload conflicts
+                func f(x: Int64): Unit {}
             //       ^ error: overloaded functions 'f' cannot mix static and non-static
             }
             "#
