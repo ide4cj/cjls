@@ -36,7 +36,7 @@ For rankings, sort before limiting; compute global maxima first and preserve tie
 
 Include workspace.root, workspace.loadDiagnostics and workspace.macros with the
 first useful query. These and workspace.diagnostics(path) serialize directly.
-Macro state pending/settled describes completion; inspect severity independently.
+MacroState.Pending()/Settled() describe completion; inspect severity independently.
 Report mismatched roots or partial analysis. Retry missing expansion-dependent
 queries when needed; no blanket expansion wait is required.
 

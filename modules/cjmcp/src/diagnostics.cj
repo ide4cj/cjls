@@ -26,14 +26,31 @@ struct WorkspaceDiagnostic {
 }
 
 /**
+ * Whether this revision still needs macro preparation, independently of diagnostics.
+ */
+@DerivePython
+enum MacroState <: Equatable<MacroState> {
+    | Pending
+    | Settled
+
+    public operator func ==(other: MacroState): Bool {
+        match ((this, other)) {
+            case (MacroState.Pending, MacroState.Pending) => true
+            case (MacroState.Settled, MacroState.Settled) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: MacroState): Bool {
+        !(this == other)
+    }
+}
+
+/**
  * Work completion and diagnostic severity are independent: settled can include
  * failures, and pending is not itself a diagnostic.
  */
 @DerivePython
 struct MacroStatus {
-    MacroStatus(public let state: String, public let diagnostics: Array<WorkspaceDiagnostic>) {
-        if (state != "pending" && state != "settled") {
-            throw IllegalArgumentException("macro state must be pending or settled")
-        }
-    }
+    MacroStatus(public let state: MacroState, public let diagnostics: Array<WorkspaceDiagnostic>) {}
 }

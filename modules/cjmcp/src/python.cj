@@ -52,6 +52,10 @@ def __cjmcp_run(code, workspace, classes, max_output_bytes):
                      'line', 'column', 'unnecessary')}
         if isinstance(value, classes['MacroStatus']):
             return dict(state=value.state, diagnostics=value.diagnostics)
+        if isinstance(value, classes['MacroState']):
+            for name in ('Pending', 'Settled'):
+                if isinstance(value, getattr(classes['MacroState'], name)):
+                    return name.lower()
         if isinstance(value, classes['TextRange']):
             return dict(start=value.start, end=value.end)
         if isinstance(value, classes['Severity']):
@@ -310,6 +314,7 @@ class PythonSession {
                         ("StructureKind", StructureKind.pyClass()),
                         ("Diagnostic", Diagnostic.pyClass()),
                         ("WorkspaceDiagnostic", WorkspaceDiagnostic.pyClass()),
+                        ("MacroState", MacroState.pyClass()),
                         ("MacroStatus", MacroStatus.pyClass()),
                         ("Severity", Severity.pyClass()),
                         ("HoverResult", HoverResult.pyClass()),

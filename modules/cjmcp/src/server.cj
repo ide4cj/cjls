@@ -205,7 +205,7 @@ func tools(): JsonValue {
             (
                 "description",
                 JsonString(
-                    "Python script. workspace is a live native Cangjie object. result supports JSON data plus WorkspaceDiagnostic, MacroStatus, TextRange and Severity values, encoded automatically. stdout and stderr are captured."
+                    "Python script. workspace is a live native Cangjie object. result supports JSON data plus WorkspaceDiagnostic, MacroStatus, MacroState, TextRange and Severity values, encoded automatically. stdout and stderr are captured."
                 )
             )
         ]

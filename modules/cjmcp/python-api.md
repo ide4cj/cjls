@@ -41,8 +41,12 @@ result = {
 }
 ~~~
 
-MacroStatus has state and diagnostics. State is pending while the revision's
-macro preparation remains to be performed; settled means its preparation attempt
+MacroStatus has a native MacroState enum and diagnostics. Compare state with
+`MacroState.Pending()` or `MacroState.Settled()` in Python; variants support
+`isinstance` and pattern matching. JSON encodes them as pending/settled strings,
+including when returned directly or nested. String arguments to MacroStatus
+are rejected. State is pending while the revision's macro preparation remains
+to be performed; settled means its preparation attempt
 finished, including a project with no macro calls. Settled can include errors.
 Pending alone is not an error, and warnings do not become failures. Completion
 and diagnostic severity are independent ([D165](../../docs/adr/0165-cjmcp-structured-diagnostics.md)).

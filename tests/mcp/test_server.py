@@ -897,7 +897,7 @@ main() { generated() }
         expanded = run(f"""
             from pathlib import Path
             workspace.reload()
-            assert workspace.macros.state == "settled" and not workspace.macros.diagnostics, workspace.macros
+            assert workspace.macros.state == MacroState.Settled() and not workspace.macros.diagnostics, workspace.macros
             assert workspace.loadDiagnostics == [], workspace.loadDiagnostics
             old = workspace.analysis()
             call = old.macroCall('src/main.cj', {macro_use.index('@Pass')})
@@ -942,7 +942,7 @@ main() { generated() }
             macro_path.write_text(macro_path.read_text().replace('{{ 41 }}', '{{ 42 }}'))
             os.utime(macro_path, ns=(stamp.st_atime_ns, stamp.st_mtime_ns))
             workspace.reload()
-            assert workspace.macros.state == "settled" and not workspace.macros.diagnostics, workspace.macros
+            assert workspace.macros.state == MacroState.Settled() and not workspace.macros.diagnostics, workspace.macros
             # Even reload cannot change the revision halfway through this script.
             current = workspace.analysis()
             current_call = current.macroCall('src/main.cj', {macro_use.index('@Pass')})
@@ -955,7 +955,7 @@ main() { generated() }
         self.assertEqual(expanded["result"], [])
         changed = run(f"""
             import builtins
-            assert workspace.macros.state == "settled" and not workspace.macros.diagnostics, workspace.macros
+            assert workspace.macros.state == MacroState.Settled() and not workspace.macros.diagnostics, workspace.macros
             current = workspace.analysis()
             current_call = current.macroCall('src/main.cj', {macro_use.index('@Pass')})
             assert '42' in current.expansion(current_call.call).text, current.expansion(current_call.call).text
@@ -1008,7 +1008,7 @@ main() { generated() }
             encoding="utf-8", newline="\n",
         )
         failed_expansion = run("""
-            assert workspace.macros.state == "settled" and workspace.macros.diagnostics
+            assert workspace.macros.state == MacroState.Settled() and workspace.macros.diagnostics
             result = workspace.macros.diagnostics
         """)
         self.assertTrue(any(d['code'] == 'macro_expansion' and '@Emit failed' in d['message'] for d in failed_expansion["result"]),
@@ -1027,7 +1027,7 @@ main() { generated() }
             encoding="utf-8", newline="\n",
         )
         failed_build = run("""
-            assert workspace.macros.state == "settled" and workspace.macros.diagnostics
+            assert workspace.macros.state == MacroState.Settled() and workspace.macros.diagnostics
             result = workspace.macros.diagnostics
         """)
         self.assertTrue(any(d['code'] == 'macro_build' and d['severity'] == 'error' for d in failed_build["result"]))

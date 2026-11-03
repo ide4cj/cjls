@@ -2,20 +2,37 @@
 
 class DiagnosticChecks:
     def _check_structured_diagnostics(self, run):
-        encoded = run("""
+        # arrange
+        script = """
             assert not hasattr(workspace, 'problems')
             assert not hasattr(workspace, 'hasExpandedMacros')
             assert isinstance(workspace.macros, MacroStatus)
+            assert isinstance(workspace.macros.state, MacroState.Settled)
+            assert workspace.macros.state == MacroState.Settled()
+            assert MacroState.Pending() == MacroState.Pending()
+            assert MacroState.Pending() != MacroState.Settled()
+            assert MacroState.Settled() == MacroState.Settled()
+            import sys
+            if sys.version_info >= (3, 10):
+                exec('match workspace.macros.state:\\n'
+                     '    case MacroState.Settled(): pass\\n'
+                     '    case _: raise AssertionError("expected settled macro state")')
             assert workspace.loadDiagnostics == []
             warning = WorkspaceDiagnostic('macro', Severity.Warning(), 'review: привет',
                 code='macro_expansion', path='/source.cj', range=TextRange(4, 10),
                 line=2, column=3)
             hint = WorkspaceDiagnostic('analysis', Severity.Hint(), 'inactive',
                 unnecessary=True)
-            result = {'pending': MacroStatus('pending', [warning]),
-                      'settled': MacroStatus('settled', [hint]),
+            result = {'pending': MacroStatus(MacroState.Pending(), [warning]),
+                      'settled': MacroStatus(MacroState.Settled(), [hint]),
+                      'states': [MacroState.Pending(), MacroState.Settled()],
                       'range': TextRange(0, 0), 'severity': Severity.Error()}
-        """)
+        """
+
+        # act
+        encoded = run(script)
+
+        # assert
         values = encoded['result']
         self.assertEqual(values['pending']['state'], 'pending')
         warning = values['pending']['diagnostics'][0]
@@ -32,10 +49,18 @@ class DiagnosticChecks:
             self.assertIsNone(hint[field], hint)
         self.assertEqual(values['range'], {'start': 0, 'end': 0})
         self.assertEqual(values['severity'], 'error')
+        self.assertEqual(values['states'], ['pending', 'settled'])
+
+        # act - strings must not bypass the native enum contract.
+        invalid = run("result = MacroStatus('pending', [])", error=True)
+
+        # assert
+        self.assertIn('TypeError', invalid['error'])
+        self.assertEqual(run('result = workspace.macros.state')['result'], 'settled')
 
         # Native conversion must precede budget checking and retain plain JSON for recovery.
         rejected = run("""
-            result = MacroStatus('settled', [
+            result = MacroStatus(MacroState.Settled(), [
                 WorkspaceDiagnostic('macro', Severity.Error(), 'я' * 13000,
                                     code='macro_build')])
         """, error=True)

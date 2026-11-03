@@ -7,8 +7,9 @@
   `analysis.revision` agree. Old handles raise `RuntimeError` containing
   `ContentModified` after an update; reacquire analysis and recompute its identities.
   Revisions describe loaded analysis, not atomic filesystem snapshots.
-- Inspect workspace.loadDiagnostics and workspace.macros. The latter has state
-  pending/settled and structured diagnostics: pending alone is not an error,
+- Inspect workspace.loadDiagnostics and workspace.macros. The latter has a native
+  MacroState.Pending()/Settled() state and structured diagnostics (JSON strings
+  pending/settled): pending alone is not an error,
   and settled does not imply success. Check severity independently; warnings
   are preserved too. These objects serialize directly in result, including
   source, code, message and known path/range/line/column. Do not parse messages

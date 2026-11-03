@@ -273,7 +273,7 @@ main() { generated() }
                     }
                     @Assert(state.loadDiagnostics.isEmpty())
                     @Assert(state.macroStatus.diagnostics.isEmpty())
-                    @Assert(state.macroStatus.state, "settled")
+                    @Assert(state.macroStatus.state, MacroState.Settled)
                     @Expect(nestedExpansion(state, mainSource).contains("41"))
                 }
             File.writeTo(macroDir.join("macros.cj"), source.replace("41", "42").toArray())
@@ -283,7 +283,7 @@ main() { generated() }
                     state =>
                     @Assert(state.loadDiagnostics.isEmpty())
                     @Assert(state.macroStatus.diagnostics.isEmpty())
-                    @Assert(state.macroStatus.state, "settled")
+                    @Assert(state.macroStatus.state, MacroState.Settled)
                     let file = state.vfs.fileId(state.root.join("src/ms/macros.cj")).getOrThrow()
                     @Expect(state.vfs.fileContents(file).getOrThrow().toString().contains("42"))
                     for (unit in macroBuildPlan(state.db) where unit.isMacro) {
@@ -317,7 +317,7 @@ class MacroStatusTest {
 
             // assert - pending alone is not a failure.
             @Expect(loaded)
-            @Expect(state.macroStatus.state, "pending")
+            @Expect(state.macroStatus.state, MacroState.Pending)
             @Expect(state.macroStatus.diagnostics.isEmpty())
             @Expect(state.loadDiagnostics.isEmpty())
 
@@ -326,7 +326,7 @@ class MacroStatusTest {
             let revision = state.revision
 
             // assert - a project without macros is settled too.
-            @Expect(state.macroStatus.state, "settled")
+            @Expect(state.macroStatus.state, MacroState.Settled)
             @Expect(state.macroStatus.diagnostics.isEmpty())
             @Expect(!state.synchronize())
             @Expect(state.revision, revision)
@@ -338,7 +338,7 @@ class MacroStatusTest {
             // assert
             @Expect(changed)
             @Expect(state.revision > revision)
-            @Expect(state.macroStatus.state, "pending")
+            @Expect(state.macroStatus.state, MacroState.Pending)
             @Expect(state.macroStatus.diagnostics.isEmpty())
         } finally {
             state.close()
@@ -402,13 +402,13 @@ main() { value() }
         )
 
         // act
-        let settled = MacroStatus("settled", [failure])
-        let pending = MacroStatus("pending", [failure])
+        let settled = MacroStatus(MacroState.Settled, [failure])
+        let pending = MacroStatus(MacroState.Pending, [failure])
 
         // assert
-        @Expect(settled.state, "settled")
+        @Expect(settled.state, MacroState.Settled)
         @Expect(settled.diagnostics[0].severity, Severity.Error)
-        @Expect(pending.state, "pending")
+        @Expect(pending.state, MacroState.Pending)
         @Expect(pending.diagnostics[0].code, Some("macro_build"))
     }
 }

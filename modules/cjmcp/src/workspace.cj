@@ -25,7 +25,7 @@ class WorkspaceState {
     let vfs = Vfs()
     var files: Array<VfsPath> = []
     var loadDiagnostics: Array<WorkspaceDiagnostic> = []
-    var macroStatus = MacroStatus("pending", [])
+    var macroStatus = MacroStatus(MacroState.Pending, [])
     var revision: Int64 = 0
     var reloadRequested = false
     private var pendingChanges: Array<ChangedFile> = []
@@ -85,7 +85,7 @@ class WorkspaceState {
         }
         // Invalidate retained Python revisions before any input is changed, including on a failed preparation.
         revision++
-        macroStatus = MacroStatus("pending", [])
+        macroStatus = MacroStatus(MacroState.Pending, [])
         if (projectChanged || binaryChanged) {
             db.setProject(next, vfs.paths, binaries: binaries.files)
         }
@@ -117,12 +117,12 @@ class WorkspaceState {
      * evidence that a worker is still running. Keep pending if execution throws.
      */
     func prepareMacros(): Unit {
-        if (macroStatus.state != "pending") {
+        if (macroStatus.state != MacroState.Pending) {
             return
         }
         let diagnostics = ArrayList<WorkspaceDiagnostic>()
         macros.expand(db, vfs, macroHome, diagnostics)
-        macroStatus = MacroStatus("settled", diagnostics.toArray())
+        macroStatus = MacroStatus(MacroState.Settled, diagnostics.toArray())
     }
 
     func close(): Unit {
