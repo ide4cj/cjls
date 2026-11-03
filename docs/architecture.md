@@ -188,7 +188,7 @@ The experimental MCP frontend keeps a session-owned incremental database and mac
 host too. It synchronizes disk inputs before each Python script and defers updates
 throughout execution and result serialization. The script and response identify
 the same workspace revision; retained analysis handles reject later revisions.
-See [MCP lifecycle and freshness](../modules/cjmcp/README.md#python-api) and
+See [MCP lifecycle and freshness](../modules/cjmcp/python-api.md#revisions-and-synchronization) and
 [D161](adr/0161-cjmcp-incremental-session.md).
 
 ## Source entry points

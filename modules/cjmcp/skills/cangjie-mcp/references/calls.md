@@ -33,7 +33,8 @@ edges and `CallGap` coverage markers. `analysis.callDeclaration(definition)`
 returns canonical declaration identity and ownership, independent of import aliases.
 `analysis.trackedCallRoots(path)` finds active original CalcaTracked declarations.
 Keep identities with the producing revision. The shared
-[loupe contract](../../../../../docs/direct-calls.md) defines resolution labels,
-execution boundaries and gap reasons. Transitive traversal and target selection
+[coverage rule](../../../../../docs/design/02-analysis.md#a39-partial-call-evidence)
+defines the interpretation limits; native source comments document resolution
+labels and gap reasons. Transitive traversal and target selection
 belong to the calling script. An empty incomplete graph cannot establish absence
 of a call chain.
