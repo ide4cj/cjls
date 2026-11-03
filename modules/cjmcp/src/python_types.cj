@@ -1,6 +1,7 @@
 package cjmcp
 
-import cjformat.{FormatOptions, SimpleIf, TextEdit}
+import cjformat.{FormatOptions, SimpleIf}
+import source_change.{FileChange, SourceChange, TextEdit}
 import loupe.Reference as AnalysisReference
 import loupe.{
     CallDeclaration,
@@ -297,7 +298,9 @@ private func resultTypes(): Array<(String, PyObj)> {
         ("ReferenceAccess", ReferenceAccess.pyClass()),
         ("RelatedHighlight", RelatedHighlight.pyClass()),
         ("SimpleIf", SimpleIf.pyClass()),
-        ("TextEdit", TextEdit.pyClass())
+        ("TextEdit", TextEdit.pyClass()),
+        ("FileChange", FileChange.pyClass()),
+        ("SourceChange", SourceChange.pyClass())
     ]
 }
 

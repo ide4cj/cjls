@@ -122,6 +122,23 @@ The workspace handle provides:
 | `reload()` | Request preparation after this script; the running script keeps its revision |
 | `analysis()` | Retain an `AnalysisRevision` for HIR, inference and navigation |
 
+### Applying source changes
+
+`workspace.applyChange(change, revision)` applies the shared `source_change`
+model to disk. `SourceChange`, `FileChange`, `TextEdit` and `ApplyChangeResult`
+are native Python bindings. See the [editing recipe](skills/cangjie-mcp/references/editing.md)
+for construction, conflict checks, report fields and failure semantics.
+
+The whole set is validated before the first write. Existing-file operations
+carry expected text, checked against disk and the analysis revision when loaded.
+Creates and renames never overwrite destinations; missing parent directories are
+created. Paths stay inside the workspace and cannot traverse symbolic links.
+Writes do not refresh analysis during a script. Reacquire analysis in the next
+call to observe edits and new files. An I/O failure can leave earlier operations,
+parent directories and partial effects of the failing operation; no rollback or
+exclusion of concurrent external writers is promised. Renames use hard links and
+require the same filesystem. The protocol frontend never writes editor buffers.
+
 ### HIR and inference
 
 `workspace.analysis()` captures the current loaded disk revision. Keep this object
