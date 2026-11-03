@@ -11,7 +11,8 @@ fallback. Compiler/tests remain the required validation of changes.
 
 Batch a self-contained read-only task into one script, including health fields
 with the useful query. Keep intermediate objects in Python and return bounded
-JSON evidence with totals and omitted counts. Use the documented API before
+JSON evidence with totals and omitted counts. Sort rankings before limiting output;
+compute global maxima first and preserve all ties. Use the documented API before
 introspection; another call is warranted for errors, missing evidence or a fresh
 revision after edits. Do not replay scripts with effects without inspecting state.
 
@@ -24,6 +25,7 @@ Read only the recipe needed for an unfamiliar operation:
 - [Formatting edits](references/formatting.md)
 - [Read and save source edits](references/editing.md)
 - [Members, outlines and builtin docs](references/members.md)
+- [Counts, rankings and all tied maxima](references/aggregation.md)
 - [Macro navigation](references/expansions.md)
 - [Unknown API members](references/discovery.md)
 - [Revision or execution failures](references/runtime.md)
