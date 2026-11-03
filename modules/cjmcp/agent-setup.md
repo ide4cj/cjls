@@ -53,13 +53,12 @@ rule to the target project's `AGENTS.md`, `CLAUDE.md`, or equivalent persistent
 project instructions so tool selection does not depend on a user reminder:
 
 ```text
-cjmcp is optional. Without a connection, use ordinary source tools, compiler
-and tests. When connected, use runPython for all Cangjie source analysis,
-reading and editing; the following source-work rules apply while connected.
-Do not use shell commands (rg, sed, cat, shell-launched Python or subprocesses)
-for these operations. Trust cjmcp analysis; report unavailable or partial
-analysis without a shell fallback. Save edits with Python I/O inside runPython.
-Use shell for builds, tests, Git and non-Cangjie files.
+When cjmcp is connected, use runPython for Cangjie source analysis, reading and
+editing; do not substitute shell commands or subprocesses. Follow server
+instructions and report partial analysis without a shell fallback. Batch a
+self-contained read-only task into one script and return bounded evidence.
+Use shell for Git, builds, tests and non-Cangjie files. Without a connection,
+use ordinary source tools.
 ```
 
 For an agent host you control, retain the MCP initialization instructions in the
@@ -85,8 +84,9 @@ Check an existing destination before copying over a locally customized skill.
 The skill is portable and includes the Python recipes. It teaches the workflow;
 it does not configure the connection. For a client without skill support, keep
 the selection rule and give the agent the recipes path when a task needs details.
-Keep only the short selection rule persistent. The server instructions cover
-common queries; a simple lookup should need neither skill loading nor API
+Keep only the short selection rule persistent; do not paste the setup guide,
+API reference or every recipe into project instructions. The server instructions
+cover common queries; a simple lookup should need neither skill loading nor API
 introspection. Load one relevant recipe for an unfamiliar operation.
 
 ## Verify actual use

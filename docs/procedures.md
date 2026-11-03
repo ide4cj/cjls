@@ -48,7 +48,7 @@ write permission.
 Create a worktree for an independent task, giving it a descriptive branch/path:
 
 ```bash
-git worktree add -b docs/example ../cjls-example master
+git worktree add -b docs/example .codex/worktrees/docs-example master
 git worktree list
 ```
 
@@ -80,16 +80,11 @@ from timestamps.
 
 ## Agent semantic analysis with cjmcp
 
-cjmcp is optional; contributing to cjls does not require installing it. When
-connected, use `runPython` for all agent analysis, reading and editing of Cangjie
-sources. Without a cjmcp connection, use ordinary source tools, compiler and tests.
-When connected, follow its server instructions for core operations and the
-[`cangjie-mcp` skill](../modules/cjmcp/skills/cangjie-mcp/SKILL.md) for unfamiliar
-operations. Do not substitute shell source searches, reads or edits, including
-shell-launched Python or subprocesses inside the tool. Trust the loaded cjmcp
-analysis; report unavailable or incomplete analysis without a shell fallback.
-Save edits using Python I/O in `runPython` and query again for the new revision.
-Shell remains available for non-Cangjie files, Git, builds and tests.
+The repository's [selection and batching rules](../AGENTS.md#efficient-cjmcp-queries)
+apply when cjmcp is connected. Follow its server instructions for core operations;
+load one recipe from the [`cangjie-mcp` skill](../modules/cjmcp/skills/cangjie-mcp/SKILL.md)
+only for an unfamiliar operation. Without a connection, use ordinary source tools,
+compiler and tests.
 
 Follow [agent setup](../modules/cjmcp/agent-setup.md) to connect a verified binary
 to the edited worktree. Keep it separate from task build outputs; testing changed
