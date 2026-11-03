@@ -8,6 +8,13 @@ Use it for all Cangjie source analysis, reading and editing; do not use shell
 commands or subprocesses as a substitute, including shell-launched Python.
 Trust cjmcp analysis and report unavailable or partial results without a shell
 fallback. Compiler/tests remain the required validation of changes.
+
+Batch a self-contained read-only task into one script, including health fields
+with the useful query. Keep intermediate objects in Python and return bounded
+JSON evidence with totals and omitted counts. Use the documented API before
+introspection; another call is warranted for errors, missing evidence or a fresh
+revision after edits. Do not replay scripts with effects without inspecting state.
+
 Read only the recipe needed for an unfamiliar operation:
 
 - [Declarations and usages](references/navigation.md)

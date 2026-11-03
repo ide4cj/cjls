@@ -16,14 +16,13 @@ tip before rewriting and publish with an explicit `--force-with-lease` expectati
 - Read the task-relevant documents below and the affected module's notes.
 - Preserve the architectural boundaries and toolchain constraints they describe.
 - Check unfamiliar Cangjie/compiler behavior in source or a small probe.
-- cjmcp is optional. When connected, use `runPython` for all analysis, reading
-  and editing of Cangjie sources; without a connection, use ordinary source tools,
-  compiler and tests. The following source-work rules apply while connected.
-  Do not use shell commands (`rg`, `sed`, `cat`, shell-launched Python, or
-  subprocess equivalents) for these operations. Treat cjmcp as the authoritative
-  analysis source; report unavailable or partial analysis without a shell fallback.
-  Use Python I/O inside `runPython` to save edits; validate with compiler/tests.
-  See [agent semantic analysis](docs/procedures.md#agent-semantic-analysis-with-cjmcp).
+- cjmcp is optional. When connected, use `runPython` for all Cangjie source
+  analysis, reading and editing; do not substitute shell commands or subprocesses.
+  Trust its analysis and report unavailable or partial results without a shell
+  fallback. Shell remains available for Git, builds, tests and non-Cangjie files.
+  Without a connection, use ordinary source tools. Follow server instructions;
+  see [integration](docs/procedures.md#agent-semantic-analysis-with-cjmcp) only
+  for setup or freshness questions.
 - Prefer string interpolation when it simplifies fixture sources or expected
   text; preserve literal code, markers and offsets as described in
   [Contributing](CONTRIBUTING.md#test-fixtures). Compute conditional markers and
@@ -45,8 +44,23 @@ tip before rewriting and publish with an explicit `--force-with-lease` expectati
 
 Read the affected module's `AGENTS.md`, where present, and its technical notes
 linked from the [module guide](docs/README.md#module-notes) before editing it.
-Follow links relevant to the task; do not load all module notes or ADRs for every
-change.
+Read the relevant sections, using headings and rule IDs to locate them; do not
+load every module note or the ADR index for each change. Reuse already-read
+guidance unless it changed. See [documentation navigation](docs/README.md#read-for-a-task).
+
+## Efficient cjmcp queries
+
+- Aim for one `runPython` call per self-contained read-only task. Compose queries,
+  filtering, aggregation and supporting source excerpts inside Python; include
+  root, loading problems and macro status with that first useful query.
+- Use the API documented by the tool. Load one relevant recipe only for an
+  unfamiliar operation; avoid preliminary calls just to print types or `dir()`.
+- Return bounded JSON evidence: conclusions, paths, ranges and needed signatures
+  or excerpts. Keep intermediate objects inside Python; report totals and omitted
+  counts. Compute global maxima before limiting output and preserve all ties.
+- Make another call when an error, incomplete evidence or a new analysis revision
+  requires it. After edits, validate against a fresh revision in a separate call;
+  do not replay a script with effects without inspecting state.
 
 ## Issues and board
 
