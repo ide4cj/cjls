@@ -5,7 +5,7 @@ import std.env.getVariable
 import std.fs.{FileInfo, Path, canonicalize, exists}
 import std.sync.{Condition, Mutex}
 import stdx.log.{Logger, NoopLogger}
-import loupe.newFilePackageLine
+import loupe.{Severity, newFilePackageLine}
 import loupe.db.{AnalysisDatabase, ProjectModel}
 import loupe.vfs.{ChangedFile, CjoFile, FileStamp, Vfs, VfsPath, readCjoFiles, readFile}
 import project_model.{
@@ -24,8 +24,8 @@ class WorkspaceState {
     let db = AnalysisDatabase()
     let vfs = Vfs()
     var files: Array<VfsPath> = []
-    var problems: Array<String> = []
-    var hasExpandedMacros = false
+    var loadDiagnostics: Array<WorkspaceDiagnostic> = []
+    var macroStatus = MacroStatus(MacroState.Pending, [])
     var revision: Int64 = 0
     var reloadRequested = false
     private var pendingChanges: Array<ChangedFile> = []
@@ -33,6 +33,7 @@ class WorkspaceState {
     private var binaryStamps = HashMap<CjoFile, FileStamp>()
     private var loadProblems: Array<String> = []
     private let macros = WorkspaceMacros()
+    private var macroHome: ?Path = None
 
     WorkspaceState(let root: VfsPath) {}
 
@@ -84,7 +85,7 @@ class WorkspaceState {
         }
         // Invalidate retained Python revisions before any input is changed, including on a failed preparation.
         revision++
-        hasExpandedMacros = false
+        macroStatus = MacroStatus(MacroState.Pending, [])
         if (projectChanged || binaryChanged) {
             db.setProject(next, vfs.paths, binaries: binaries.files)
         }
@@ -96,9 +97,32 @@ class WorkspaceState {
         files = next.files()
         loadProblems = issues.toArray()
         reloadRequested = false
-        hasExpandedMacros = macros.expand(db, vfs, found.map { home => Path(home.path) }, issues)
-        problems = issues.toArray()
+        macroHome = found.map { home => Path(home.path) }
+        loadDiagnostics =
+            loadProblems
+                .map {
+                    message =>
+                    WorkspaceDiagnostic(
+                        "workspace",
+                        Severity.Error,
+                        message,
+                        code: Some("workspace_load")
+                    )
+                }
         true
+    }
+
+    /**
+     * Finish this revision's preparation attempt; failures are diagnostics, not
+     * evidence that a worker is still running. Keep pending if execution throws.
+     */
+    func prepareMacros(): Unit {
+        if (macroStatus.state != MacroState.Pending) {
+            return
+        }
+        let diagnostics = ArrayList<WorkspaceDiagnostic>()
+        macros.expand(db, vfs, macroHome, diagnostics)
+        macroStatus = MacroStatus(MacroState.Settled, diagnostics.toArray())
     }
 
     func close(): Unit {
@@ -185,7 +209,9 @@ class WorkspaceSession {
     private func prepare(): Unit {
         // Edits during a build/expansion must be incorporated before the script starts too.
         try {
-            while (state.synchronize()) {}
+            while (state.synchronize()) {
+                state.prepareMacros()
+            }
         } catch (e: Exception) {
             state.reloadRequested = true
             throw e
