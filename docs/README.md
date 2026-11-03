@@ -14,6 +14,22 @@
 How to set up, build, test and prepare a review: [Development](development.md).
 Agent working instructions: [AGENTS.md](../AGENTS.md). How to add a handler: [CONTRIBUTING.md](../CONTRIBUTING.md).
 
+## Read for a task
+
+Use the task table in [AGENTS.md](../AGENTS.md#start-here) and the module guide
+below to choose a document, then read its relevant sections. For large guides,
+find headings, rule IDs or task terms before reading surrounding text. The design
+rule tables and SDK issue index route to individual constraints; open the cited
+ADR only when its rationale matters. Historical ADRs and prior-art comparisons
+are not routine prerequisites. Reuse guidance already read in this task.
+
+For verification, start at [check selection](development.md#choose-checks-for-a-change)
+and follow only the applicable commands and prerequisites. For cjmcp, the tool's
+instructions cover common queries; load one task recipe for unfamiliar operations,
+setup instructions for connection problems, or API details for an unresolved
+contract question. Keep summaries and routing in entry points, with detailed
+contracts in their owning document.
+
 ## Current rules and decision history
 
 `design/` holds current constraints; ADRs record their reasons and original context.
