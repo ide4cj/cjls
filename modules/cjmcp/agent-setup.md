@@ -55,8 +55,9 @@ project instructions so tool selection does not depend on a user reminder:
 ```text
 When cjmcp is connected, use runPython for Cangjie source analysis, reading and
 editing; do not substitute shell commands or subprocesses. Follow server
-instructions and report partial analysis without a shell fallback. Batch a
-self-contained read-only task into one script and return bounded evidence.
+instructions and report partial analysis without a shell fallback.
+Minimize total task token use without sacrificing result quality; combine queries
+or use focused follow-up calls as appropriate.
 Use shell for Git, builds, tests and non-Cangjie files. Without a connection,
 use ordinary source tools.
 ```
@@ -102,8 +103,8 @@ macro status and at most five source paths." Its tool trace should contain a
 result = {
     "root": workspace.root,
     "revision": workspace.revision,
-    "problems": workspace.problems,
-    "has_expanded_macros": workspace.hasExpandedMacros,
+    "load_diagnostics": workspace.loadDiagnostics,
+    "macros": workspace.macros,
     "files": workspace.files()[:5],
 }
 ```
@@ -113,7 +114,7 @@ with the first useful query instead.
 
 Then ask it to find a known declaration and its usages, showing resolved paths,
 byte ranges and a bounded source excerpt. Use the
-[recipes](skills/cangjie-mcp/references/navigation.md#find-declarations-and-their-usages).
+[recipes](skills/cangjie-mcp/references/navigation.md).
 Finally, apply a small source change through `runPython` using the
 [editing recipe](skills/cangjie-mcp/references/editing.md), and ask for diagnostics in a new call. The
 revision should change for an observed input change and the answer should use
@@ -122,7 +123,9 @@ new text. Check that it queried the edited worktree, not another clone.
 If the tool is absent, check configuration, tool enablement and schema discovery.
 If it fails to start, check the binary and CPython 3.9–3.14/SDK environment in the
 client-launched process and server stderr. If results are partial, inspect
-`problems` and `hasExpandedMacros`; an empty result does not establish correctness.
+workspace.loadDiagnostics and workspace.macros; an empty result does not establish correctness.
+See [runtime failures](skills/cangjie-mcp/references/runtime.md) for interpreting
+partial analysis and retrying queries.
 If the agent keeps grepping usages, check that project instructions and the skill
 are actually loaded and that the host exposes the server's instructions. Do not
 fall back to shell for Cangjie source work. Keep shell available for non-Cangjie

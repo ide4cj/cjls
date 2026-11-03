@@ -4,6 +4,7 @@ import std.collection.{ArrayList, HashMap, HashSet}
 import std.env.getTempDirectory
 import std.fs.{Directory, Path, remove}
 import stdx.log.NoopLogger
+import loupe.Severity
 import loupe.db.{AnalysisDatabase, MacroSeverity, Package, SourceFile}
 import loupe.hir.{
     macroBuildPlan,
@@ -49,7 +50,12 @@ class WorkspaceMacros {
         }
     }
 
-    func expand(db: AnalysisDatabase, vfs: Vfs, home: ?Path, issues: ArrayList<String>): Bool {
+    func expand(
+        db: AnalysisDatabase,
+        vfs: Vfs,
+        home: ?Path,
+        issues: ArrayList<WorkspaceDiagnostic>
+    ): Unit {
         let plan = macroBuildPlan(db)
         let files = workspaceMacroFiles(db)
         var pending = false
@@ -57,14 +63,21 @@ class WorkspaceMacros {
             pending = !pendingMacroRequests(db, file).isEmpty()
         }
         if (plan.isEmpty() && !pending) {
-            return recordMacroProblems(db, vfs, files, issues)
+            return recordMacroDiagnostics(db, vfs, files, issues)
         }
         let sdkHome =
             match (home) {
                 case Some(path) => path
                 case None =>
-                    issues.add("no SDK: macros are not expanded")
-                    return false
+                    issues.add(
+                        WorkspaceDiagnostic(
+                            "macro",
+                            Severity.Error,
+                            "no SDK: macros are not expanded",
+                            code: Some("macro_sdk")
+                        )
+                    )
+                    return
             }
         if (this.sdkHome != Some(sdkHome)) {
             close()
@@ -74,11 +87,17 @@ class WorkspaceMacros {
             match (macroSdkIn(sdkHome)) {
                 case Usable(found) => sdk = found
                 case Unusable(reason) =>
-                    issues.add(reason)
-                    return false
+                    issues.add(
+                        WorkspaceDiagnostic(
+                            "macro",
+                            Severity.Error,
+                            reason,
+                            code: Some("macro_sdk")
+                        )
+                    )
+                    return
             }
         }
-        let before = issues.size
         let sdk = this.sdk.getOrThrow()
         if (temporary.isNone()) {
             temporary = Directory.createTemp(getTempDirectory())
@@ -101,7 +120,14 @@ class WorkspaceMacros {
                         rebuilt = true
                     }
                 case NotBuilt(reason) =>
-                    issues.add("${pkg.name(db)}: macro library not built: ${reason}")
+                    issues.add(
+                        WorkspaceDiagnostic(
+                            "macro",
+                            Severity.Error,
+                            "${pkg.name(db)}: macro library not built: ${reason}",
+                            code: Some("macro_build")
+                        )
+                    )
             }
         }
         if (rebuilt || libraries.size != next.size) {
@@ -133,47 +159,60 @@ class WorkspaceMacros {
             }
             setMacroOutputsByKey(db, expandAll(db, requests, sdk.numbers, servers))
         }
-        let complete = recordMacroProblems(db, vfs, files, issues)
-        complete && issues.size == before
+        recordMacroDiagnostics(db, vfs, files, issues)
     }
 }
 
 /**
  * A cached failed expansion remains a preparation problem even when there is nothing left to send.
  */
-func recordMacroProblems(
+func recordMacroDiagnostics(
     db: AnalysisDatabase,
     vfs: Vfs,
     files: Array<SourceFile>,
-    issues: ArrayList<String>
-): Bool {
-    let before = issues.size
+    issues: ArrayList<WorkspaceDiagnostic>
+): Unit {
     for (file in files) {
+        let path = vfs.paths.path(file.fileId(db)).toString()
         let pending = pendingMacroRequests(db, file).map { request => request.call }
         for (call in serverCalls(db, file)) {
-            let name = "${vfs.paths.path(file.fileId(db))}: @${call.definition.name}"
-            match (macroOutputOf(db, call.call)) {
-                case None => issues.add("${name}: macro call was not sent")
-                case Some(_) =>
-                    if (pending.contains(call.call)) {
-                        issues.add("${name}: macro call was not sent")
-                    }
+            if (macroOutputOf(db, call.call).isNone() || pending.contains(call.call)) {
+                issues.add(
+                    WorkspaceDiagnostic(
+                        "macro",
+                        Severity.Error,
+                        "@${call.definition.name}: macro call was not sent",
+                        code: Some("macro_not_sent"),
+                        path: Some(path)
+                    )
+                )
             }
         }
-        // Reuse loupe's source mapping and hint rendering, as ordinary LSP diagnostics do.
+        // Loupe supplies mapped source ranges and renders hints without parsing stderr locations.
         let text = file.text(db)
-        for (
-            diagnostic in macroDiagnostics(db, file) where diagnostic.severity ==
-                MacroSeverity.MacroError
-        ) {
+        for (diagnostic in macroDiagnostics(db, file)) {
             let line = text.lineOf(diagnostic.range.start)
             let column = diagnostic.range.start - text.lineStart(line)
+            let severity =
+                if (diagnostic.severity == MacroSeverity.MacroError) {
+                    Severity.Error
+                } else {
+                    Severity.Warning
+                }
             issues.add(
-                "${vfs.paths.path(file.fileId(db))}:${line + 1}:${column + 1}: ${diagnostic.message}"
+                WorkspaceDiagnostic(
+                    "macro",
+                    severity,
+                    diagnostic.message,
+                    code: Some("macro_expansion"),
+                    path: Some(path),
+                    range: Some(diagnostic.range),
+                    line: Some(line + 1),
+                    column: Some(column + 1)
+                )
             )
         }
     }
-    issues.size == before
 }
 
 /**

@@ -121,14 +121,23 @@ class McpServer {
     }
 
     private func callTool(params: JsonValue): JsonValue {
+        var maxOutputBytes: Int64 = 24000
         let code =
             try {
                 if (params["name"].asString() != "runPython") {
                     throw McpException("Unknown tool", -32602)
                 }
                 let args = params["arguments"]
-                for ((name, _) in args.asObject() where name != "code") {
+                for (
+                    (name, _) in args.asObject() where name != "code" && name != "maxOutputBytes"
+                ) {
                     throw McpException("Unexpected argument: ${name}", -32602)
+                }
+                if (let Some(budget) <- args.get("maxOutputBytes")) {
+                    maxOutputBytes = budget.asInteger()
+                    if (maxOutputBytes < 0) {
+                        throw McpException("maxOutputBytes must be nonnegative", -32602)
+                    }
                 }
                 args["code"].asString()
             } catch (e: IllegalArgumentException) {
@@ -140,7 +149,7 @@ class McpServer {
             }
             let result = python
                 .getOrThrow { IllegalStateException("Python session was not initialized") }
-                .run(code)
+                .run(code, maxOutputBytes)
             toolResult(result, error: !result["error"].isNull())
         } catch (e: Exception) {
             toolResult(obj([("error", JsonString(e.message)), ("revision", JsonNull)]), error: true)
@@ -196,7 +205,7 @@ func tools(): JsonValue {
             (
                 "description",
                 JsonString(
-                    "Python script. workspace is a live native Cangjie object; result must be JSON-serializable. stdout and stderr are captured."
+                    "Python script. workspace is a live native Cangjie object. result supports JSON data plus WorkspaceDiagnostic, MacroStatus, MacroState, TextRange and Severity values, encoded automatically. stdout and stderr are captured."
                 )
             )
         ]
@@ -204,7 +213,30 @@ func tools(): JsonValue {
     let schema = obj(
         [
             ("type", JsonString("object")),
-            ("properties", obj([("code", code)])),
+            (
+                "properties",
+                obj(
+                    [
+                        ("code", code),
+                        (
+                            "maxOutputBytes",
+                            obj(
+                                [
+                                    ("type", JsonString("integer")),
+                                    ("minimum", JsonInteger(0)),
+                                    ("default", JsonInteger(24000)),
+                                    (
+                                        "description",
+                                        JsonString(
+                                            "Budget for the UTF-8 JSON response (result, stdout, stderr, error and revision). Default 24000; 0 explicitly allows unlimited output. Excess returns OutputBudgetExceeded after execution, with the full response available as last_output in the next script."
+                                        )
+                                    )
+                                ]
+                            )
+                        )
+                    ]
+                )
+            ),
             ("required", JsonArray([JsonString("code")])),
             ("additionalProperties", JsonBool(false))
         ]
