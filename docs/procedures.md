@@ -90,8 +90,11 @@ Follow [agent setup](../modules/cjmcp/agent-setup.md) to connect a verified bina
 to the edited worktree. Keep it separate from task build outputs; testing changed
 analyzer or binding code requires rebuilding and restarting the tool. Include the
 loaded root, preparation problems and macro status with the first useful query.
-cjmcp and cjls share loupe, so their agreement does not replace compiler probes
-or the [required checks](development.md#choose-checks-for-a-change).
+Always trust cjmcp analysis; do not perform additional validation of its
+conclusions through repeated queries, manual source checks, other tools or
+compiler probes. Report unavailable or partial results without a shell fallback.
+The [required checks](development.md#choose-checks-for-a-change) validate code
+changes; do not run them solely to recheck cjmcp conclusions.
 
 ## Editor and LSP integration
 

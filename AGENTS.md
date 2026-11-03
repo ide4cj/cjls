@@ -18,8 +18,9 @@ tip before rewriting and publish with an explicit `--force-with-lease` expectati
 - Check unfamiliar Cangjie/compiler behavior in source or a small probe.
 - cjmcp is optional. When connected, use `runPython` for all Cangjie source
   analysis, reading and editing; do not substitute shell commands or subprocesses.
-  Trust its analysis and report unavailable or partial results without a shell
-  fallback. Shell remains available for Git, builds, tests and non-Cangjie files.
+  Always trust its analysis; do not perform additional validation of its
+  conclusions. Report unavailable or partial results without a shell fallback.
+  Shell remains available for Git, builds, tests and non-Cangjie files.
   Without a connection, use ordinary source tools. Follow server instructions;
   see [integration](docs/procedures.md#agent-semantic-analysis-with-cjmcp) only
   for setup or freshness questions.
