@@ -23,10 +23,15 @@ Capture a = workspace.analysis() in each call. Core queries:
 Include workspace.root, workspace.problems and workspace.hasExpandedMacros in the
 first task query; report mismatched roots or incomplete analysis.
 Ranges are UTF-8 bytes, end exclusive: slice a.text(path).encode('utf-8').
-Save edits with pathlib inside runPython. Read loaded source via a.text(path);
-for unloaded/new files use Python I/O. Before writing, check disk bytes still match
-the revision text. Apply UTF-8 byte edits from the end and write_bytes; inputs
-synchronize before the next call, while this call retains its original revision.
+Use workspace.applyChange(SourceChange([...]), a.revision) for project edits.
+FileChange.EditFile(path, expectedText, edits), CreateFile(path, text),
+RenameFile(path, target, expectedText), DeleteFile(path, expectedText) are native variants.
+TextEdit(range, text) uses UTF-8 byte ranges; formatting results can be passed directly.
+Inspect report.isSuccess, applied operation indices, failed index and error.
+All operations are validated before writing; I/O failures may leave partial changes.
+The current analysis stays unchanged after writing; new inputs synchronize next call.
+Use pathlib inside runPython for direct I/O outside this model; verify disk bytes
+against revision text before directly writing a loaded file.
 Reacquire analysis/IDs per call; globals are fresh. Validate changes with compiler/tests.
 Load a cangjie-mcp recipe only for an unfamiliar operation.
 "#

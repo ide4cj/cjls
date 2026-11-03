@@ -111,7 +111,7 @@ with the first useful query instead.
 Then ask it to find a known declaration and its usages, showing resolved paths,
 byte ranges and a bounded source excerpt. Use the
 [recipes](skills/cangjie-mcp/references/navigation.md#find-declarations-and-their-usages).
-Finally, save a small code edit through `runPython` using the
+Finally, apply a small source change through `runPython` using the
 [editing recipe](skills/cangjie-mcp/references/editing.md), and ask for diagnostics in a new call. The
 revision should change for an observed input change and the answer should use
 new text. Check that it queried the edited worktree, not another clone.
@@ -124,7 +124,8 @@ If the agent keeps grepping usages, check that project instructions and the skil
 are actually loaded and that the host exposes the server's instructions. Do not
 fall back to shell for Cangjie source work. Keep shell available for non-Cangjie
 files, Git, builds and tests. A timed-out script may have performed effects; inspect state
-before retrying. cjmcp has no editor-buffer integration or dedicated refactoring API.
+before retrying. cjmcp has no editor-buffer integration; its source-change API applies prepared edits,
+not semantic refactoring algorithms.
 
 ## Design references
 
