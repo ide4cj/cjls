@@ -5,10 +5,10 @@ import calca.*
 import calca.macros.*
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{
+    Annotation,
     AnyHasAnnotations,
     AnyHasModifiers,
     AnyHasName,
-    Annotation,
     EnumCtor,
     FuncDecl,
     MacroExpandDecl,

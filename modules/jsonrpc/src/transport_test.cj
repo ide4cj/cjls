@@ -3,8 +3,8 @@ package jsonrpc
 import std.collection.ArrayList
 import std.io.*
 import std.unittest.*
-import std.unittest.testmacro.*
 import std.unittest.prop_test.*
+import std.unittest.testmacro.*
 import stdx.log.*
 import fjson.*
 import stdxx.IntegerOrString

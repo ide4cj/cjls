@@ -1,8 +1,8 @@
 package jsonrpc
 
 import std.collection.ArrayList
-import std.io.{InputStream, BufferedInputStream}
 import std.convert.Parsable
+import std.io.{BufferedInputStream, InputStream}
 
 struct Header {
     Header(let contentLength: Int32) {}

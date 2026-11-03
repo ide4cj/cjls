@@ -8,14 +8,14 @@ import std.sync.AtomicBool
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.{Logger, NoopLogger}
-import stdxx.Nullable
-import fjson.RawJson
-import jsonrpc.*
-import rope.{Encoding, Rope}
-import loupe.fixture.stdSourcesDir
-import loupe.vfs.VfsPath
 import cjls.lsp_types.*
 import cjls.server.*
+import fjson.RawJson
+import jsonrpc.*
+import loupe.fixture.stdSourcesDir
+import loupe.vfs.VfsPath
+import rope.{Encoding, Rope}
+import stdxx.Nullable
 
 /**
  * A transport that keeps the requests written, so a test can look at them; nothing is read, so no

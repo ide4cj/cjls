@@ -6,10 +6,10 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import calca.*
 import calca.macros.*
-import rope.Rope
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.fixture.*
 import loupe.vfs.CjoFileRead
+import rope.Rope
 
 /**
  * The database of `fixture`, its only file, and the declaration named `name` among its items.

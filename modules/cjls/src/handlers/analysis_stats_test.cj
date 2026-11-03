@@ -2,9 +2,9 @@ package cjls.handlers
 
 import std.unittest.*
 import std.unittest.testmacro.*
+import cjls.server.*
 import fjson.RawJson
 import rope.Encoding
-import cjls.server.*
 
 @Test
 class AnalysisStatsTest {

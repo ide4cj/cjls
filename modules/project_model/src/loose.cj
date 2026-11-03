@@ -3,9 +3,9 @@ package project_model
 import std.collection.*
 import std.fs.*
 import std.sort.*
-import loupe.db.*
-import loupe.vfs.{isCangjieFile, isScanned, isWorkspaceFile, VfsPath}
 import cjsyntax.{SyntaxKind, tokenize}
+import loupe.db.*
+import loupe.vfs.{VfsPath, isCangjieFile, isScanned, isWorkspaceFile}
 
 /**
  * How much of a file is read for its `package` line: a header comes first, after comments at most.

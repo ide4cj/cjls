@@ -9,14 +9,14 @@ import std.sync.Mutex
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.*
-import loupe.{hoverAt, TextRange}
+import loupe.{TextRange, hoverAt}
 import loupe.db.*
 import loupe.fixture.*
 import loupe.hir.{
+    MacroPackage,
     expandedCalls,
     macroExpansion,
     macroOutputOf,
-    MacroPackage,
     macroRequests,
     pendingMacroRequests,
     setMacroOutputsByKey

@@ -1,8 +1,8 @@
 package loupe
 
-import ginkgo.SyntaxNodePtr
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{Name, NameRef, RefExpr}
+import ginkgo.SyntaxNodePtr
 import loupe.db.AnalysisDatabase
 import loupe.hir.*
 

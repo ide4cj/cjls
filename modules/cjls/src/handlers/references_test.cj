@@ -3,9 +3,9 @@ package cjls.handlers
 import std.fs.Path
 import std.unittest.*
 import std.unittest.testmacro.*
-import stdxx.Nullable
 import cjls.lsp_types.*
 import cjls.server.*
+import stdxx.Nullable
 
 func referencesOf(
     state: ServerState,

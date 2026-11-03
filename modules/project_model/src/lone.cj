@@ -2,7 +2,7 @@ package project_model
 
 import std.collection.*
 import loupe.db.*
-import loupe.vfs.{isCangjieFile, VfsPath}
+import loupe.vfs.{VfsPath, isCangjieFile}
 
 /**
  * The projects of the Cangjie files of `files` that `model` covers none of, each file with the name

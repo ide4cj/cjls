@@ -4,11 +4,11 @@ import std.env.{getStdErr, getStdOut, getVariable, getWorkingDirectory}
 import std.fs.Path
 import std.io.OutputStream
 import stdx.log.Logger
+import cjls.server.settingsSchema
 import fjson.JsonValue
 import jian.*
 import loupe.vfs.VfsPath
 import project_model.*
-import cjls.server.settingsSchema
 
 @JianContext
 class CommandContext {

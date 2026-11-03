@@ -1,7 +1,7 @@
 package cjls
 
 import std.collection.ArrayList
-import std.fs.{File, FileInfo, FSException, Path, exists}
+import std.fs.{FSException, File, FileInfo, Path, exists}
 import std.io.OutputStream
 import std.sort.sort
 import cjformat.formatText

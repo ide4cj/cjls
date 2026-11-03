@@ -3,12 +3,12 @@ package cjls.handlers
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import stdxx.Nullable
-import rope.{Encoding, Rope}
-import loupe.*
 import cjls.lsp_types.*
 import cjls.lsp_types.Range as LspRange
 import cjls.server.*
+import loupe.*
+import rope.{Encoding, Rope}
+import stdxx.Nullable
 
 // indices into the legend: types
 const KEYWORD: UInt32 = 0

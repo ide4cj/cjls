@@ -3,9 +3,9 @@ package project_model
 import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import loupe.db.*
 import loupe.definitionAt
-import loupe.vfs.{readFiles, Vfs}
+import loupe.db.*
+import loupe.vfs.{Vfs, readFiles}
 
 /**
  * A resolved entry in either lock format, with v1 metadata for the original archive.

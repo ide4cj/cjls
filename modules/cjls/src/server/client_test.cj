@@ -5,10 +5,10 @@ import std.sync.AtomicBool
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.*
-import stdxx.Nullable
+import cjls.lsp_types.*
 import fjson.RawJson
 import jsonrpc.*
-import cjls.lsp_types.*
+import stdxx.Nullable
 
 /**
  * A transport that only takes what is written, so a test can wait for it; nothing is ever read.

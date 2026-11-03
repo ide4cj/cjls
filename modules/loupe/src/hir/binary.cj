@@ -9,18 +9,18 @@ import cjo.{
     AccessModifier,
     Attribute,
     Attributes,
+    Decl as CjoDecl,
     DeclInfo,
     DeclKind,
     FbVector,
     FullId,
-    openCjo,
+    Package as CjoPackage,
     PackageKind,
     Position,
     SemaTyInfo,
-    TypeKind
+    TypeKind,
+    openCjo
 }
-import cjo.Decl as CjoDecl
-import cjo.Package as CjoPackage
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package, SourceFile}
 
 /**

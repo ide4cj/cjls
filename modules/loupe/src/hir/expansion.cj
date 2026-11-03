@@ -2,12 +2,11 @@ package loupe.hir
 
 import std.collection.*
 import std.deriving.*
-import ginkgo.TextRange
-import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind, parseExpr, parseStmts}
-import cjsyntax.ast.{AnyHasName, Decl, MacroExpandDecl, MatchCase}
-import cjsyntax.parse as parseText
 import calca.*
 import calca.macros.*
+import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind, parse as parseText, parseExpr, parseStmts}
+import cjsyntax.ast.{AnyHasName, Decl, MacroExpandDecl, MatchCase}
+import ginkgo.TextRange
 import loupe.db.{AnalysisDatabase, MappedSpan, MappedText, SourceFile, SpanOrigin}
 import loupe.syntax.parse
 

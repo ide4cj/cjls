@@ -1,10 +1,10 @@
 package cjls.handlers
 
-import stdxx.Nullable
-import loupe.{ExpandedPlace, implementationsAt}
 import cjls.lsp_types.*
-import cjls.server.*
 import cjls.macros.LspHandler
+import cjls.server.*
+import loupe.{ExpandedPlace, implementationsAt}
+import stdxx.Nullable
 
 /**
  * What implements the name at the position: the members overriding or implementing a member, the types below a

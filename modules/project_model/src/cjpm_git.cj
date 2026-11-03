@@ -3,8 +3,8 @@ package project_model
 import std.collection.*
 import std.fs.*
 import ftoml.*
-import stdxx.deriving.*
 import loupe.vfs.VfsPath
+import stdxx.deriving.*
 
 /**
  * Reads cjpm's resolution without running commands or changing its shared cache. The entry

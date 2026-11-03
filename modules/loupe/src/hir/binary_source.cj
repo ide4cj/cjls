@@ -4,7 +4,7 @@ import std.collection.ArrayList
 import std.deriving.Derive
 import calca.*
 import calca.macros.CalcaTracked
-import cjo.{openCjo, Position as CjoPosition}
+import cjo.{Position as CjoPosition, openCjo}
 import cjsyntax.ast.AnyHasName
 import ginkgo.TextRange
 import index_map.IndexMap

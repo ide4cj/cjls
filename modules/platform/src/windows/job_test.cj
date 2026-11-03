@@ -1,9 +1,9 @@
 features {os.windows}
 package platform
 
+import std.process.{ProcessRedirect, launch}
 import std.unittest.*
 import std.unittest.testmacro.*
-import std.process.{launch, ProcessRedirect}
 
 @Test
 class JobExtendedLimitsTest {

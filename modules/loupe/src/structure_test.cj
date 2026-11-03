@@ -4,9 +4,9 @@ import std.collection.*
 import std.unittest.*
 import std.unittest.testmacro.*
 import ginkgo.TextRange
-import rope.Rope
-import loupe.vfs.FileId
 import loupe.db.AnalysisDatabase
+import loupe.vfs.FileId
+import rope.Rope
 
 func structureOf(text: String): Array<StructureNode> {
     let db = AnalysisDatabase()

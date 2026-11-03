@@ -1,29 +1,33 @@
 package cjls.handlers
 
 import std.collection.ArrayList
-import rope.{Encoding, LineColumn, PositionCursor, Rope}
+import cjls.lsp_types.*
+import cjls.lsp_types.Range as LspRange
+import cjls.server.ServerSnapshot
 import loupe.{
     CallHierarchyEntry,
+    Diagnostic as LoupeDiagnostic,
     FileSymbol,
     Fold,
     FoldKind,
     HierarchyCalls,
-    HighlightedRange,
     HighlightModifier,
     HighlightModifiers,
     HighlightTag,
+    HighlightedRange,
+    HoverItem,
+    HoverResult,
     NavigationTarget,
+    Reference,
+    ReferenceAccess,
+    RelatedHighlight,
     Severity,
     StructureKind,
     StructureNode,
+    TextEdit as LoupeTextEdit,
     TextRange
 }
-import loupe.{HoverItem, HoverResult, Reference, RelatedHighlight, ReferenceAccess}
-import loupe.Diagnostic as LoupeDiagnostic
-import loupe.TextEdit as LoupeTextEdit
-import cjls.lsp_types.*
-import cjls.server.ServerSnapshot
-import cjls.lsp_types.Range as LspRange
+import rope.{Encoding, LineColumn, PositionCursor, Rope}
 
 /**
  * `start..end`, byte offsets into `text`, as the client counts: lines and columns of `encoding`.

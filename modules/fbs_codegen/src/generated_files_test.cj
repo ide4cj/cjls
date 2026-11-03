@@ -2,10 +2,10 @@ package fbs_codegen
 
 import std.collection.ArrayList
 import std.env.getTempDirectory
-import cjformat.config.optionsFor
 import std.fs.{Directory, File, Path, remove}
 import std.unittest.*
 import std.unittest.testmacro.*
+import cjformat.config.optionsFor
 
 let CONFIGS = ["modules/cjo/cjo_format.toml", "modules/macro_server/macro_msg_format.toml"]
 

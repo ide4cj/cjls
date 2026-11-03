@@ -17,23 +17,31 @@ public struct TextEdit {
 
 /**
  * Formats a file using `options`. Returns no edits for canonical
- * input, or `None` for a file with syntax errors. Removes redundant singleton import braces
- * without comments or a trailing comma; all other significant tokens are preserved.
+ * input, or `None` for a file with syntax errors. Sorts and combines comment-free imports with
+ * matching visibility and conditions, preserving every path, alias and duplicate. Wildcards
+ * remain separate. All significant tokens outside imports are preserved.
  * Macro token trees and string contents retain their layout. Long indivisible text may overflow.
  */
-public func format(parse: CjParse, options!: FormatOptions = FormatOptions()): ?Array<TextEdit> {
-    if (!parse.errors.isEmpty()) {
+public func format(parsed: CjParse, options!: FormatOptions = FormatOptions()): ?Array<TextEdit> {
+    if (!parsed.errors.isEmpty()) {
         return None
     }
-    let root = parse.syntaxNode()
-    let source = root.text()
+    let original = parsed.syntaxNode()
+    let source = original.text()
+    let imports = importEdits(original, source)
+    let normalized = if (imports.isEmpty()) { source } else { applyEdits(source, imports) }
+    let input = if (imports.isEmpty()) { parsed } else { parse(normalized) }
+    if (!input.errors.isEmpty()) {
+        throw IllegalStateException("import normalization introduced invalid syntax")
+    }
+    let root = input.syntaxNode()
     let result = Printer(
         lineBreakIn(source),
         width: options.lineWidth,
         indentWidth: options.indentWidth
     )
-        .print(LayoutBuilder(source, options: options).node(root))
-    Some(replacement(source, root.textRange, result))
+        .print(LayoutBuilder(normalized, options: options).node(root))
+    Some(replacement(source, original.textRange, result))
 }
 
 /**

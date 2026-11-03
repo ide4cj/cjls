@@ -7,13 +7,13 @@ import std.sync.*
 import std.time.MonoTime
 import stdx.log.Logger
 import calca.CancelledException
+import cjls.server.*
 import jsonrpc.ErrorLogValue
 import loupe.db.*
 import loupe.hir.{macroBuildPlan, pendingMacroRequests}
 import loupe.vfs.{FileId, VfsPath}
 import macro_host.*
 import project_model.findCangjieHome
-import cjls.server.*
 
 /**
  * Runs the workspace's macros and std's (#176, D104) on a thread of its own, through `macro_host`: once woken, builds

@@ -2,7 +2,6 @@ package loupe
 
 import std.collection.*
 import std.deriving.*
-import ginkgo.SyntaxElement
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{
     BinExpr,
@@ -19,6 +18,7 @@ import cjsyntax.ast.{
     identText,
     isIdent
 }
+import ginkgo.SyntaxElement
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.hir.ItemFile
 import loupe.syntax.parse

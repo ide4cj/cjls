@@ -1,6 +1,6 @@
 package loupe.db
 
-import std.collection.{ArrayList, collectArray, filter, HashMap, HashSet}
+import std.collection.{ArrayList, HashMap, HashSet, collectArray, filter}
 import std.collection.concurrent.ConcurrentHashMap
 import calca.*
 import calca.macros.*

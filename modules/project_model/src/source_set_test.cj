@@ -6,7 +6,7 @@ import std.unittest.testmacro.*
 import fjson.*
 import loupe.{definitionAt, diagnostics}
 import loupe.db.*
-import loupe.vfs.{readFiles, Vfs, VfsPath}
+import loupe.vfs.{Vfs, VfsPath, readFiles}
 
 let MACOS = Cfg(
     [("os", "macOS"), ("arch", "aarch64"), ("env", ""), ("backend", "cjnative"), ("test", "true")]

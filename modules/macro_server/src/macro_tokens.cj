@@ -1,7 +1,7 @@
 package macro_server
 
 import std.collection.*
-import cjsyntax.{tokenize, SyntaxKind}
+import cjsyntax.{SyntaxKind, tokenize}
 import ginkgo.parsing.Lexed
 
 /**

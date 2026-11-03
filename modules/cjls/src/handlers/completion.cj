@@ -1,12 +1,16 @@
 package cjls.handlers
 
-import fjson.JsonValue
-import stdxx.Nullable
-import loupe.{CompletionKind, completionDetails, completionsAt}
-import loupe.CompletionItem as AnalysisCompletion
 import cjls.lsp_types.*
-import cjls.server.*
 import cjls.macros.LspHandler
+import cjls.server.*
+import fjson.JsonValue
+import loupe.{
+    CompletionItem as AnalysisCompletion,
+    CompletionKind,
+    completionDetails,
+    completionsAt
+}
+import stdxx.Nullable
 
 /**
  * The completions at the position (`loupe.completionsAt`), the most relevant first: each replaces

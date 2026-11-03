@@ -1,15 +1,15 @@
 package cjls.handlers
 
-import fjson.JsonValue
-import rope.Encoding
-import cjls.lsp_types.*
 import cjls.lsp_ext.{
     AnalysisStatsRequestSpec,
     EXPAND_MACRO_COMMAND,
     ExpandMacroRequestSpec,
     MemoryUsageRequestSpec
 }
+import cjls.lsp_types.*
 import cjls.server.*
+import fjson.JsonValue
+import rope.Encoding
 
 /**
  * Every handler of the server, one line each.

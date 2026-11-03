@@ -4,8 +4,8 @@ import std.env.getWorkingDirectory
 import std.fs.{Directory, File, Path, remove}
 import std.io.{ByteBuffer, readToEnd}
 import stdx.log.NoopLogger
-import fjson.{fromJsonBytes, JsonValue}
 import cjls.server.settingsSchema
+import fjson.{JsonValue, fromJsonBytes}
 
 @Test
 class CommandTest {

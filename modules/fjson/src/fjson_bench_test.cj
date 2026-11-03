@@ -3,8 +3,7 @@ package fjson
 import std.io.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import stdx.encoding.json.{JsonArray, JsonInt, JsonObject, JsonString}
-import stdx.encoding.json.JsonValue as StdxJsonValue
+import stdx.encoding.json.{JsonArray, JsonInt, JsonObject, JsonString, JsonValue as StdxJsonValue}
 import stdx.encoding.json.stream.*
 
 /*

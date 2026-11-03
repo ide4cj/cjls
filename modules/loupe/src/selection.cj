@@ -2,11 +2,11 @@ package loupe
 
 import std.collection.*
 import std.unicode.*
-import ginkgo.{Direction, SyntaxElement, TokenAtOffset, TokenSet}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import loupe.vfs.FileId
+import ginkgo.{Direction, SyntaxElement, TokenAtOffset, TokenSet}
 import loupe.db.AnalysisDatabase
 import loupe.syntax.parse
+import loupe.vfs.FileId
 
 /**
  * Tokens whose words are selected on their own: comments and the pieces of a string.

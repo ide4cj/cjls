@@ -2,7 +2,8 @@ package loupe.hir
 
 import std.collection.*
 import std.deriving.*
-import ginkgo.{Kind, SyntaxElement, SyntaxNodePtr}
+import calca.*
+import calca.macros.*
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{
     AnyHasName,
@@ -12,6 +13,7 @@ import cjsyntax.ast.{
     CatchClause,
     DataArg,
     Decl,
+    Expr as AstExpr,
     ExprFile,
     GenericConstraint,
     Interpolation,
@@ -22,22 +24,20 @@ import cjsyntax.ast.{
     MatchCase,
     Name,
     NameRef,
+    Param as AstParam,
     ParamList,
     PathSegment,
     Pattern,
     QuoteInterpolation,
     ResourceDecl,
+    Stmt as AstStmt,
     StmtsFile,
     Type,
     TypesArg,
     VarDecl,
     identText
 }
-import cjsyntax.ast.Expr as AstExpr
-import cjsyntax.ast.Stmt as AstStmt
-import cjsyntax.ast.Param as AstParam
-import calca.*
-import calca.macros.*
+import ginkgo.{Kind, SyntaxElement, SyntaxNodePtr}
 import loupe.db.{AnalysisDatabase, MacroSeverity}
 import loupe.syntax.parse
 

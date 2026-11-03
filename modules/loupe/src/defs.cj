@@ -2,7 +2,6 @@ package loupe
 
 import std.collection.*
 import std.deriving.*
-import ginkgo.SyntaxNodePtr
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{
     Arg,
@@ -15,6 +14,7 @@ import cjsyntax.ast.{
     PathSegment,
     RefExpr
 }
+import ginkgo.SyntaxNodePtr
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.hir.*
 

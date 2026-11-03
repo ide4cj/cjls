@@ -6,14 +6,14 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import calca.*
 import calca.macros.*
-import ginkgo.{SyntaxElement, TextRange}
 import cjsyntax.CjSyntaxNode
 import cjsyntax.ast.{ImportDecl, ImportTree}
-import rope.Rope
+import ginkgo.{SyntaxElement, TextRange}
 import loupe.db.AnalysisDatabase
 import loupe.fixture.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
+import rope.Rope
 
 /**
  * The leaves of `tree`, in the order `ItemTree` lowers them to paths.

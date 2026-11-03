@@ -2,8 +2,8 @@ package loupe
 
 import std.collection.*
 import std.sort.sort
-import ginkgo.TextRange
 import cjformat.formatText
+import ginkgo.TextRange
 import loupe.db.AnalysisDatabase
 import loupe.hir.*
 import loupe.syntax.parse

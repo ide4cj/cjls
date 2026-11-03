@@ -2,7 +2,7 @@ package cjls.server
 
 import std.collection.HashSet
 import std.convert.Parsable
-import std.fs.{Directory, exists, File, FileInfo, FSException, OpenMode, Path, remove}
+import std.fs.{Directory, FSException, File, FileInfo, OpenMode, Path, exists, remove}
 import std.sync.Mutex
 import std.time.DateTime
 import loupe.vfs.VfsPath

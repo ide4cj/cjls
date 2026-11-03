@@ -1,10 +1,10 @@
 package cjls.handlers
 
-import stdxx.Nullable
-import loupe.extendSelection
 import cjls.lsp_types.*
-import cjls.server.*
 import cjls.macros.LspHandler
+import cjls.server.*
+import loupe.extendSelection
+import stdxx.Nullable
 
 /**
  * For each position asked, in their order, the ranges a selection there widens through, from the

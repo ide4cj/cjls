@@ -2,12 +2,19 @@ package fjson
 
 import std.collection.*
 import std.fs.*
-import std.unittest.*
-import std.unittest.testmacro.*
 import std.io.*
 import std.sort.sort
-import stdx.encoding.json.{JsonArray, JsonBool, JsonFloat, JsonInt, JsonObject, JsonString}
-import stdx.encoding.json.JsonValue as StdxJsonValue
+import std.unittest.*
+import std.unittest.testmacro.*
+import stdx.encoding.json.{
+    JsonArray,
+    JsonBool,
+    JsonFloat,
+    JsonInt,
+    JsonObject,
+    JsonString,
+    JsonValue as StdxJsonValue
+}
 import stdx.encoding.json.stream.*
 
 /*

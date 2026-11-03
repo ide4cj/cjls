@@ -5,15 +5,14 @@ import std.sort.sort
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import cjsyntax.SyntaxKind
+import cjsyntax.{SyntaxKind, parse as parseCangjie}
 import cjsyntax.ast.Decl
-import cjsyntax.parse as parseCangjie
 import ginkgo.SyntaxNode
 import loupe.db.*
 import loupe.fixture.*
 import loupe.hir.{
-    expandedCalls,
     ItemId,
+    expandedCalls,
     itemTree,
     macroExpansion,
     pendingMacroRequests,

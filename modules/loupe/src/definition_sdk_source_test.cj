@@ -5,17 +5,17 @@ import std.unittest.testmacro.*
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.fixture.{Fixture, FixtureException, stdCjo, stdCjoRead, stdWithSources}
 import loupe.hir.{
-    canonicalDef,
     DefId,
     ExtendedType,
     ItemFile,
+    Namespace,
+    Resolution,
+    canonicalDef,
     itemTree,
     lookUp,
     memberLookup,
-    Namespace,
     packageExports,
     packageOfFile,
-    Resolution,
     resolutionPackage,
     signatureTypes
 }

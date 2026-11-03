@@ -1,6 +1,6 @@
 package macro_host
 
-import std.fs.{Directory, exists, File, FSException, OpenMode, Path}
+import std.fs.{Directory, FSException, File, OpenMode, Path, exists}
 import platform.tryLockFile
 
 // A lock on a directory of a cache directory (D106): a build holds it while it writes there, so a second server on

@@ -5,11 +5,11 @@ import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import rope.{Encoding, Rope}
-import loupe.vfs.VfsPath
 import cjls.lsp_types.*
 import cjls.lsp_types.Range as LspRange
 import cjls.server.*
+import loupe.vfs.VfsPath
+import rope.{Encoding, Rope}
 
 const URI = "file:///nowhere/a.cj"
 

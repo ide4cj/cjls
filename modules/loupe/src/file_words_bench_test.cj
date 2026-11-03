@@ -4,10 +4,10 @@ import std.collection.*
 import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import rope.Rope
 import cjsyntax.{SyntaxKind, tokenize}
 import loupe.fixture.stdSourcesDir
 import loupe.vfs.isCangjieFile
+import rope.Rope
 
 /**
  * std's sources, `.corpora/`'s (D65), read once a bench asks: a large workspace's texts.

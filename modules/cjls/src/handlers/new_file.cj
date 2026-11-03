@@ -1,13 +1,13 @@
 package cjls.handlers
 
-import std.collection.{collectArray, HashMap}
+import std.collection.{HashMap, collectArray}
 import stdx.log.Logger
-import stdxx.Nullable
-import rope.Rope
-import loupe.vfs.VfsPath
 import cjls.lsp_types.*
 import cjls.lsp_types.Range as LspRange
 import cjls.server.*
+import loupe.vfs.VfsPath
+import rope.Rope
+import stdxx.Nullable
 
 /**
  * A document opened blank is given its `package` line (#294), as Metals gives it: at once if no

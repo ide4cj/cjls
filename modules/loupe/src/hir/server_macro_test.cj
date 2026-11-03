@@ -4,9 +4,9 @@ import std.collection.*
 import std.unittest.*
 import std.unittest.testmacro.*
 import ginkgo.TextRange
-import rope.Rope
 import loupe.db.*
 import loupe.fixture.*
+import rope.Rope
 
 /**
  * The macros of the workspace the tests call, in a package of their own.

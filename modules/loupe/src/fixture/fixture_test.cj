@@ -5,8 +5,8 @@ import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
 import ginkgo.TextRange
-import loupe.vfs.*
 import loupe.db.*
+import loupe.vfs.*
 
 @Test
 class FixtureTest {

@@ -4,10 +4,10 @@ import std.collection.*
 import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import rope.Rope
 import loupe.db.AnalysisDatabase
 import loupe.fixture.*
 import loupe.vfs.FileId
+import rope.Rope
 
 /**
  * The sources of `dir` but the tests, under `/<module>/…`, of the package `pkg`, as fixture files.

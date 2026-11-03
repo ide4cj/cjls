@@ -1,7 +1,7 @@
 package loupe
 
-public import cjformat.TextEdit
 import cjformat.{FormatOptions, format, formatRange}
+public import cjformat.TextEdit
 import ginkgo.TextRange
 import loupe.db.AnalysisDatabase
 import loupe.syntax.parse

@@ -1,10 +1,10 @@
 package loupe.vfs
 
 import std.collection.HashSet
-import std.unittest.*
-import std.unittest.testmacro.*
 import std.env.getTempDirectory
 import std.fs.Path
+import std.unittest.*
+import std.unittest.testmacro.*
 import rope.Rope
 
 /**

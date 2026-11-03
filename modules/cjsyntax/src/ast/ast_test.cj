@@ -3,8 +3,8 @@ package cjsyntax.ast
 import std.collection.*
 import std.unittest.*
 import std.unittest.testmacro.*
+import cjsyntax.{SyntaxKind, parse}
 import ginkgo.*
-import cjsyntax.{parse, SyntaxKind}
 
 /**
  * The first node of `text` that is a `T`, the statements given in `main`.

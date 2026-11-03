@@ -4,9 +4,17 @@ import std.collection.*
 import std.deriving.*
 import std.sort.*
 import cjsyntax.{CjSyntaxNode, message}
-import cjsyntax.ast.ArgList as AstArgList
-import cjsyntax.ast.SourceFile as AstSourceFile
-import cjsyntax.ast.{AnyHasName, Arg, BinExpr, ImportDecl, ImportTree, InitDecl, TrailingLambdaExpr}
+import cjsyntax.ast.{
+    AnyHasName,
+    Arg,
+    ArgList as AstArgList,
+    BinExpr,
+    ImportDecl,
+    ImportTree,
+    InitDecl,
+    SourceFile as AstSourceFile,
+    TrailingLambdaExpr
+}
 import ginkgo.{SyntaxElement, TextRange}
 import loupe.db.{AnalysisDatabase, MacroSeverity, SourceFile}
 import loupe.hir.*

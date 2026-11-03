@@ -3,12 +3,12 @@ package loupe
 import std.collection.*
 import std.deriving.*
 import std.sort.*
-import ginkgo.SyntaxElement
-import rope.Rope
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import loupe.vfs.FileId
+import ginkgo.SyntaxElement
 import loupe.db.AnalysisDatabase
 import loupe.syntax.parse
+import loupe.vfs.FileId
+import rope.Rope
 
 /**
  * What a fold is: LSP names the first two, the others are for whoever tells folds apart.

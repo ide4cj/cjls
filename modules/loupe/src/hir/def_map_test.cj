@@ -6,13 +6,13 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import calca.*
 import calca.macros.*
-import ginkgo.{SyntaxElement, TextRange}
 import cjsyntax.ast.identText
-import rope.Rope
+import ginkgo.{SyntaxElement, TextRange}
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.fixture.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
+import rope.Rope
 
 /**
  * The package a file of a fixture is in.

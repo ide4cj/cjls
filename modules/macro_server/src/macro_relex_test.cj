@@ -1,6 +1,6 @@
 package macro_server
 
-import std.ast.{cangjieLex, getTokenKind, Token as SdkToken}
+import std.ast.{Token as SdkToken, cangjieLex, getTokenKind}
 import std.collection.{ArrayList, map}
 import std.unittest.*
 import std.unittest.prop_test.*

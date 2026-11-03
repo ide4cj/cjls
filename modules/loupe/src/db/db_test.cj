@@ -6,8 +6,8 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import calca.*
 import calca.macros.*
-import rope.Rope
 import loupe.vfs.*
+import rope.Rope
 
 let lineCountRuns = AtomicInt64(0)
 

@@ -1,9 +1,9 @@
 package cjls.lsp_ext
 
-import fjson.*
-import stdxx.deriving.*
-import jsonrpc.*
 import cjls.lsp_types.{LspInboundRequest, MessageDirection}
+import fjson.*
+import jsonrpc.*
+import stdxx.deriving.*
 
 /**
  * `cjls/memoryUsage`: what the Cangjie runtime says of its heap and its collections, as numbers a

@@ -31,10 +31,21 @@ Both branches must contain exactly one expression and no comments. Longer
 expressions, multiple statements and `else if` retain multiline layout. Use
 `"multiline"` to expand all nonempty control bodies.
 
-Singleton import lists without comments or a trailing comma are simplified:
-`import source_change.{applyEdits}` becomes `import source_change.applyEdits`.
-Aliases and visibility are retained. This also applies to nested lists and range
-formatting. Imports are not sorted, merged or removed.
+Imports are normalized without semantic analysis. Consecutive comment-free imports
+sort `std`, `stdx` and other packages in that order, then packages and members
+alphabetically. Explicit imports from the same package combine into one list;
+visibility and annotation tokens must match. This includes `public import` and
+identical `@When` conditions. Singleton explicit-name lists lose redundant braces
+unless they carry a trailing comma. Explicit-name groups retain trailing commas
+when combined.
+
+Wildcard imports use separate standalone declarations, including when extracted
+from a grouped import. Every path, alias and
+duplicate is retained; unused imports are not removed. Comments inside or attached
+to a declaration and inline trailing comments anchor that declaration. Other
+comments, semicolons and non-import syntax separate runs; blank lines alone do not.
+An import-only range normalizes just the enclosing selected imports, preserving
+other imports and code outside the selection.
 
 Unknown keys, wrong types, invalid values and malformed TOML are errors. The CLI
 reports the config path and skips that file with a failing exit code. The LSP

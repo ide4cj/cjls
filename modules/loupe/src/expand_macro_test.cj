@@ -3,12 +3,12 @@ package loupe
 import std.collection.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import ginkgo.TextRange
 import cjsyntax.message
-import rope.Rope
+import ginkgo.TextRange
 import loupe.db.*
 import loupe.fixture.*
 import loupe.hir.*
+import rope.Rope
 
 /**
  * The database of `parsed` with std.core's and std.deriving's `.cjo`s.

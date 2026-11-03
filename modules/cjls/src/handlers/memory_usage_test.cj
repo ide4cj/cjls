@@ -3,11 +3,11 @@ package cjls.handlers
 import std.collection.ArrayList
 import std.fs.{FSException, Path}
 import std.time.MonoTime
-import fjson.RawJson
-import rope.Encoding
-import jsonrpc.*
-import cjls.lsp_types.*
 import cjls.lsp_ext.*
+import cjls.lsp_types.*
+import fjson.RawJson
+import jsonrpc.*
+import rope.Encoding
 
 @Test
 class MemoryUsageTest {

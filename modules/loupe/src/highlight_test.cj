@@ -3,12 +3,11 @@ package loupe
 import std.collection.*
 import std.unittest.*
 import std.unittest.testmacro.*
+import cjsyntax.{CjSyntaxElement, parse as parseText}
 import ginkgo.TextRange
-import rope.Rope
-import cjsyntax.CjSyntaxElement
-import cjsyntax.parse as parseText
-import loupe.vfs.FileId
 import loupe.db.AnalysisDatabase
+import loupe.vfs.FileId
+import rope.Rope
 
 func highlightOf(text: String, range!: ?TextRange = None): Array<HighlightedRange> {
     let db = AnalysisDatabase()

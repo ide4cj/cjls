@@ -5,10 +5,10 @@ import std.deriving.*
 import std.unicode.*
 import calca.*
 import calca.macros.*
-import ginkgo.TextRange
 import cjsyntax.parse as parseText
-import loupe.vfs.FileId
+import ginkgo.TextRange
 import loupe.db.{AnalysisDatabase, SourceFile}
+import loupe.vfs.FileId
 
 /**
  * A declaration of a file, as a search of the workspace sees it: an entry of its outline, and the

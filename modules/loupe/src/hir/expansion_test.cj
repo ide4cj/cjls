@@ -3,11 +3,11 @@ package loupe.hir
 import std.collection.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import rope.Rope
 import loupe.db.AnalysisDatabase
 import loupe.fixture.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
+import rope.Rope
 
 /**
  * The body of every member cjls writes itself for `macroName` (`stubBody`, D118), at a member's indent.

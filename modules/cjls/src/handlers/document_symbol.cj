@@ -1,10 +1,10 @@
 package cjls.handlers
 
-import stdxx.Nullable
-import loupe.fileStructure
 import cjls.lsp_types.*
-import cjls.server.*
 import cjls.macros.LspHandler
+import cjls.server.*
+import loupe.fileStructure
+import stdxx.Nullable
 
 /**
  * The outline of a document, nested; `null` for a document the server does not know.

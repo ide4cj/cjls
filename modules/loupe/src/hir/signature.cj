@@ -2,7 +2,8 @@ package loupe.hir
 
 import std.collection.*
 import std.deriving.*
-import ginkgo.SyntaxNodePtr
+import calca.*
+import calca.macros.*
 import cjsyntax.{CjSyntaxNode, SyntaxKind}
 import cjsyntax.ast.{
     AnyHasTypeParams,
@@ -16,8 +17,7 @@ import cjsyntax.ast.{
     TypeBoundList,
     TypeParam
 }
-import calca.*
-import calca.macros.*
+import ginkgo.SyntaxNodePtr
 import loupe.db.AnalysisDatabase
 
 /**

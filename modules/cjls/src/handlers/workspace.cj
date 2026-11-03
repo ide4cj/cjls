@@ -1,8 +1,8 @@
 package cjls.handlers
 
-import std.collection.{ArrayList, collectArray, HashMap, HashSet}
+import std.collection.{ArrayList, HashMap, HashSet, collectArray}
 import std.env.getVariable
-import std.fs.{FileInfo, FSException}
+import std.fs.{FSException, FileInfo}
 import std.time.MonoTime
 import stdx.log.Logger
 import cjls.lsp_ext.{BinarySourceRootsNotificationSpec, BinarySourceRootsParams}
@@ -14,28 +14,28 @@ import loupe.db.ProjectModel
 import loupe.vfs.{
     CjoFile,
     FileStamp,
+    VfsPath,
     isCangjieFile,
     isWorkspaceDirectory,
     isWorkspaceFile,
     readCjoFiles,
     readFile,
-    readFiles,
-    VfsPath
+    readFiles
 }
 import project_model.{
     BuildMode,
-    CangjieHome,
     CFG_TOML,
+    CangjieHome,
+    PROJECT_JSON,
+    ProjectLoad,
+    ProjectSource,
     findCangjieHome,
     findCangjieSrc,
     findProjects,
     hostCfg,
     loneFileProjects,
     packageHeader,
-    PROJECT_JSON,
-    ProjectLoad,
     projectDirOf,
-    ProjectSource,
     withCangjieHome,
     withCangjieSrc,
     withCangjieStdxPath,

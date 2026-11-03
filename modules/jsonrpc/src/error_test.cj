@@ -1,8 +1,8 @@
 package jsonrpc
 
 import std.unittest.*
-import std.unittest.testmacro.*
 import std.unittest.prop_test.*
+import std.unittest.testmacro.*
 import fjson.*
 
 @Test

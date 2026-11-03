@@ -4,9 +4,9 @@ import std.collection.HashMap
 import std.sync.Mutex
 import stdx.log.Logger
 import calca.CancelledException
-import loupe.vfs.VfsPath
-import jsonrpc.ErrorLogValue
 import cjls.lsp_types.*
+import jsonrpc.ErrorLogValue
+import loupe.vfs.VfsPath
 
 /**
  * Diagnostics pushed to a client that cannot pull them (D14). The server schedules a publish after

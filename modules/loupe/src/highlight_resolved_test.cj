@@ -3,13 +3,13 @@ package loupe
 import std.collection.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import ginkgo.SyntaxElement
 import cjsyntax.{CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.isIdent
+import ginkgo.SyntaxElement
 import loupe.db.BinaryModel
-import loupe.vfs.CjoFileRead
 import loupe.fixture.*
 import loupe.syntax.parse
+import loupe.vfs.CjoFileRead
 
 /**
  * Checks what each name of `fixture` at its use, and each lone name a pattern binds, is highlighted

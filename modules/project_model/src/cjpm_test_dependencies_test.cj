@@ -6,7 +6,7 @@ import std.unittest.testmacro.*
 import loupe.{completionsAt, definitionAt}
 import loupe.db.*
 import loupe.hir.*
-import loupe.vfs.{readFiles, Vfs, VfsPath}
+import loupe.vfs.{Vfs, VfsPath, readFiles}
 
 func dependencyImportSource(pkg: String, imported: String): String {
     "package ${pkg}\nimport ${imported}.*\nfunc use(): Helper { Helper() }\n"

@@ -1,9 +1,9 @@
 package cjls.server
 
 import std.collection.{ArrayList, HashMap}
+import cjls.lsp_types.*
 import fjson.{FjReader, RawJson}
 import loupe.vfs.VfsPath
-import cjls.lsp_types.*
 
 /**
  * Every handler of the server, and the state they share:

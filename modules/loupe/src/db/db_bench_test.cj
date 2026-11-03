@@ -2,8 +2,8 @@ package loupe.db
 
 import std.unittest.*
 import std.unittest.testmacro.*
-import rope.Rope
 import loupe.vfs.FileId
+import rope.Rope
 
 const BENCH_FILE_COUNT = 1000
 

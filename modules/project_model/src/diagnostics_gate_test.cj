@@ -6,12 +6,12 @@ import std.fs.{Directory, File, Path}
 import std.sort.sort
 import std.unittest.*
 import std.unittest.testmacro.*
-import loupe.{diagnostics, Severity}
+import loupe.{Severity, diagnostics}
 import loupe.db.{AnalysisDatabase, Cfg, ModuleModel, PackageModel, ProjectModel}
-import loupe.fixture.{stdSourcesDir, UPDATE_EXPECT}
+import loupe.fixture.{UPDATE_EXPECT, stdSourcesDir}
 import loupe.hir.{bodyWithSourceMap, macroCallHeadOf, sourceRangeOf}
 import loupe.syntax.parse
-import loupe.vfs.{isCangjieFile, PathInterner, readFiles, Vfs, VfsPath}
+import loupe.vfs.{PathInterner, Vfs, VfsPath, isCangjieFile, readFiles}
 
 /**
  * Each diagnostic of the files of `db` among `files`, as `path:line: message`, the path relative to

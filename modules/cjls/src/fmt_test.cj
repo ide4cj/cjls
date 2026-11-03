@@ -1,7 +1,7 @@
 package cjls
 
 import std.env.getTempDirectory
-import std.fs.{Directory, File, FSException, Path}
+import std.fs.{Directory, FSException, File, Path}
 import std.io.{ByteBuffer, readToEnd}
 
 /**

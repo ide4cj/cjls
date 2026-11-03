@@ -4,9 +4,9 @@ import std.fs.{Path, remove}
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import stdxx.Nullable
 import cjls.lsp_types.*
 import cjls.server.*
+import stdxx.Nullable
 
 /**
  * A state with the project of `files` loaded, as a client taking links, or not, finds it; the
