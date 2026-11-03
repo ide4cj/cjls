@@ -179,3 +179,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0159](0159-jian-cli.md) | Declare the server CLI with jian | proposed |
 | [0160](0160-source-call-audit.md) | Audit written call bodies with explicit coverage gaps | accepted |
 | [0162](0162-source-change.md) | Share source changes between analysis frontends | accepted |
+| [0163](0163-import-normalization.md) | The formatter normalizes import blocks | accepted |
