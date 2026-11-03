@@ -1,6 +1,6 @@
 package cjls.handlers
 
-import std.collection.ArrayList
+import std.collection.{ArrayList, HashMap}
 import cjls.lsp_types.*
 import cjls.lsp_types.Range as LspRange
 import loupe.vfs.VfsPath
@@ -9,9 +9,10 @@ import source_change.{FileChange, SourceChange, validatedEdits}
 import stdxx.Nullable
 
 /**
- * Translates a change prepared from the request snapshot to LSP documentChanges.
- * Paths are absolute filesystem paths; versionOf reads open-document versions from that snapshot.
- * The caller must require documentChanges support; resourceOperations is the client's advertised list.
+ * Translates a change prepared from captured document text and versions to an LSP workspace edit.
+ * Paths are absolute filesystem paths; versionOf supplies the corresponding open-document versions.
+ * Without documentChanges support, only text edits are allowed and versions cannot be sent.
+ * resourceOperations is the client's advertised list.
  * File operations never overwrite or ignore existing/missing files.
  *
  * @throws IllegalArgumentException - for invalid changes or unsupported resource operations
@@ -20,9 +21,28 @@ func sourceChangeEdit(
     change: SourceChange,
     encoding: Encoding,
     versionOf: (String) -> ?Int32,
-    resourceOperations: Array<String>
+    resourceOperations: Array<String>,
+    documentChanges!: Bool = true
 ): WorkspaceEdit {
     change.validate()
+    if (!documentChanges) {
+        let changes = HashMap<DocumentUri, Array<TextEdit>>()
+        for (file in change.files) {
+            match (file) {
+                case FileChange.EditFile(path, before, edits) =>
+                    let text = Rope(before)
+                    changes.add(
+                        VfsPath.file(path).toUri(),
+                        validatedEdits(before, edits).map { edit => textEdit(text, edit, encoding) }
+                    )
+                case _ =>
+                    throw IllegalArgumentException(
+                        "file operations require documentChanges support"
+                    )
+            }
+        }
+        return WorkspaceEdit(changes: changes)
+    }
     let changes = ArrayList<TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile>()
     for (file in change.files) {
         match (file) {

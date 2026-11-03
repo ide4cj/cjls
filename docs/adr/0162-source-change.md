@@ -20,8 +20,11 @@ destinations; producers compose dependent operations before handing them off.
 
 The formatter re-exports its existing `TextEdit` name and uses the checked text
 application. LSP translation uses expected text for position conversion and
-snapshot document versions; resource operations require client support. A disk
-frontend resolves paths, checks revision/content conflicts and owns writes and
+captured document versions. New-file package headers use this translation with
+the open buffer's text and version. Clients without `documentChanges` receive
+unversioned text edits through `changes`; resource operations require both
+`documentChanges` and advertised operation support. A disk frontend resolves
+paths, checks revision/content conflicts and owns writes and
 failure reporting. A source change does not promise a filesystem transaction.
 
 ## Alternatives

@@ -14,6 +14,61 @@ import stdxx.Nullable
 @Test
 class SourceChangeEditTest {
     @TestCase
+    func legacyTextEditsUseExpectedTextAndCheckedInsertionOrder(): Unit {
+        let path = getTempDirectory().join("source-change.cj").toString()
+        let change = SourceChange(
+            [
+                FileChange.EditFile(
+                    path,
+                    "ё😀x",
+                    [
+                        SourceTextEdit(TextRange(6, 7), "y"),
+                        SourceTextEdit(TextRange(6, 6), "first"),
+                        SourceTextEdit(TextRange(6, 6), "second")
+                    ]
+                )
+            ]
+        )
+
+        let edit = sourceChangeEdit(
+            change,
+            Encoding.Utf16,
+            { _ => Some(7) },
+            [],
+            documentChanges: false
+        )
+
+        @Expect(edit.documentChanges.isNone())
+        let changes = edit.changes.getOrThrow()
+        @Expect(changes.size, 1)
+        let edits = changes[VfsPath.file(path).toUri()]
+        @Expect(edits.map { one => one.newText }, ["first", "second", "y"])
+        @Expect(edits[0].range.start.character, 3)
+        @Expect(edits[0].range.end.character, 3)
+        @Expect(edits[2].range.start.character, 3)
+        @Expect(edits[2].range.end.character, 4)
+    }
+
+    @TestCase
+    func resourceOperationsRequireDocumentChangesEvenWhenAdvertised(): Unit {
+        let path = getTempDirectory().join("source-change.cj").toString()
+        let operations =
+            [
+                FileChange.CreateFile(path, ""),
+                FileChange.RenameFile(path, "${path}.renamed", "before"),
+                FileChange.DeleteFile(path, "before")
+            ]
+
+        for (operation in operations) {
+            let change = SourceChange([operation])
+            @AssertThrows[IllegalArgumentException](
+                sourceChangeEdit(change, Encoding.Utf8, { _ => None },
+                    ["create", "rename", "delete"], documentChanges: false)
+            )
+        }
+    }
+
+    @TestCase
     func textEditsUseExpectedTextAndOpenDocumentVersions(): Unit {
         // arrange
         let path = getTempDirectory().join("source-change.cj").toString()

@@ -1,12 +1,13 @@
 package cjls.handlers
 
-import std.collection.{collectArray, HashMap}
+import std.collection.collectArray
 import stdx.log.Logger
-import stdxx.Nullable
 import rope.Rope
+import loupe.TextRange
+import source_change.{FileChange, SourceChange}
+import source_change.TextEdit as SourceTextEdit
 import loupe.vfs.VfsPath
 import cjls.lsp_types.*
-import cjls.lsp_types.Range as LspRange
 import cjls.server.*
 
 /**
@@ -61,28 +62,23 @@ func packageLineEdit(state: ServerState, path: VfsPath): ?ApplyWorkspaceEditPara
         return None
     }
     let line = state.packageLineOfNewFile(path) ?? return None
-    let start = Position(line: 0, character: 0)
-    let edit = TextEdit(range: LspRange(start: start, end: start), newText: "${line}\n")
-    let uri = path.toUri()
-    let workspaceEdit =
-        if (state.versionedEdits) {
-            let document = TextDocumentEdit(
-                textDocument: OptionalVersionedTextDocumentIdentifier(
-                    uri: uri,
-                    version: Nullable.Value(version)
-                ),
-                edits: [TextEditOrAnnotatedTextEditOrSnippetTextEdit.AsTextEdit(edit)]
+    let file = path.filePath ?? return None
+    let change = SourceChange(
+        [
+            FileChange.EditFile(
+                file.toString(),
+                text.toString(),
+                [SourceTextEdit(TextRange(0, 0), "${line}\n")]
             )
-            WorkspaceEdit(
-                documentChanges: [
-                    TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile.AsTextDocumentEdit(
-                        document
-                    )
-                ]
-            )
-        } else {
-            WorkspaceEdit(changes: HashMap<DocumentUri, Array<TextEdit>>([(uri, [edit])]))
-        }
+        ]
+    )
+    let workspaceEdit = sourceChangeEdit(
+        change,
+        state.encoding,
+        { _ => Some(version) },
+        [],
+        documentChanges: state.versionedEdits
+    )
     ApplyWorkspaceEditParams(label: line, edit: workspaceEdit)
 }
 
