@@ -229,6 +229,7 @@ result = i + 1
                 self.assertEqual(unchanged["result"], native["revision"])
 
                 self._check_source_editing(run)
+                self._check_source_changes(run)
 
                 # Native exceptions must return through Python's error protocol before another query.
                 recovered = run("""
@@ -710,6 +711,94 @@ result = i + 1
             result = True
         """)
         self.assertTrue(stale['result'])
+
+    def _check_source_changes(self, run):
+        # arrange - use the native change model through the embedded Python API.
+        created = run("""
+            a = workspace.analysis()
+            text = 'package sample\\n// ё😀\\npublic func changeApi(): Int64 { 1 }\\n'
+            change = SourceChange([FileChange.CreateFile('src/change_api.cj', text),
+                                   FileChange.CreateFile('notes/nested/empty.txt', '')])
+            assert change == SourceChange(change.files)
+            assert change != SourceChange([])
+            assert change.files[0] == FileChange.CreateFile('src/change_api.cj', text)
+            report = workspace.applyChange(change, a.revision)
+            assert isinstance(report, ApplyChangeResult)
+            assert report.isSuccess and report.applied == [0, 1], report.error
+            assert report.failed is None and report.error is None
+            assert workspace.revision == a.revision == report.revision
+            result = a.revision
+        """)
+
+        # act - native formatter edits can be passed straight to EditFile.
+        edited = run("""
+            a = workspace.analysis()
+            before = a.text('src/change_api.cj')
+            edits = a.formatting('src/change_api.cj')
+            assert edits and all(isinstance(e, TextEdit) for e in edits)
+            report = workspace.applyChange(SourceChange([
+                FileChange.EditFile('src/change_api.cj', before, edits)]), a.revision)
+            assert report.isSuccess, report.error
+            assert a.text('src/change_api.cj') == before
+            result = a.revision
+        """)
+
+        # assert - the next call sees the changed source, with no diagnostics.
+        checked = run("""
+            from pathlib import Path
+            a = workspace.analysis()
+            before = a.text('src/change_api.cj')
+            assert '// ё😀' in before and '    1' in before
+            assert workspace.diagnostics('src/change_api.cj') == []
+            assert Path(workspace.root, 'notes/nested/empty.txt').read_bytes() == b''
+            for change in [
+                SourceChange([FileChange.CreateFile('untouched', ''),
+                              FileChange.CreateFile('src/change_api.cj', 'bad')]),
+                SourceChange([FileChange.CreateFile('untouched', ''),
+                              FileChange.DeleteFile('src/change_api.cj', 'stale')]),
+                SourceChange([FileChange.CreateFile('untouched', ''),
+                              FileChange.CreateFile('src/../untouched', '')]),
+                SourceChange([FileChange.CreateFile('../outside', '')]),
+                SourceChange([FileChange.CreateFile('untouched', ''),
+                              FileChange.EditFile('src/change_api.cj', before,
+                                  [TextEdit(TextRange(before.encode().index('ё'.encode()) + 1,
+                                                      before.encode().index('ё'.encode()) + 2), 'x')])]),
+            ]:
+                report = workspace.applyChange(change, a.revision)
+                assert not report.isSuccess and report.applied == [] and report.failed is None
+                assert not Path(workspace.root, 'untouched').exists()
+            try:
+                workspace.applyChange(SourceChange([]), a.revision - 1)
+            except RuntimeError as error:
+                assert 'ContentModified' in str(error)
+            else:
+                raise AssertionError('stale revision was accepted')
+            # Disk changes during a script do not become valid by supplying the new disk text.
+            path = Path(workspace.root, 'src/change_api.cj')
+            path.write_bytes((before + '// external\\n').encode())
+            report = workspace.applyChange(SourceChange([
+                FileChange.DeleteFile('src/change_api.cj', before + '// external\\n')]), a.revision)
+            assert not report.isSuccess and 'analysis revision' in report.error
+            path.write_bytes(before.encode())
+            report = workspace.applyChange(SourceChange([
+                FileChange.RenameFile('src/change_api.cj', 'src/change_api_renamed.cj', before),
+                FileChange.DeleteFile('notes/nested/empty.txt', '')]), a.revision)
+            assert report.isSuccess and report.applied == [0, 1], report.error
+            assert a.text('src/change_api.cj') == before
+            result = a.revision
+        """)
+        self.assertGreater(edited['revision'], created['revision'])
+        self.assertGreater(checked['revision'], edited['revision'])
+        renamed = run("""
+            a = workspace.analysis()
+            assert any(p.endswith('/src/change_api_renamed.cj') for p in workspace.files())
+            assert all(not p.endswith('/src/change_api.cj') for p in workspace.files())
+            report = workspace.applyChange(SourceChange([FileChange.DeleteFile(
+                'src/change_api_renamed.cj', a.text('src/change_api_renamed.cj'))]), a.revision)
+            assert report.isSuccess, report.error
+            result = a.revision
+        """)
+        self.assertGreater(renamed['revision'], checked['revision'])
 
     def _check_source_editing(self, run):
         # arrange - create and then edit UTF-8 source entirely inside runPython.
