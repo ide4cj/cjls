@@ -9,7 +9,16 @@ agent when to choose it.
 
 Follow [build and runtime setup](README.md#build-and-connect). Use an absolute
 binary path and an absolute `--dir` pointing to the target checkout or worktree.
-Each process analyzes one root; restart/reconfigure it when switching worktrees.
+The configured --dir is the default root. For another worktree pass its absolute
+path in every runPython call, for example {"root": "/project/.codex/worktrees/task",
+"code": "a = workspace.analysis(); result = workspace.root"}. No reconnect is needed.
+Omitting root always selects --dir, never the previous call's root. A shell cd
+or an absolute source filename does not select another analysis workspace.
+Each canonical root retains independent analysis, macro artifacts and last_output.
+The server keeps up to four roots by recency, closing the least recently used
+session when a fifth is selected. Responses include root and sessionId; check
+both before reusing saved evidence. Reopened sessions have new IDs and cold caches.
+Calls remain sequential within the process.
 The first tool call prepares the project and macros, which can take longer than
 initialization. Keep the process alive across calls to reuse analysis caches.
 

@@ -13,6 +13,7 @@ import unittest
 
 from output_checks import OutputChecks
 from diagnostic_checks import DiagnosticChecks
+from worktree_checks import WorktreeChecks
 
 ROOT = Path(__file__).resolve().parents[2]
 BINARY = os.environ.get("CJMCP_BIN", str(ROOT / "target/release/bin/cjmcp"))
@@ -27,7 +28,7 @@ def server_environment():
 
 
 @unittest.skipUnless(sys.platform.startswith("linux"), "embedded CPython experiment supports native Linux")
-class McpStdioTest(DiagnosticChecks, OutputChecks, unittest.TestCase):
+class McpStdioTest(WorktreeChecks, DiagnosticChecks, OutputChecks, unittest.TestCase):
     def test_repeated_native_proxy_allocation(self):
         # Reentering through enum constructors and payload getters exposed invalid GC roots.
         # This needs the real process: an interpreter crash cannot become a tool error.
@@ -89,7 +90,10 @@ result = i + 1
     def test_macros_finish_before_revision_and_reload(self):
         self._check_workspace(macros_only=True)
 
-    def _check_workspace(self, *, macros_only):
+    def test_worktree_sessions(self):
+        self._check_workspace(macros_only=False, worktrees_only=True)
+
+    def _check_workspace(self, *, macros_only, worktrees_only=False):
         # arrange
         with tempfile.TemporaryDirectory(prefix="cjmcp-") as directory:
             root = Path(directory)
@@ -149,8 +153,10 @@ result = i + 1
                 self.assertNotIn("error", reply)
                 return reply["result"]
 
-            def run(code, *, error=False, max_output_bytes=None):
+            def run(code, *, error=False, max_output_bytes=None, root=None):
                 arguments = {"code": textwrap.dedent(code)}
+                if root is not None:
+                    arguments["root"] = str(root)
                 if max_output_bytes is not None:
                     arguments["maxOutputBytes"] = max_output_bytes
                 result = rpc("tools/call", {
@@ -172,6 +178,9 @@ result = i + 1
                 process.stdin.write(b'{"jsonrpc":"2.0","method":"notifications/initialized"}\n')
                 process.stdin.flush()
                 tools = rpc("tools/list")["tools"]
+                if worktrees_only:
+                    self._check_worktree_sessions(root, rpc, run)
+                    return
                 if macros_only:
                     self._check_macros(root, run)
                     return
@@ -530,7 +539,7 @@ result = i + 1
                     moved.rename(root)
                 resumed = run('result = workspace.revision')
                 self.assertEqual(resumed['result'], resumed['revision'])
-                self.assertGreater(resumed['revision'], after_delete['revision'])
+                self.assertNotEqual(resumed['sessionId'], after_delete['sessionId'])
 
             finally:
                 process.stdin.close()
