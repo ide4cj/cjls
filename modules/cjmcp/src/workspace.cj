@@ -2,11 +2,11 @@ package cjmcp
 
 import std.collection.{ArrayList, HashMap, HashSet}
 import std.env.getVariable
-import std.fs.{canonicalize, exists, FileInfo, Path}
+import std.fs.{FileInfo, Path, canonicalize, exists}
 import std.sync.{Condition, Mutex}
 import stdx.log.{Logger, NoopLogger}
-import loupe.db.{AnalysisDatabase, ProjectModel}
 import loupe.newFilePackageLine
+import loupe.db.{AnalysisDatabase, ProjectModel}
 import loupe.vfs.{ChangedFile, CjoFile, FileStamp, Vfs, VfsPath, readCjoFiles, readFile}
 import project_model.{
     findCangjieHome,

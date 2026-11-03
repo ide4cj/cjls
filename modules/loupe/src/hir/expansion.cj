@@ -7,10 +7,10 @@ import calca.macros.*
 import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind, parse as parseText, parseExpr, parseStmts}
 import cjsyntax.ast.{AnyHasName, Decl, MacroExpandDecl, MatchCase}
 import ginkgo.TextRange
-import loupe.db.{AnalysisDatabase, MappedSpan, MappedText, SourceFile, SpanOrigin}
-import loupe.syntax.parse
 import py_interop.*
 import py_interop.internal_macros.DerivePython
+import loupe.db.{AnalysisDatabase, MappedSpan, MappedText, SourceFile, SpanOrigin}
+import loupe.syntax.parse
 
 /**
  * A macro called in a source file, interned: the file and the item, and which of its calls. On the item (#175), the

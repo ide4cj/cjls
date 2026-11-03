@@ -4,9 +4,9 @@ import std.collection.*
 import calca.*
 import calca.macros.*
 import index_map.IndexMap
-import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import py_interop.*
 import py_interop.internal_macros.DerivePython
+import loupe.db.{AnalysisDatabase, Package, SourceFile}
 
 /**
  * A type an `extend` extends: one declared, or a type of the language by its keyword (`Int64`).

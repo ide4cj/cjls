@@ -19,12 +19,12 @@ import cjsyntax.ast.{
     VarDecl
 }
 import ginkgo.{SyntaxNodePtr, TextRange}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
-import py_interop.*
-import py_interop.internal_macros.DerivePython
 
 /**
  * What hovering a name shows, rust-analyzer's `HoverResult`: the name's range, and what it stands

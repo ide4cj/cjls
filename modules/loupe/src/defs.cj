@@ -14,10 +14,10 @@ import cjsyntax.ast.{
     RefExpr
 }
 import ginkgo.SyntaxNodePtr
-import loupe.db.{AnalysisDatabase, Package, SourceFile}
-import loupe.hir.*
 import py_interop.*
 import py_interop.internal_macros.DerivePython
+import loupe.db.{AnalysisDatabase, Package, SourceFile}
+import loupe.hir.*
 
 /**
  * What a name means, rust-analyzer's `Definition`: what go to definition goes to, and what highlighting tells a

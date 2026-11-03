@@ -3,9 +3,9 @@ package loupe.hir
 import std.collection.*
 import calca.*
 import calca.macros.*
-import loupe.db.AnalysisDatabase
 import py_interop.*
 import py_interop.internal_macros.DerivePython
+import loupe.db.AnalysisDatabase
 
 /**
  * A scope of a body, by its place among the body's scopes.

@@ -1,9 +1,9 @@
 package cjformat
 
 import ftoml.*
-import stdxx.deriving.*
 import py_interop.*
 import py_interop.internal_macros.DerivePython
+import stdxx.deriving.*
 
 /**
  * Layout of an if expression with one expression in each branch and no comments.

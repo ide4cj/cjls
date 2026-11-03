@@ -5,9 +5,9 @@ import std.deriving.*
 import calca.*
 import calca.macros.*
 import index_map.IndexMap
-import loupe.db.AnalysisDatabase
 import py_interop.*
 import py_interop.internal_macros.DerivePython
+import loupe.db.AnalysisDatabase
 
 /**
  * The full name of `pkg`, as its files declare it: `std.collection`, `org::a.b`.
