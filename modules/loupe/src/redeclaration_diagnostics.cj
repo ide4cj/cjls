@@ -134,7 +134,10 @@ func checkItemRedeclarations(
             if (!inPattern.add(text) && item.kind != ItemKind.PrimaryInit) {
                 message = "redefinition of declaration '${text}'"
             }
-            for ((otherFile, other) in previous) {
+            // Only one diagnostic is emitted per name. Search backwards to preserve the
+            // last conflicting declaration's message without checking every earlier pair.
+            for (index in 0..previous.size) {
+                let (otherFile, other) = previous[previous.size - index - 1]
                 let otherNames =
                     if (other.kind == ItemKind.PrimaryInit) {
                         let (otherRoot, otherIds) = syntaxOf(db, otherFile) ?? continue
@@ -162,13 +165,14 @@ func checkItemRedeclarations(
                 if (item.kind == ItemKind.Macro || other.kind == ItemKind.Macro) {
                     continue
                 }
+                var conflict: ?String = None
                 if (item.kind == ItemKind.Func && other.kind == ItemKind.Func) {
                     if (item.has(Modifier.Static) != other.has(Modifier.Static)) {
-                        message = "overloaded functions '${text}' cannot mix static and non-static"
+                        conflict = "overloaded functions '${text}' cannot mix static and non-static"
                     } else if (
                         sameOverload(db, DefId(db, file, item.id), DefId(db, otherFile, other.id))
                     ) {
-                        message = "function '${text}' has overload conflicts"
+                        conflict = "function '${text}' has overload conflicts"
                     }
                 } else if (
                     let Some(owner) <- enumName && item.kind == ItemKind.EnumCtor &&
@@ -179,10 +183,14 @@ func checkItemRedeclarations(
                         signatureTypes(db, DefId(db, file, item.id)).params.size ==
                             signatureTypes(db, DefId(db, otherFile, other.id)).params.size
                     ) {
-                        message = "'${text}' is already exist in enum '${owner}'"
+                        conflict = "'${text}' is already exist in enum '${owner}'"
                     }
                 } else {
-                    message = "redefinition of declaration '${text}'"
+                    conflict = "redefinition of declaration '${text}'"
+                }
+                if (let Some(conflict) <- conflict) {
+                    message = conflict
+                    break
                 }
             }
             if (let Some(message) <- message) {

@@ -52,6 +52,34 @@ class RedeclarationDiagnosticsTest {
     }
 
     @TestCase
+    func repeatedMethodsReportEveryConflict(): Unit {
+        let method = "    func f(x: Int64): Int64 { x + 1 }\n"
+        let methods = String.join(Array(2000) { _ => method })
+        let fixture = Fixture.parse("class A {\n${methods}}\n")
+        let db = fixture.database()
+        let found = diagnostics(db, fixture.file("/main.cj").fileId)
+        @Expect(found.size, 1999)
+        @Expect(found.all { one => one.message == "function 'f' has overload conflicts" })
+    }
+
+    @TestCase
+    func lastConflictDeterminesTheMessage(): Unit {
+        checkDiagnostics(
+            #"
+            class C {
+                static func f(): Unit {}
+                func f(x: Int64): Unit {}
+            //       ^ error: overloaded functions 'f' cannot mix static and non-static
+                func f(x: Int64): Unit {}
+            //       ^ error: function 'f' has overload conflicts
+                func f(): Unit {}
+            //       ^ error: overloaded functions 'f' cannot mix static and non-static
+            }
+            "#
+        )
+    }
+
+    @TestCase
     func parametersShareTheOutermostBodyScope(): Unit {
         checkDiagnostics(
             #"
