@@ -1,15 +1,18 @@
 # Discover an unfamiliar member
 
-Inspect only the object whose API is needed. For an unknown analysis method:
+Use the server's documented API first. Inspect only the object and member family
+needed for an unresolved question, preferably alongside the useful query rather
+than in a preliminary call. For an unfamiliar signature-related method:
 
 ```python
 analysis = workspace.analysis()
-result = [name for name in dir(type(analysis)) if not name.startswith("_")]
+names = [name for name in dir(type(analysis)) if "signature" in name.lower()]
+result = {"members": names[:20], "omitted": max(0, len(names) - 20)}
 ```
 
 `dir` shows names, not signatures. Inspect a small result sample for unknown
-fields. `help(Type)` may expose descriptors, but generated bindings can omit
-signatures/docstrings; do not assume `inspect.signature` works.
+fields; avoid full object or namespace dumps. `help(Type)` may expose descriptors,
+but generated bindings can omit signatures/docstrings; do not assume `inspect.signature` works.
 Arrays become lists, options become `None`, and immutable fields stay read-only.
 `TextRange.len` is a byte-length property, without parentheses.
 Enum variants support `isinstance` and pattern matching; payloads are `field0`,
