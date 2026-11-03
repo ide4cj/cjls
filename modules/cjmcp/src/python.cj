@@ -5,6 +5,7 @@ import std.runtime.blackBox
 import stdx.log.{Logger, NoopLogger}
 import fjson.{JsonValue, fromJsonBytes}
 import ginkgo.TextRange
+import source_change.SourceChange
 import loupe.diagnostics as fileDiagnostics
 import loupe.{
     Diagnostic,
@@ -115,6 +116,16 @@ class Workspace {
 
     public func files(): Array<String> {
         loaded().files.map { path => path.toString() }
+    }
+
+    /**
+     * Apply a source change to disk, checking this script's revision and all expected contents.
+     * The running analysis remains unchanged; acquire fresh analysis in the next call.
+     *
+     * @throws IllegalStateException - if revision does not match the running script
+     */
+    public func applyChange(change: SourceChange, revision: Int64): ApplyChangeResult {
+        applySourceChange(loaded(), change, revision)
     }
 
     public func reload(): Unit {
@@ -246,7 +257,8 @@ class PythonSession {
                         ("HoverResult", HoverResult.pyClass()),
                         ("HoverItem", HoverItem.pyClass()),
                         ("Location", PythonLocation.pyClass()),
-                        ("AnalysisRevision", AnalysisRevision.pyClass())
+                        ("AnalysisRevision", AnalysisRevision.pyClass()),
+                        ("ApplyChangeResult", ApplyChangeResult.pyClass())
                     ].concat(analysisTypes())
                 )
             runner = Python.eval("__cjmcp_run")
