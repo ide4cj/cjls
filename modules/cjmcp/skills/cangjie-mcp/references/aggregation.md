@@ -1,8 +1,10 @@
 # Count, rank and return all tied maxima
 
-Do traversal, scope filtering, aggregation and selection in one script. Keep
-intermediate rows in Python. Sort rankings by the requested metric, then by
-name, path and source position as applicable, before taking a bounded prefix.
+Compose traversal, scope filtering, aggregation and selection in Python to
+avoid returning intermediate rows. Split discovery from the final query when
+that reduces total token use or clarifies the metric. Sort rankings by the
+requested metric, then by name, path and source position as applicable, before
+taking a bounded prefix.
 For a global maximum, compute it over the whole population and return every
 tied winner; an arbitrary prefix can lose winners. Report the population size
 and omitted counts when limiting other evidence.

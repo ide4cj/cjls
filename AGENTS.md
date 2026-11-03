@@ -48,27 +48,6 @@ Read the relevant sections, using headings and rule IDs to locate them; do not
 load every module note or the ADR index for each change. Reuse already-read
 guidance unless it changed. See [documentation navigation](docs/README.md#read-for-a-task).
 
-## Efficient cjmcp queries
-
-- Compose each self-contained read-only task in Python; call count is not the
-  goal. Use queries, filtering, aggregation and supporting source excerpts inside Python; include
-  root, workspace.loadDiagnostics and workspace.macros with that first useful
-  query. These values and workspace.diagnostics(path) serialize directly; inspect
-  severity independently of macro state (pending/settled), without parsing messages.
-- Use the API documented by the tool. Load one relevant recipe only for an
-  unfamiliar operation; avoid preliminary calls just to print types or `dir()`.
-- Find declarations with symbols/fileSymbols, select relevant members, then
-  return source_excerpts(a, [(path, node.range), ...], max_bytes=12000) for paths,
-  lines, UTF-8 ranges and explicit pagination. Keep full file strings in Python
-  for checked edits; return a short diff and application report, then fresh
-  diagnostics. Small full files are fine. On OutputBudgetExceeded, select from
-  last_output without replaying effects; explicit maxOutputBytes=0 permits
-  full replies. Report totals and omitted counts. Compute global maxima before
-  limiting output and preserve all ties.
-- Make another call when an error, incomplete evidence or a new analysis revision
-  requires it. After edits, validate against a fresh revision in a separate call;
-  do not replay a script with effects without inspecting state.
-
 ## Issues and board
 
 When creating or triaging an issue, follow

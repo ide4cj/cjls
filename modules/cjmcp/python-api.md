@@ -7,24 +7,6 @@ The server sends a semantic-query playbook in the MCP initialization response.
 they ship with the Linux archive alongside the skill. Native objects and types
 are injected into scripts; there is no importable `loupe` Python package.
 
-For source work, select declarations with native queries and return a budgeted page:
-
-~~~python
-a = workspace.analysis()
-matches = a.symbols("targetName", 20)
-result = {"search_may_have_more": len(matches) == 20,
-          "source": source_excerpts(a, [(a.path(s.fileId), s.symbol.range) for s in matches])}
-~~~
-
-The injected Python helper source_excerpts(analysis, requests, max_bytes=12000,
-offset=0, limit=20, context_lines=0) takes (path, TextRange) pairs. Keyword options
-control a shared compact UTF-8 JSON budget, pagination and surrounding lines.
-It presents source; it adds no semantic query or write API. It returns paths,
-one-based inclusive lines, requested/shown byte ranges, revision, total, returned,
-omitted and next_offset; oversized fragments remain unreturned with required_bytes.
-See [navigation](skills/cangjie-mcp/references/navigation.md) for exact paging
-semantics and selecting members of large classes.
-
 Native node/range values are objects, not JSON dictionaries.
 The workspace handle provides:
 
@@ -96,22 +78,9 @@ TextRange and Severity are also supported by the tool's JSON encoder. Other
 native analysis objects still need explicit projection. Plain json.dumps inside
 a user script does not use the tool's encoder.
 
-Keep diagnostics scoped and bounded rather than querying every file:
-
-~~~python
-a = workspace.analysis()
-rows = workspace.diagnostics("src/main.cj")
-shown = rows[:20]
-requests = [(d.path, d.range) for d in shown
-            if d.path is not None and d.range is not None]
-result = {"diagnostics": shown, "total": len(rows),
-          "omitted": len(rows)-len(shown),
-          "source": source_excerpts(a, requests, max_bytes=6000, context_lines=1)}
-~~~
-
-The normal response-wide output budget applies after native values are encoded.
-If it is exceeded, last_output retains the complete plain JSON diagnostic/status
-records and original revision. Recover selected fields without replaying edits.
+Scope diagnostic queries to relevant files. For diagnostic source excerpts, pass
+non-null (path, range) pairs to [source_excerpts](#source-excerpts).
+[Script execution](#script-execution) describes response budgets and recovery.
 
 ### Applying source changes
 
@@ -242,6 +211,33 @@ results, `Cfg` and `CfgExpr`, plus the original workspace result types. The
 registration in `src/python_types.cj` is the complete list. Generic syntax trees,
 calca database mutation/storage, and collection-backed package indexes are not
 exported. This is not a binding of every public loupe API.
+
+## Source excerpts
+
+The injected helper `source_excerpts(analysis, requests, max_bytes=12000,
+offset=0, limit=20, context_lines=0)` presents an ordered list of (path, TextRange)
+pairs from one analysis revision. It adds no semantic query or write API. See the
+[navigation recipe](skills/cangjie-mcp/references/navigation.md) for selection examples.
+
+The shared budget counts compact UTF-8 JSON bytes for the page. Each excerpt is
+returned whole, with request index, path, one-based inclusive start/end lines,
+requested/shown byte ranges and source. `context_lines=0` returns exactly the
+requested range; larger values add complete surrounding lines. Ranges count
+UTF-8 bytes and remain end-exclusive. Empty ranges and EOF are supported;
+invalid UTF-8 boundaries raise an error. Expansion-relative ranges require the
+[expansion recipe](skills/cangjie-mcp/references/expansions.md).
+
+The page includes revision, total, returned, omitted, next_offset and
+required_bytes. total counts selected input requests, not unqueried declarations;
+omitted is total minus returned, including earlier pages. next_offset is the
+first remaining request, or null. Recreate the same ordered requests at the same
+revision to continue; edits invalidate ranges and pagination offsets.
+
+The helper stops before an excerpt would exceed the budget or page limit.
+required_bytes is normally null; otherwise it reports the candidate page size
+that blocked progress. If next_offset equals offset, select a smaller range,
+reduce context_lines or increase max_bytes. The response-wide
+[output budget](#script-execution) applies independently to the complete reply.
 
 ## Revisions and synchronization
 

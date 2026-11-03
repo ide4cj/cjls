@@ -21,22 +21,11 @@ result = {
 }
 ~~~
 
-The page returns every requested fragment intact or stops before one that would
-exceed the **shared** JSON byte budget. Each excerpt has its request index, path,
-one-based inclusive start/end lines, requested UTF-8 byte range, shown byte range
-and source. With context_lines=0 the source is exactly the requested range;
-context_lines=2 adds complete surrounding lines. Ranges remain end-exclusive.
-Use source fields as text; line numbers are metadata, not inserted into source.
-
-total counts all input requests; returned counts this page; omitted is total minus
-returned (including earlier pages). next_offset identifies the first remaining
-request, or is null. Recreate the same ordered requests at the same revision to
-continue at that offset. Do not reuse offsets or semantic ranges after an edit.
-required_bytes is null normally; otherwise it reports the candidate page size
-that blocked progress. When next_offset equals offset, select a smaller member
-or range, reduce context_lines, or explicitly increase max_bytes. No text is cut.
-Counts describe your selected request list, not unqueried workspace declarations.
-Empty ranges and EOF are supported; invalid UTF-8 boundaries raise an error.
+The helper returns whole excerpts with paths, line/range metadata and explicit
+omissions. Follow next_offset with the same ordered requests and revision;
+if it cannot advance, select a smaller member/range or increase max_bytes.
+See the [API contract](../../../python-api.md#source-excerpts) for field meanings,
+context lines and exact paging/budget semantics.
 
 For a large class or test suite, traverse nested structure children and select
 individual methods/tests before asking for source. Do not send the entire class

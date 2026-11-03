@@ -3,33 +3,11 @@ name: cangjie-mcp
 description: Analyze, read and edit Cangjie sources through cjmcp runPython when exploring, changing or reviewing code.
 ---
 
-Follow server instructions for core queries. Discover `runPython` if deferred.
-Use it for all Cangjie source analysis, reading and editing; do not use shell
-commands or subprocesses as a substitute, including shell-launched Python.
-Trust cjmcp analysis and report unavailable or partial results without a shell
-fallback. Compiler/tests remain the required validation of changes.
-
-Batch a self-contained read-only task into one script, including health fields
-with the useful query. Keep intermediate objects in Python and return bounded
-JSON evidence with totals and omitted counts. Sort rankings before limiting output;
-compute global maxima first and preserve all ties. Use the documented API before
-introspection; another call is warranted for errors, missing evidence or a fresh
-revision after edits. Do not replay scripts with effects without inspecting state.
-
-Common source workflow: locate declarations with symbols or fileSymbols,
-then return source_excerpts(a, [(path, node.range), ...], max_bytes=12000).
-The helper supplies paths, lines, byte ranges and pagination without cutting text.
-Choose members instead of entire large classes. Keep full a.text(path) strings
-inside Python for applyChange expected text; return its report and a short diff.
-Return workspace.loadDiagnostics and workspace.macros with the first useful query.
-Macro state pending/settled describes completion, independently of diagnostics.
-workspace.diagnostics(path), loadDiagnostics and macros serialize directly in result.
-Reacquire analysis in a new call and check diagnostics and affected semantics.
-Small files may be returned whole when useful. See [navigation](references/navigation.md)
-for a complete example and [editing](references/editing.md) for checked edits.
-runPython rejects responses over 24000 UTF-8 JSON bytes by default. On
-OutputBudgetExceeded, use last_output to select evidence without replaying
-the script. Set tool argument maxOutputBytes=0 for an explicitly unlimited reply.
+Follow server instructions for common queries; discover `runPython` if deferred.
+Use this skill for an unfamiliar operation, loading only its relevant recipe.
+Minimize total task token use without sacrificing correctness, evidence or
+verification. Batching queries is one technique; use additional calls when they
+reduce irrelevant output or resolve uncertainty. Keep intermediate data in Python.
 
 Read only the recipe needed for an unfamiliar operation:
 

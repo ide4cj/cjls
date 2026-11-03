@@ -23,24 +23,17 @@ replacement = "{ 2 }"
 after = (data[:span.start] + replacement.encode("utf-8") + data[span.end:]).decode("utf-8")
 diff = list(difflib.unified_diff(before.splitlines(), after.splitlines(),
                                fromfile=path, tofile=path, n=2, lineterm=""))
-shown = []
-used = 0
-for line in diff:
-    size = len(line.encode("utf-8")) + 1
-    if used + size > 6000:
-        break
-    shown.append(line)
-    used += size
 report = workspace.applyChange(
     SourceChange([FileChange.EditFile(path, before, [TextEdit(span, replacement)])]),
     a.revision)
 result = {"success": report.isSuccess, "applied": report.applied,
           "failed": report.failed, "error": report.error,
-          "diff": shown, "diff_lines": len(diff), "omitted_lines": len(diff)-len(shown)}
+          "diff": diff}
 ~~~
 
-If omitted_lines is nonzero, inspect diff hunks separately or request changed
-semantic ranges with source_excerpts; omitted lines still need review.
+For larger edits, select diff hunks or changed semantic ranges and report any
+omissions. See [runtime recovery](runtime.md) if the response exceeds its budget;
+the edit has already executed, so retrieve evidence without replaying it.
 
 Use a fresh call for diagnostics and semantic verification:
 
@@ -52,30 +45,9 @@ result = {"revision": a.revision, "diagnostics": rows[:20],
           "total": len(rows), "omitted": max(0, len(rows)-20)}
 ~~~
 
-WorkspaceDiagnostic values serialize directly, including severity, path, UTF-8
-range and one-based line/byte column; no projection or message parsing is needed.
-The response-wide budget also covers these diagnostics. If it is exceeded, select
-from last_output without repeating the edit.
-
-Also inspect changed references, selected callees or inferred types when they
-matter for the change. Empty loupe diagnostics do not replace compiler/tests.
-On OutputBudgetExceeded the script already executed. Inspect last_output and
-the current state; never replay an applyChange script just to retrieve its diff.
-
-
-```python
-a = workspace.analysis()
-path = "src/main.cj"
-before = a.text(path)
-# Select range from a semantic query in this revision.
-change = SourceChange([
-    FileChange.EditFile(path, before, [TextEdit(range, replacement)]),
-    FileChange.CreateFile("src/added.cj", "package sample\nfunc added() {}\n"),
-])
-report = workspace.applyChange(change, a.revision)
-result = {"revision": report.revision, "applied": report.applied,
-          "failed": report.failed, "error": report.error}
-```
+Diagnostic values serialize directly. Also inspect changed references, selected
+callees or inferred types when they matter; empty diagnostics do not replace
+compiler/tests.
 
 `EditFile(path, expectedText, edits)` accepts unordered UTF-8 byte edits against
 one original string. Pass formatting results directly as `edits`. Same-position

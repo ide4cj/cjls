@@ -55,13 +55,9 @@ project instructions so tool selection does not depend on a user reminder:
 ```text
 When cjmcp is connected, use runPython for Cangjie source analysis, reading and
 editing; do not substitute shell commands or subprocesses. Follow server
-instructions and report partial analysis without a shell fallback. Batch a
-self-contained read-only task into Python. Find declarations, select relevant
-members, then return source_excerpts(a, [(path, node.range)], max_bytes=12000).
-Keep full expected text inside Python for applyChange; return a short diff and
-check fresh diagnostics. Small whole files are fine. On OutputBudgetExceeded,
-select from last_output without replaying effects; maxOutputBytes=0 explicitly
-permits a full reply.
+instructions and report partial analysis without a shell fallback.
+Minimize total task token use without sacrificing result quality; combine queries
+or use focused follow-up calls as appropriate.
 Use shell for Git, builds, tests and non-Cangjie files. Without a connection,
 use ordinary source tools.
 ```
@@ -128,10 +124,8 @@ If the tool is absent, check configuration, tool enablement and schema discovery
 If it fails to start, check the binary and CPython 3.9–3.14/SDK environment in the
 client-launched process and server stderr. If results are partial, inspect
 workspace.loadDiagnostics and workspace.macros; an empty result does not establish correctness.
-Macro state pending/settled reports work completion independently of failure:
-check structured diagnostic severity, path and range without parsing messages.
-A pending state alone is not an error, and settled may include errors. Repeat
-only queries that need missing expansion evidence; do not add blanket waits.
+See [runtime failures](skills/cangjie-mcp/references/runtime.md) for interpreting
+partial analysis and retrying queries.
 If the agent keeps grepping usages, check that project instructions and the skill
 are actually loaded and that the host exposes the server's instructions. Do not
 fall back to shell for Cangjie source work. Keep shell available for non-Cangjie
