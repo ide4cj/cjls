@@ -40,8 +40,8 @@ maximum = rows[0]["count"] if rows else None
 winners = [row for row in rows if row["count"] == maximum]
 result = {
     "root": workspace.root,
-    "problems": workspace.problems,
-    "has_expanded_macros": workspace.hasExpandedMacros,
+    "load_diagnostics": workspace.loadDiagnostics,
+    "macros": workspace.macros,
     "files_considered": len(rows),
     "maximum": maximum,
     "winner_count": len(winners),

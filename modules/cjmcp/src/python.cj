@@ -45,6 +45,20 @@ def __cjmcp_run(code, workspace, classes, max_output_bytes):
     global _cjmcp_last_output
     scope = dict(classes, workspace=workspace, source_excerpts=source_excerpts,
                  last_output=_cjmcp_last_output, __name__='__cjmcp_script__')
+    def encode_native(value):
+        if isinstance(value, classes['WorkspaceDiagnostic']):
+            return {key: getattr(value, key) for key in
+                    ('source', 'code', 'severity', 'message', 'path', 'range',
+                     'line', 'column', 'unnecessary')}
+        if isinstance(value, classes['MacroStatus']):
+            return dict(state=value.state, diagnostics=value.diagnostics)
+        if isinstance(value, classes['TextRange']):
+            return dict(start=value.start, end=value.end)
+        if isinstance(value, classes['Severity']):
+            for name in ('Error', 'Warning', 'Hint'):
+                if isinstance(value, getattr(classes['Severity'], name)):
+                    return name.lower()
+        raise TypeError(f'Object of type {type(value).__name__} is not JSON serializable')
     result = None
     error = None
     saved_out = _cjmcp_os.dup(1)
@@ -61,7 +75,7 @@ def __cjmcp_run(code, workspace, classes, max_output_bytes):
                         try:
                             exec(compile(code, '<runPython>', 'exec'), scope, scope)
                             result = scope.get('result')
-                            _cjmcp_json.dumps(result, allow_nan=False)
+                            _cjmcp_json.dumps(result, allow_nan=False, default=encode_native)
                         except BaseException:
                             result = None
                             error = _cjmcp_traceback.format_exc()
@@ -79,7 +93,7 @@ def __cjmcp_run(code, workspace, classes, max_output_bytes):
             stdout=out.read().decode('utf-8', errors='replace'),
             stderr=err.read().decode('utf-8', errors='replace'),
             result=result, error=error, revision=workspace.revision)
-        serialized = _cjmcp_json.dumps(payload, ensure_ascii=False, allow_nan=False, separators=(',', ':'))
+        serialized = _cjmcp_json.dumps(payload, ensure_ascii=False, allow_nan=False, separators=(',', ':'), default=encode_native)
         size = len(serialized.encode('utf-8'))
         if max_output_bytes and size > max_output_bytes:
             # Retain one rejected response so callers never need to replay effects.
@@ -123,14 +137,15 @@ class Workspace {
             directory
         }
     }
-    public prop problems: Array<String> {
+    public prop loadDiagnostics: Array<WorkspaceDiagnostic> {
         get() {
-            loaded().problems
+            loaded().loadDiagnostics
         }
     }
-    public prop hasExpandedMacros: Bool {
+
+    public prop macros: MacroStatus {
         get() {
-            loaded().hasExpandedMacros
+            loaded().macroStatus
         }
     }
 
@@ -158,9 +173,26 @@ class Workspace {
         fileStructure(view.db, file)
     }
 
-    public func diagnostics(path: String): Array<Diagnostic> {
+    public func diagnostics(path: String): Array<WorkspaceDiagnostic> {
         let (view, file) = resolve(path)
+        let text = view.vfs.fileContents(file).getOrThrow()
+        let resolved = view.vfs.paths.path(file).toString()
         fileDiagnostics(view.db, file)
+            .map {
+                diagnostic =>
+                let line = text.lineOf(diagnostic.range.start)
+                let column = diagnostic.range.start - text.lineStart(line)
+                WorkspaceDiagnostic(
+                    "analysis",
+                    diagnostic.severity,
+                    diagnostic.message,
+                    path: Some(resolved),
+                    range: Some(diagnostic.range),
+                    line: Some(line + 1),
+                    column: Some(column + 1),
+                    unnecessary: diagnostic.unnecessary
+                )
+            }
     }
 
     public func hover(path: String, offset: Int64): ?HoverResult {
@@ -277,6 +309,8 @@ class PythonSession {
                         ("StructureNode", StructureNode.pyClass()),
                         ("StructureKind", StructureKind.pyClass()),
                         ("Diagnostic", Diagnostic.pyClass()),
+                        ("WorkspaceDiagnostic", WorkspaceDiagnostic.pyClass()),
+                        ("MacroStatus", MacroStatus.pyClass()),
                         ("Severity", Severity.pyClass()),
                         ("HoverResult", HoverResult.pyClass()),
                         ("HoverItem", HoverItem.pyClass()),

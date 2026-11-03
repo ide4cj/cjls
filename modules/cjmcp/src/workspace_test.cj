@@ -8,7 +8,7 @@ import std.sync.AtomicBool
 import std.unittest.*
 import std.unittest.testmacro.*
 import ginkgo.TextRange
-import loupe.{expandedMacro, fileStructure, macroCallAt}
+import loupe.{Severity, expandedMacro, fileStructure, macroCallAt}
 import loupe.db.{MacroDiagnostic, MacroOutput, MacroSeverity}
 import loupe.hir.{
     macroBuildPlan,
@@ -191,14 +191,49 @@ main() { value() }
                             )
                         ]
                     )
-                    let problems = ArrayList<String>()
+                    let problems = ArrayList<WorkspaceDiagnostic>()
 
                     // act
-                    let complete = recordMacroProblems(state.db, state.vfs, [file], problems)
+                    recordMacroDiagnostics(state.db, state.vfs, [file], problems)
 
                     // assert
-                    @Expect(!complete)
-                    @Expect(problems.toArray(), ["${root.join("src/main.cj")}:4:19: invalid declaration: failure hint"])
+                    @Assert(problems.size, 1)
+                    let found = problems[0]
+                    @Expect(found.source, "macro")
+                    @Expect(found.code, Some("macro_expansion"))
+                    @Expect(found.severity, Severity.Error)
+                    @Expect(found.message, "invalid declaration: failure hint")
+                    @Expect(found.path, Some(root.join("src/main.cj").toString()))
+                    let offset = source.indexOf("value").getOrThrow()
+                    @Expect(found.range, Some(TextRange(offset, offset + 5)))
+                    @Expect(found.line, Some(4))
+                    @Expect(found.column, Some(19))
+
+                    // act - warnings must retain their severity and mapped origin too.
+                    let warning = MacroDiagnostic(
+                        MacroSeverity.MacroWarning,
+                        origin,
+                        "review declaration",
+                        "warning hint"
+                    )
+                    setMacroOutputsByKey(
+                        state.db,
+                        [
+                            (
+                                file,
+                                macroCallKeyOf(state.db, call),
+                                MacroOutput(previous.fingerprint, None, [], [warning])
+                            )
+                        ]
+                    )
+                    let warnings = ArrayList<WorkspaceDiagnostic>()
+                    recordMacroDiagnostics(state.db, state.vfs, [file], warnings)
+
+                    // assert
+                    @Assert(warnings.size, 1)
+                    @Expect(warnings[0].severity, Severity.Warning)
+                    @Expect(warnings[0].range, found.range)
+                    @Expect(warnings[0].message, "review declaration: warning hint")
                 }
         } finally {
             session.close()
@@ -236,8 +271,9 @@ main() { generated() }
                     for (unit in macroBuildPlan(state.db) where unit.isMacro) {
                         stamps.add(unit.pkg.macroLibrary(state.db))
                     }
-                    @Assert(state.problems, [])
-                    @Assert(state.hasExpandedMacros)
+                    @Assert(state.loadDiagnostics.isEmpty())
+                    @Assert(state.macroStatus.diagnostics.isEmpty())
+                    @Assert(state.macroStatus.state, "settled")
                     @Expect(nestedExpansion(state, mainSource).contains("41"))
                 }
             File.writeTo(macroDir.join("macros.cj"), source.replace("41", "42").toArray())
@@ -245,8 +281,9 @@ main() { generated() }
             session
                 .withWorkspace {
                     state =>
-                    @Assert(state.problems, [])
-                    @Assert(state.hasExpandedMacros)
+                    @Assert(state.loadDiagnostics.isEmpty())
+                    @Assert(state.macroStatus.diagnostics.isEmpty())
+                    @Assert(state.macroStatus.state, "settled")
                     let file = state.vfs.fileId(state.root.join("src/ms/macros.cj")).getOrThrow()
                     @Expect(state.vfs.fileContents(file).getOrThrow().toString().contains("42"))
                     for (unit in macroBuildPlan(state.db) where unit.isMacro) {
@@ -265,4 +302,113 @@ func nestedExpansion(state: WorkspaceState, text: String): String {
     let file = state.vfs.fileId(state.root.join("src/main.cj")).getOrThrow()
     let call = macroCallAt(state.db, file, text.indexOf("@Pass").getOrThrow()).getOrThrow()
     expandedMacro(state.db, call.call).getOrThrow().text
+}
+
+@Test
+class MacroStatusTest {
+    @TestCase
+    func changedInputsArePendingUntilPreparationSettles() {
+        // arrange
+        let root = workspaceFixture()
+        let state = WorkspaceState(VfsPath.file(root))
+        try {
+            // act
+            let loaded = state.synchronize()
+
+            // assert - pending alone is not a failure.
+            @Expect(loaded)
+            @Expect(state.macroStatus.state, "pending")
+            @Expect(state.macroStatus.diagnostics.isEmpty())
+            @Expect(state.loadDiagnostics.isEmpty())
+
+            // act
+            state.prepareMacros()
+            let revision = state.revision
+
+            // assert - a project without macros is settled too.
+            @Expect(state.macroStatus.state, "settled")
+            @Expect(state.macroStatus.diagnostics.isEmpty())
+            @Expect(!state.synchronize())
+            @Expect(state.revision, revision)
+
+            // act
+            File.writeTo(root.join("src/main.cj"), "package sample\nmain() { 2 }\n".toArray())
+            let changed = state.synchronize()
+
+            // assert
+            @Expect(changed)
+            @Expect(state.revision > revision)
+            @Expect(state.macroStatus.state, "pending")
+            @Expect(state.macroStatus.diagnostics.isEmpty())
+        } finally {
+            state.close()
+            remove(root, recursive: true)
+        }
+    }
+
+    @TestCase
+    func missingSdkIsAStructuredUnlocatedDiagnostic() {
+        // arrange
+        let root = workspaceFixture()
+        Directory.create(root.join("src/ms"))
+        File.writeTo(
+            root.join("src/ms/macros.cj"),
+            #"macro package sample.ms
+import std.ast.*
+public macro Pass(input: Tokens): Tokens { input }
+"#.toArray()
+        )
+        File.writeTo(
+            root.join("src/main.cj"),
+            #"package sample
+import sample.ms.*
+@Pass public func value(): Int64 { 1 }
+main() { value() }
+"#.toArray()
+        )
+        let state = WorkspaceState(VfsPath.file(root))
+        let host = WorkspaceMacros()
+        try {
+            state.synchronize()
+            let diagnostics = ArrayList<WorkspaceDiagnostic>()
+
+            // act
+            host.expand(state.db, state.vfs, None, diagnostics)
+
+            // assert
+            @Assert(diagnostics.size, 1)
+            @Expect(diagnostics[0].source, "macro")
+            @Expect(diagnostics[0].code, Some("macro_sdk"))
+            @Expect(diagnostics[0].severity, Severity.Error)
+            @Expect(diagnostics[0].path.isNone())
+            @Expect(diagnostics[0].range.isNone())
+            @Expect(diagnostics[0].line.isNone())
+            @Expect(diagnostics[0].column.isNone())
+        } finally {
+            host.close()
+            state.close()
+            remove(root, recursive: true)
+        }
+    }
+
+    @TestCase
+    func completionAndFailureAreIndependent() {
+        // arrange
+        let failure = WorkspaceDiagnostic(
+            "macro",
+            Severity.Error,
+            "build failed",
+            code: Some("macro_build")
+        )
+
+        // act
+        let settled = MacroStatus("settled", [failure])
+        let pending = MacroStatus("pending", [failure])
+
+        // assert
+        @Expect(settled.state, "settled")
+        @Expect(settled.diagnostics[0].severity, Severity.Error)
+        @Expect(pending.state, "pending")
+        @Expect(pending.diagnostics[0].code, Some("macro_build"))
+    }
 }

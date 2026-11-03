@@ -53,13 +53,20 @@ Capture a = workspace.analysis() in each call. Core queries:
   Nodes have .name, .kind, .range, .selectionRange and nested .children;
   use .kind.toString() for kind names such as Function or Method.
 - workspace.definition(path, byteOffset), hover(path, byteOffset), diagnostics(path).
+  diagnostics returns WorkspaceDiagnostic objects directly serializable in result;
+  each has source, code, severity, message, path, range, line, column, unnecessary.
+  Location fields are None when unavailable; UTF-8 byte columns and lines are 1-based.
 - a.declarations(path) -> DefIds; a.item(defId), a.infer(defId), a.typeText(ty).
 
-Include workspace.root, workspace.problems and workspace.hasExpandedMacros in the
-first useful task query, not a separate setup call; report mismatched roots or
-incomplete analysis. hasExpandedMacros=false alone can be transient while macro
-work runs; inspect problems and query only expansion-dependent evidence again
-when needed. Do not wait for expansion on every query. Use documented APIs before introspection; make another call
+Include workspace.root, workspace.loadDiagnostics and workspace.macros in the
+first useful task query, not a separate setup call. loadDiagnostics is a list of
+structured loading diagnostics. macros has state ("pending" or "settled") and
+structured diagnostics; return these objects directly in result, without parsing
+message strings or writing serializers. pending alone is not an error; settled
+can include failures. Inspect diagnostic severity independently of completion.
+Status/diagnostics describe this script's revision, including after writes/reload.
+Query missing expansion-dependent evidence again when needed; do not add an
+expansion wait to every query. Report mismatched roots/partial analysis. Use documented APIs before introspection; make another call
 for errors, missing evidence or a fresh revision after edits.
 Ranges are UTF-8 bytes, end exclusive: slice a.text(path).encode('utf-8').
 Use workspace.applyChange(SourceChange([...]), a.revision) for project edits.

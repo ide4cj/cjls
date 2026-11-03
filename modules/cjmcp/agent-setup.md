@@ -107,8 +107,8 @@ macro status and at most five source paths." Its tool trace should contain a
 result = {
     "root": workspace.root,
     "revision": workspace.revision,
-    "problems": workspace.problems,
-    "has_expanded_macros": workspace.hasExpandedMacros,
+    "load_diagnostics": workspace.loadDiagnostics,
+    "macros": workspace.macros,
     "files": workspace.files()[:5],
 }
 ```
@@ -127,10 +127,11 @@ new text. Check that it queried the edited worktree, not another clone.
 If the tool is absent, check configuration, tool enablement and schema discovery.
 If it fails to start, check the binary and CPython 3.9–3.14/SDK environment in the
 client-launched process and server stderr. If results are partial, inspect
-`problems` and `hasExpandedMacros`; an empty result does not establish correctness.
-A transient hasExpandedMacros=false alone does not establish a failure: inspect
-problems and repeat only queries that need missing expansion evidence. Ordinary
-source queries do not require mandatory waiting for macro completion.
+workspace.loadDiagnostics and workspace.macros; an empty result does not establish correctness.
+Macro state pending/settled reports work completion independently of failure:
+check structured diagnostic severity, path and range without parsing messages.
+A pending state alone is not an error, and settled may include errors. Repeat
+only queries that need missing expansion evidence; do not add blanket waits.
 If the agent keeps grepping usages, check that project instructions and the skill
 are actually loaded and that the host exposes the server's instructions. Do not
 fall back to shell for Cangjie source work. Keep shell available for non-Cangjie

@@ -31,16 +31,87 @@ The workspace handle provides:
 | Workspace member | Result |
 |---|---|
 | `root` | Absolute root path |
-| `problems` | Loading, macro build and expansion problems; inspect before trusting answers |
-| `hasExpandedMacros` | Whether macro preparation finished without build errors, failed or unsent resolved calls |
+| `loadDiagnostics` | Structured project/binary/source loading diagnostics |
+| `macros` | MacroStatus with state and structured preparation diagnostics |
 | `files()` | Source paths of the loaded project |
 | `structure(path)` | Native `StructureNode` objects with nested `children` |
-| `diagnostics(path)` | Native `Diagnostic` objects |
+| `diagnostics(path)` | Located WorkspaceDiagnostic values for this revision |
 | `hover(path, offset)` | Native `HoverResult` with `HoverItem` objects, or `None` |
 | `definition(path, offset)` | `Location` values containing a path and native ranges |
 | `revision` | Session-local revision used by this script and returned in the tool response |
 | `reload()` | Request preparation after this script; the running script keeps its revision |
 | `analysis()` | Retain an `AnalysisRevision` for HIR, inference and navigation |
+
+### Macro state and structured diagnostics
+
+The old problems/hasExpandedMacros API is removed. Use workspace.loadDiagnostics
+for loading issues, workspace.macros for macro preparation, and
+workspace.diagnostics(path) for a selected file. These native values serialize
+directly in result; no record projection or message parsing is needed:
+
+~~~python
+a = workspace.analysis()
+result = {
+    "root": workspace.root,
+    "load_diagnostics": workspace.loadDiagnostics,
+    "macros": workspace.macros,
+    "diagnostics": workspace.diagnostics("src/main.cj"),
+}
+~~~
+
+MacroStatus has state and diagnostics. State is pending while the revision's
+macro preparation remains to be performed; settled means its preparation attempt
+finished, including a project with no macro calls. Settled can include errors.
+Pending alone is not an error, and warnings do not become failures. Completion
+and diagnostic severity are independent ([D165](../../docs/adr/0165-cjmcp-structured-diagnostics.md)).
+The status and locations belong to the script's fixed revision, not a live worker
+progress feed. Writing/reload does not change them during a script. This session
+implementation still serializes preparation and Python, so normal scripts see
+settled after preparation; this API change adds no wait or new scheduling policy.
+
+WorkspaceDiagnostic exposes these native fields and their JSON representation:
+
+| Field | Meaning |
+| --- | --- |
+| source | workspace (loading), macro (preparation), or analysis (per-file loupe diagnostics) |
+| code | Stable preparation category, or null when the analysis API has no diagnostic code |
+| severity | Native Severity; JSON error, warning or hint |
+| message | Human-readable detail, with macro hints retained |
+| path | Absolute source path, or null when no source file is attributable |
+| range | Native TextRange; JSON {start, end}, zero-based UTF-8 bytes, end-exclusive; or null |
+| line, column | One-based source line and UTF-8 byte column, or null when unavailable |
+| unnecessary | Whether the source should be shown as unnecessary |
+
+Preparation codes are workspace_load, macro_sdk, macro_build, macro_not_sent and
+macro_expansion. SDK/build messages without a structured source location keep
+location fields null; the server never guesses coordinates by parsing stderr.
+Macro errors and warnings use loupe's mapped source range and retain hint text.
+A thrown macro exception falls back to the call range if the SDK has no more
+precise location. Per-file loupe diagnostics can also include macro findings;
+requesting both channels can therefore expose the same finding.
+
+In Python filter severity with d.severity == Severity.Error(), not a string
+comparison. Return the values directly and JSON will contain lowercase strings.
+TextRange and Severity are also supported by the tool's JSON encoder. Other
+native analysis objects still need explicit projection. Plain json.dumps inside
+a user script does not use the tool's encoder.
+
+Keep diagnostics scoped and bounded rather than querying every file:
+
+~~~python
+a = workspace.analysis()
+rows = workspace.diagnostics("src/main.cj")
+shown = rows[:20]
+requests = [(d.path, d.range) for d in shown
+            if d.path is not None and d.range is not None]
+result = {"diagnostics": shown, "total": len(rows),
+          "omitted": len(rows)-len(shown),
+          "source": source_excerpts(a, requests, max_bytes=6000, context_lines=1)}
+~~~
+
+The normal response-wide output budget applies after native values are encoded.
+If it is exceeded, last_output retains the complete plain JSON diagnostic/status
+records and original revision. Recover selected fields without replaying edits.
 
 ### Applying source changes
 
@@ -200,15 +271,12 @@ proof that disk is still unchanged when a result arrives. Ordinary Python file
 I/O reads live disk, independently of the analysis revision.
 
 Macro calls have a one-minute deadline; compiler builds and the whole preparation
-have no hard timeout. Missing required SDKs, build failures and failed or unsent
-resolved calls are reported in `problems` and make `hasExpandedMacros` false; the
-partial analysis remains usable. Preparation subprocess output goes to server
-stderr; `problems` is the tool-visible preparation report. Unresolved names remain
-analysis diagnostics.
-Macro diagnostic problems include `path:line:column: message`, with one-based
-lines and UTF-8 byte columns. They use the same source ranges and hint text as
-LSP diagnostics. A thrown macro exception is attached to the call when the SDK
-provides no more precise source location; its original failure text is retained.
+have no hard timeout. Missing required SDKs, failed builds and unsent calls appear
+as structured workspace.macros.diagnostics, independently of state. Loading
+failures are in workspace.loadDiagnostics. Partial analysis remains usable.
+Preparation subprocess output goes to server stderr; tool-visible diagnostics
+carry known locations as fields, never as a path:line:column message prefix.
+Unresolved names remain per-file analysis diagnostics.
 Failures before Python starts are tool errors with a null revision. Script errors
 include the revision used and are never retried automatically: Python may have
 already performed external effects. Preparation failures are retried before a
@@ -243,7 +311,7 @@ The budget prevents context overflow, not the memory needed to construct and
 serialize a large result or capture native output.
 
 Each script gets a fresh global namespace and ordinary Python imports. Assign
-JSON-serializable data to `result`, print output, or both. The MCP response has
+JSON-serializable data or supported diagnostic/status values to `result`, print output, or both. The MCP response has
 `result`, captured `stdout`/`stderr`, `revision`, and `error` (a traceback or null),
 in both `structuredContent` and text content. Non-serializable results are script errors.
 Python exceptions, including `SystemExit`, become tool errors; the session can

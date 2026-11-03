@@ -52,7 +52,9 @@ guidance unless it changed. See [documentation navigation](docs/README.md#read-f
 
 - Compose each self-contained read-only task in Python; call count is not the
   goal. Use queries, filtering, aggregation and supporting source excerpts inside Python; include
-  root, loading problems and macro status with that first useful query.
+  root, workspace.loadDiagnostics and workspace.macros with that first useful
+  query. These values and workspace.diagnostics(path) serialize directly; inspect
+  severity independently of macro state (pending/settled), without parsing messages.
 - Use the API documented by the tool. Load one relevant recipe only for an
   unfamiliar operation; avoid preliminary calls just to print types or `dir()`.
 - Find declarations with symbols/fileSymbols, select relevant members, then

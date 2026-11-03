@@ -14,8 +14,8 @@ candidates = [s for s in a.fileSymbols(path)
               if s.name in ("run", "dispatch")]
 result = {
     "root": workspace.root,
-    "problems": workspace.problems,
-    "has_expanded_macros": workspace.hasExpandedMacros,
+    "load_diagnostics": workspace.loadDiagnostics,
+    "macros": workspace.macros,
     "source": source_excerpts(a, [(path, s.range) for s in candidates],
                               max_bytes=12000),
 }

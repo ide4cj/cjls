@@ -47,12 +47,15 @@ Use a fresh call for diagnostics and semantic verification:
 ~~~python
 a = workspace.analysis()
 paths = ["src/main.cj"]
-rows = [{"path": p, "message": d.message,
-         "range": {"start": d.range.start, "end": d.range.end}}
-        for p in paths for d in workspace.diagnostics(p)]
+rows = [d for p in paths for d in workspace.diagnostics(p)]
 result = {"revision": a.revision, "diagnostics": rows[:20],
           "total": len(rows), "omitted": max(0, len(rows)-20)}
 ~~~
+
+WorkspaceDiagnostic values serialize directly, including severity, path, UTF-8
+range and one-based line/byte column; no projection or message parsing is needed.
+The response-wide budget also covers these diagnostics. If it is exceeded, select
+from last_output without repeating the edit.
 
 Also inspect changed references, selected callees or inferred types when they
 matter for the change. Empty loupe diagnostics do not replace compiler/tests.

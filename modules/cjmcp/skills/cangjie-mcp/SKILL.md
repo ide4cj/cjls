@@ -21,6 +21,9 @@ then return source_excerpts(a, [(path, node.range), ...], max_bytes=12000).
 The helper supplies paths, lines, byte ranges and pagination without cutting text.
 Choose members instead of entire large classes. Keep full a.text(path) strings
 inside Python for applyChange expected text; return its report and a short diff.
+Return workspace.loadDiagnostics and workspace.macros with the first useful query.
+Macro state pending/settled describes completion, independently of diagnostics.
+workspace.diagnostics(path), loadDiagnostics and macros serialize directly in result.
 Reacquire analysis in a new call and check diagnostics and affected semantics.
 Small files may be returned whole when useful. See [navigation](references/navigation.md)
 for a complete example and [editing](references/editing.md) for checked edits.
