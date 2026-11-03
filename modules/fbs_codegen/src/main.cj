@@ -14,7 +14,7 @@ class CommandContext {
 }
 
 /**
- * Keeps both streams in one dependency because jian resolves context values by type.
+ * Jian resolves dependencies by type, so both output streams share one context value.
  */
 struct CommandOutput {
     CommandOutput(let out: OutputStream, let err: OutputStream) {}
@@ -26,13 +26,13 @@ let FBS_CODEGEN_APP = JianContextApp<CommandContext>(name: "fbs_codegen")
  * Generates views from the config named on the command line.
  */
 main(args: Array<String>): Int64 {
-    runFbsCodegen(args)
+    runCommand(args)
 }
 
 /**
  * Runs argv without the executable name; returns 2 for usage errors, 1 for generation failures.
  */
-func runFbsCodegen(
+func runCommand(
     args: Array<String>,
     out!: OutputStream = getStdOut(),
     err!: OutputStream = getStdErr()

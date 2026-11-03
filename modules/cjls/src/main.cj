@@ -1,6 +1,7 @@
 package cjls
 
-import std.env.getStdOut
+import std.env.{getStdErr, getStdOut}
+import std.io.OutputStream
 import std.runtime.getMaxHeapSize
 import stdx.log.Logger
 import jsonrpc.{ErrorLogValue, FramedJsonRpcTransport}
@@ -10,9 +11,25 @@ import cjls.macro_host.MacroHost
 import cjls.handlers.router
 
 main(args: Array<String>): Int64 {
-    let logger = stderrLogger()
+    runCommand(args)
+}
+
+/**
+ * Runs the registered CLI, logging uncaught exceptions and errors before returning 1.
+ */
+func runCommand(
+    args: Array<String>,
+    out!: OutputStream = getStdOut(),
+    err!: OutputStream = getStdErr(),
+    logger!: Logger = stderrLogger()
+): Int64 {
     try {
-        CJLS_APP.run(args, context: CommandContext(logger))
+        CJLS_APP.run(
+            args,
+            context: CommandContext(logger, output: CommandOutput(out, err)),
+            stdout: out,
+            stderr: err
+        )
     } catch (e: Exception) {
         logger.fatal("stopped", [("cause", e)])
         1

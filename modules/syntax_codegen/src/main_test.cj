@@ -14,12 +14,7 @@ class SyntaxCommandTest {
         let (out, err) = (ByteBuffer(), ByteBuffer())
 
         // act
-        let code = SYNTAX_CODEGEN_APP.run(
-            args,
-            context: CommandContext(CommandOutput(out, err)),
-            stdout: out,
-            stderr: err
-        )
+        let code = runCommand(args, out: out, err: err)
 
         // assert
         @Expect(code, 0)
@@ -36,12 +31,7 @@ class SyntaxCommandTest {
         let (out, err) = (ByteBuffer(), ByteBuffer())
 
         // act
-        let code = SYNTAX_CODEGEN_APP.run(
-            args,
-            context: CommandContext(CommandOutput(out, err)),
-            stdout: out,
-            stderr: err
-        )
+        let code = runCommand(args, out: out, err: err)
 
         // assert
         @Expect(code, 2)
@@ -57,12 +47,7 @@ class SyntaxCommandTest {
             let (out, err) = (ByteBuffer(), ByteBuffer())
 
             // act
-            let code = SYNTAX_CODEGEN_APP.run(
-                [dir.join("missing.toml").toString()],
-                context: CommandContext(CommandOutput(out, err)),
-                stdout: out,
-                stderr: err
-            )
+            let code = runCommand([dir.join("missing.toml").toString()], out: out, err: err)
 
             // assert
             @Expect(code, 1)
@@ -73,12 +58,12 @@ class SyntaxCommandTest {
         }
     }
 
-    @TestCase[terminator in [false, true]]
-    func generatesBothFilesRelativeToTheKindsFile(terminator: Bool) {
+    @TestCase[terminator in [false, true], name in ["kinds.toml", " kinds.toml "]]
+    func generatesBothFilesRelativeToTheKindsFile(terminator: Bool, name: String) {
         // arrange: keep cwd unchanged because the suite runs concurrently.
         let dir = Directory.createTemp(getWorkingDirectory())
         try {
-            let kinds = dir.join("kinds.toml")
+            let kinds = dir.join(name)
             File.writeTo(
                 kinds,
                 """
@@ -106,16 +91,11 @@ class SyntaxCommandTest {
                 """.toArray()
             )
             let (out, err) = (ByteBuffer(), ByteBuffer())
-            let relative = "${dir.fileName}/kinds.toml"
+            let relative = "${dir.fileName}/${name}"
             let args = if (terminator) { ["--", relative] } else { [relative] }
 
             // act
-            let code = SYNTAX_CODEGEN_APP.run(
-                args,
-                context: CommandContext(CommandOutput(out, err)),
-                stdout: out,
-                stderr: err
-            )
+            let code = runCommand(args, out: out, err: err)
 
             // assert
             @Expect(String.fromUtf8(err.bytes()), "")
