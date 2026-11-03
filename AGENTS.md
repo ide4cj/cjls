@@ -5,6 +5,12 @@ cjls is a Cangjie language server, written in Cangjie. `cjls` handles LSP;
 current features in the router and source, rather than assuming an old overview
 is a complete feature list.
 
+## Experiment branch history
+
+Keep `experiment/cjmcp` linear on top of current `master`. Update it by rebasing
+its experiment commits, never by merging `master` into it. Preserve the previous
+tip before rewriting and publish with an explicit `--force-with-lease` expectation.
+
 ## Before changing code
 
 - Read the task-relevant documents below and the affected module's notes.
