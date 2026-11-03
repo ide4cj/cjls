@@ -3,11 +3,11 @@ package cjls.handlers
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import cjls.lsp_types.*
-import cjls.server.*
 import loupe.{Fold, FoldKind, TextRange}
 import rope.{Encoding, Rope}
 import stdxx.Nullable
+import cjls.lsp_types.*
+import cjls.server.*
 
 /**
  * `startLine:startCharacter..endLine:endCharacter kind`, a column or the kind left out when there is

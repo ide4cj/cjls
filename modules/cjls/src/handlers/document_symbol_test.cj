@@ -2,9 +2,9 @@ package cjls.handlers
 
 import std.unittest.*
 import std.unittest.testmacro.*
+import stdxx.Nullable
 import cjls.lsp_types.*
 import cjls.server.*
-import stdxx.Nullable
 
 func documentSymbols(state: ServerState, uri: String): ?Array<DocumentSymbol> {
     match (

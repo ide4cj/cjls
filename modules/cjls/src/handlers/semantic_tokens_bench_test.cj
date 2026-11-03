@@ -4,7 +4,6 @@ import std.collection.*
 import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import cjls.lsp_types.*
 import fjson.*
 import jsonrpc.*
 import loupe.*
@@ -13,6 +12,7 @@ import loupe.fixture.*
 import loupe.vfs.FileId
 import rope.{Encoding, Rope}
 import stdxx.{IntegerOrString, Nullable}
+import cjls.lsp_types.*
 
 /*
  * What `textDocument/semanticTokens/full` costs a keystroke in a large file, piece by piece, against

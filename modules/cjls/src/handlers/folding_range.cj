@@ -1,10 +1,10 @@
 package cjls.handlers
 
+import loupe.foldingRanges as loupeFoldingRanges
+import stdxx.Nullable
 import cjls.lsp_types.*
 import cjls.macros.LspHandler
 import cjls.server.*
-import loupe.foldingRanges as loupeFoldingRanges
-import stdxx.Nullable
 
 /**
  * What of a document folds, by its tree; `null` for a document the server does not know.

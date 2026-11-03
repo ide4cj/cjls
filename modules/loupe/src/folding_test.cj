@@ -2,9 +2,9 @@ package loupe
 
 import std.unittest.*
 import std.unittest.testmacro.*
+import rope.Rope
 import loupe.db.AnalysisDatabase
 import loupe.vfs.FileId
-import rope.Rope
 
 /**
  * The folds of `text` as `kind@range text`, line breaks in the text written `⏎`.

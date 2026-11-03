@@ -3,11 +3,11 @@ package loupe
 import std.unittest.*
 import std.unittest.testmacro.*
 import ginkgo.TextRange
+import rope.Rope
 import loupe.db.*
 import loupe.fixture.*
 import loupe.hir.packageOfFile
 import loupe.vfs.FileId
-import rope.Rope
 
 func diagnosticsOf(text: String): Array<Diagnostic> {
     let db = AnalysisDatabase()

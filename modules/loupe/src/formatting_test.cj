@@ -3,9 +3,9 @@ package loupe
 import std.unittest.*
 import std.unittest.testmacro.*
 import ginkgo.TextRange
+import rope.Rope
 import loupe.db.AnalysisDatabase
 import loupe.vfs.FileId
-import rope.Rope
 
 @Test
 class FormattingTest {

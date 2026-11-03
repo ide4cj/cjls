@@ -1,10 +1,10 @@
 package cjls.lsp_ext
 
-import cjls.lsp_types.{LspInboundRequest, MessageDirection, TextDocumentPositionParams}
 import fjson.*
 import jsonrpc.*
 import stdxx.Nullable
 import stdxx.deriving.*
+import cjls.lsp_types.{LspInboundRequest, MessageDirection, TextDocumentPositionParams}
 
 /**
  * `cjls/expandMacro`: what the macro call at a position expands to, as rust-analyzer's

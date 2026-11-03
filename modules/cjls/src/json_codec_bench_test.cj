@@ -3,11 +3,11 @@ package cjls
 import std.collection.HashMap
 import std.unittest.*
 import std.unittest.testmacro.*
-import cjls.lsp_types.*
-import cjls.lsp_types.Range as LspRange
 import fjson.*
 import jsonrpc.*
 import stdxx.{IntegerOrString, Nullable}
+import cjls.lsp_types.*
+import cjls.lsp_types.Range as LspRange
 
 /*
  * The server's own path through the codec, envelope included: a frame's bytes to a handler's

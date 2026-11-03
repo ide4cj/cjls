@@ -1,12 +1,12 @@
 package cjls.handlers
 
 import stdx.log.Logger
-import cjls.lsp_types.*
-import cjls.macros.LspHandler
-import cjls.server.*
 import loupe.vfs.VfsPath
 import rope.Encoding
 import stdxx.Nullable
+import cjls.lsp_types.*
+import cjls.macros.LspHandler
+import cjls.server.*
 
 /**
  * The server's version, as `modules/cjls/cjpm.toml` has it: `cog bump` rewrites both.

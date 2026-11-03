@@ -1,10 +1,10 @@
 package cjls.handlers
 
 import std.collection.{ArrayList, HashSet}
-import cjls.lsp_ext.BinarySourceRootsNotificationSpec
-import cjls.lsp_types.*
 import fjson.{JsonValue, RawJson}
 import rope.Encoding
+import cjls.lsp_ext.BinarySourceRootsNotificationSpec
+import cjls.lsp_types.*
 
 /**
  * The methods every server takes unasked (`didChangeConfiguration` among them, which the server

@@ -5,10 +5,6 @@ import std.fs.{File, FileInfo, Path, exists, remove}
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import cjls.lsp_ext.{EXPAND_MACRO_COMMAND, MacroExpansion}
-import cjls.lsp_types.*
-import cjls.lsp_types.Range as LspRange
-import cjls.server.{Client, ServerState}
 import fjson.{JsonValue, RawJson}
 import jsonrpc.{Body, RpcException}
 import loupe.TextRange
@@ -17,6 +13,10 @@ import loupe.hir.{macroRequests, setMacroOutputs}
 import loupe.vfs.VfsPath
 import rope.Rope
 import stdxx.Nullable
+import cjls.lsp_ext.{EXPAND_MACRO_COMMAND, MacroExpansion}
+import cjls.lsp_types.*
+import cjls.lsp_types.Range as LspRange
+import cjls.server.{Client, ServerState}
 
 const MACRO_MAIN = "package app\nimport app.ms.*\n@M[x]\nclass C {}\nfunc use(c: C) {}\n"
 

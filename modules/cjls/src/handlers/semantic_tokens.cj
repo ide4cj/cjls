@@ -1,10 +1,10 @@
 package cjls.handlers
 
+import loupe.{TextRange, highlight}
+import stdxx.Nullable
 import cjls.lsp_types.*
 import cjls.macros.LspHandler
 import cjls.server.*
-import loupe.{TextRange, highlight}
-import stdxx.Nullable
 
 /**
  * What every token of a document is, as far as its tree tells; `null` for a document the server

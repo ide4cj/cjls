@@ -6,12 +6,12 @@ import std.sync.AtomicBool
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import cjls.lsp_types.*
-import cjls.lsp_types.Range as LspRange
 import fjson.RawJson
 import jsonrpc.*
 import loupe.vfs.VfsPath
 import rope.Rope
+import cjls.lsp_types.*
+import cjls.lsp_types.Range as LspRange
 
 let PUSHED_PATH = VfsPath.file(getTempDirectory().join("pushed.cj"))
 let FIRST_PATH = VfsPath.file(getTempDirectory().join("first.cj"))

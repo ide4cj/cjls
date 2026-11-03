@@ -5,10 +5,10 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import cjsyntax.message
 import ginkgo.TextRange
+import rope.Rope
 import loupe.db.*
 import loupe.fixture.*
 import loupe.hir.*
-import rope.Rope
 
 /**
  * The database of `parsed` with std.core's and std.deriving's `.cjo`s.

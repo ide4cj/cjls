@@ -1,11 +1,11 @@
 package cjls.handlers
 
 import stdx.log.Logger
+import loupe.vfs.{VfsPath, readFile}
+import rope.{Encoding, Rope}
 import cjls.lsp_types.*
 import cjls.macros.LspHandler
 import cjls.server.*
-import loupe.vfs.{VfsPath, readFile}
-import rope.{Encoding, Rope}
 
 /**
  * From now until `didClose`, the file holds what the editor's buffer does. A document among the

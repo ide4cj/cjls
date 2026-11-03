@@ -4,12 +4,12 @@ import std.env.getTempDirectory
 import std.fs.{Directory, File}
 import std.unittest.*
 import std.unittest.testmacro.*
-import cjls.lsp_types.*
-import cjls.lsp_types.Range as LspRange
-import cjls.server.ServerState
 import jsonrpc.RpcException
 import loupe.vfs.VfsPath
 import stdxx.Nullable
+import cjls.lsp_types.*
+import cjls.lsp_types.Range as LspRange
+import cjls.server.ServerState
 
 /**
  * The handler edits for the open document, or no answer when formatting is refused.

@@ -32,8 +32,12 @@ expressions, multiple statements and `else if` retain multiline layout. Use
 `"multiline"` to expand all nonempty control bodies.
 
 Imports are normalized without semantic analysis. Consecutive comment-free imports
-sort `std`, `stdx` and other packages in that order, then packages and members
-alphabetically. Explicit imports from the same package combine into one list;
+sort `std`, `stdx`, dependencies and packages of the current module in that order,
+then packages and members alphabetically. The module is identified by the first
+package component in the file's `package` header (including its organization
+qualifier, if any). Without a package header, all non-standard imports belong to
+the dependency group. Import-only ranges retain the file's module context.
+Explicit imports from the same package combine into one list;
 visibility and annotation tokens must match. This includes `public import` and
 identical `@When` conditions. Singleton explicit-name lists lose redundant braces
 unless they carry a trailing comma. Explicit-name groups retain trailing commas

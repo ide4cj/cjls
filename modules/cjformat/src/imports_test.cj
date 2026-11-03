@@ -59,6 +59,60 @@ class ImportFormatTest {
         @Expect(problems, [])
     }
 
+    @TestCase[header in ["package app", "package app.handlers", "macro package app.macros", "package `app`.handlers"]]
+    func modulePackagesFollowDependencies(header: String): Unit {
+        // arrange
+        let imports =
+            "import app.z.Z\nimport z.Z\nimport stdx.z.Z\nimport app.a.B\nimport app.a.A\nimport a.A\nimport std.b.B\nimport app_extra.X\nimport app::external.X\n"
+        let source = "${header}\n\n${imports}"
+        let expected =
+            "${header}\n\nimport std.b.B\nimport stdx.z.Z\nimport a.A\nimport app::external.X\nimport app_extra.X\nimport z.Z\nimport app.a.{A, B}\nimport app.z.Z\n"
+
+        // act
+        let formatted = formatText(source)
+
+        // assert
+        @Expect(formatted, Some(expected))
+        @Expect(formatted.flatMap { text => formatText(text) }, formatted)
+        @Expect(formattingProblems("module imports", source), [])
+    }
+
+    @TestCase
+    func organizationQualifiersDistinguishModules(): Unit {
+        // arrange
+        let source =
+            "package org::app.handlers\n\nimport org::app.z.Z\nimport org::other.A\nimport app.a.A\nimport org::app.a.*\nimport z.Z\n"
+        let expected =
+            "package org::app.handlers\n\nimport app.a.A\nimport org::other.A\nimport z.Z\nimport org::app.a.*\nimport org::app.z.Z\n"
+
+        // act
+        let formatted = formatText(source)
+
+        // assert
+        @Expect(formatted, Some(expected))
+        @Expect(formatted.flatMap { text => formatText(text) }, formatted)
+        @Expect(formattingProblems("qualified module imports", source), [])
+    }
+
+    @TestCase[lineBreak in ["\n", "\r\n"]]
+    func importRangesKeepTheModuleContext(lineBreak: String): Unit {
+        // arrange
+        let source =
+            "package app.handlers\nimport untouched.Z\nimport app.a.A\nimport z.Z\nfunc   f() {}\n"
+                .replace("\n", lineBreak)
+        let start = source.indexOf("import app").getOrThrow()
+        let end = source.indexOf("func").getOrThrow()
+        let expected =
+            "package app.handlers\nimport untouched.Z\nimport z.Z\nimport app.a.A\nfunc   f() {}\n"
+                .replace("\n", lineBreak)
+
+        // act
+        let formatted = formattedIn(source, TextRange(start, end))
+
+        // assert
+        @Expect(formatted, Some(expected))
+    }
+
     @TestCase[row in [
         ("import p.B\n// keep\nimport p.A", "import p.B\n// keep\nimport p.A\n"),
         ("import p.B // keep\nimport p.A", "import p.B // keep\nimport p.A\n"),

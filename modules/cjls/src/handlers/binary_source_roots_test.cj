@@ -5,9 +5,9 @@ import std.fs.remove
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
+import jsonrpc.{Body, Connection}
 import cjls.lsp_ext.{BinarySourceRootsNotificationSpec, BinarySourceRootsParams}
 import cjls.server.Client
-import jsonrpc.{Body, Connection}
 
 /**
  * Drains the synchronous load's wire, retaining only source-root replacements.

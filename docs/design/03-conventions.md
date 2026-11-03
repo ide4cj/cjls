@@ -390,7 +390,10 @@ it is ambiguous at every use.
 
 A `public import` keeps its visibility and conditions when grouped with other reexports.
 
-One group: std, then stdx, then the workspace, each in alphabetical order, none unused.
+One group: std, then stdx, then dependencies, then packages of the current module,
+each in alphabetical order, none unused. The formatter identifies the module by
+the first package component in the file's `package` header, including any
+organization qualifier; without a header it uses the dependency group.
 
 ### C29: Documentation comments
 

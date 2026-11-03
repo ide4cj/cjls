@@ -4,10 +4,10 @@ import std.fs.Path
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import cjls.lsp_types.*
-import cjls.server.{Client, ServerState}
 import rope.Encoding
 import stdxx.Nullable
+import cjls.lsp_types.*
+import cjls.server.{Client, ServerState}
 
 /**
  * Asks for a type definition using a fresh snapshot.

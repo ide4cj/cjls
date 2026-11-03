@@ -5,8 +5,8 @@ import std.deriving.*
 import calca.*
 import calca.macros.*
 import cjsyntax.isIdentLike
-import loupe.db.{AnalysisDatabase, SourceFile}
 import rope.Rope
+import loupe.db.{AnalysisDatabase, SourceFile}
 
 // the hash of no byte, which every word's starts from
 const WORD_SEED: UInt64 = 0

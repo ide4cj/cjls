@@ -5,13 +5,13 @@ import std.fs.{Path, remove}
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import cjls.lsp_types.*
-import cjls.server.*
 import fjson.{JsonValue, RawJson}
 import jsonrpc.*
 import loupe.vfs.VfsPath
 import platform.{hostArch, hostOs}
 import stdxx.Nullable
+import cjls.lsp_types.*
+import cjls.server.*
 
 /**
  * A state as `initialize` leaves it for a client with `root` as its folder and `options` as its

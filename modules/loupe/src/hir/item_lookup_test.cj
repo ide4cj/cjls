@@ -2,8 +2,8 @@ package loupe.hir
 
 import std.unittest.*
 import std.unittest.testmacro.*
-import loupe.fixture.Fixture
 import rope.Rope
+import loupe.fixture.Fixture
 
 @Test
 class ItemLookupTest {

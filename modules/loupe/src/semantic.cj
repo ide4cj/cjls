@@ -5,6 +5,7 @@ import std.deriving.Derive
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{AnyHasName, TypeParam, TypeParamList}
 import ginkgo.{SyntaxNodePtr, TextRange}
+import rope.{Encoding, LineColumn, Rope}
 import loupe.db.AnalysisDatabase
 import loupe.hir.{
     BodyOrigin,
@@ -33,7 +34,6 @@ import loupe.hir.{
     writtenTypeOf
 }
 import loupe.vfs.FileId
-import rope.{Encoding, LineColumn, Rope}
 
 /**
  * An identity within one database revision. Body indices carry their declaration owner;

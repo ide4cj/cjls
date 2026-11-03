@@ -4,11 +4,11 @@ import std.fs.{Path, remove}
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
+import jsonrpc.RequestBody
+import rope.Rope
 import cjls.lsp_types.*
 import cjls.lsp_types.Range as LspRange
 import cjls.server.*
-import jsonrpc.RequestBody
-import rope.Rope
 
 /**
  * A cjpm module `app`, with the packages `app` and `app.util`.

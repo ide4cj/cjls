@@ -8,11 +8,11 @@ import calca.*
 import calca.macros.*
 import cjsyntax.CjSyntaxNode
 import cjsyntax.ast.AnyHasName
+import rope.Rope
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.fixture.*
 import loupe.syntax.parse
 import loupe.vfs.CjoFileRead
-import rope.Rope
 
 /**
  * Checks the signatures of the declarations of `fixture`, as types, are its annotations: `//^ (T)

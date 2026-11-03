@@ -4,11 +4,11 @@ import std.env.{getStdErr, getStdOut}
 import std.io.OutputStream
 import std.runtime.getMaxHeapSize
 import stdx.log.Logger
+import jsonrpc.{ErrorLogValue, FramedJsonRpcTransport}
+import platform.{StdinStream, useBinaryStdio}
 import cjls.handlers.router
 import cjls.macro_host.MacroHost
 import cjls.server.{ServerState, serve}
-import jsonrpc.{ErrorLogValue, FramedJsonRpcTransport}
-import platform.{StdinStream, useBinaryStdio}
 
 main(args: Array<String>): Int64 {
     runCommand(args)

@@ -2,7 +2,7 @@ package cjformat
 
 import std.collection.{ArrayList, HashMap, collectArray}
 import std.sort.sort
-import cjsyntax.{CjSyntaxNode, SyntaxKind}
+import cjsyntax.{CjSyntaxNode, SyntaxKind, parse}
 import ginkgo.TextRange
 
 /**
@@ -48,16 +48,21 @@ private class ImportGroup {
         }
     }
 
-    prop category: Int64 {
-        get() {
-            if (sortPackage == "std" || sortPackage.startsWith("std.")) {
-                return 0
-            }
-            if (sortPackage == "stdx" || sortPackage.startsWith("stdx.")) {
-                return 1
-            }
-            2
+    func category(moduleName: String): Int64 {
+        if (sortPackage == "std" || sortPackage.startsWith("std.")) {
+            return 0
         }
+        if (sortPackage == "stdx" || sortPackage.startsWith("stdx.")) {
+            return 1
+        }
+        let name = sortPackage.replace("`", "")
+        if (
+            !moduleName.isEmpty() && separator != "::" &&
+                (name == moduleName || name.startsWith("${moduleName}."))
+        ) {
+            return 3
+        }
+        2
     }
 
     func firstName(): String {
@@ -86,10 +91,30 @@ private class ImportGroup {
 }
 
 /**
+ * The header supplies module identity even for detached text and import-only ranges.
+ * Organization-qualified modules keep their qualifier so another organization's package stays external.
+ */
+func moduleImportPrefix(root: CjSyntaxNode): String {
+    let header =
+        root.children().filter { node => node.kind == SyntaxKind.PackageHeader }.next() ?? return ""
+    let parts = ArrayList<String>()
+    for (element in header.childrenWithTokens()) {
+        match (element.kind) {
+            case SyntaxKind.NameRef =>
+                parts.add(element.asNode().getOrThrow().text().trimAscii().replace("`", ""))
+            case SyntaxKind.ColonColon => parts.add("::")
+            case SyntaxKind.Dot => break
+            case _ => ()
+        }
+    }
+    String.join(parts.toArray(), delimiter: "")
+}
+
+/**
  * Rewrites only consecutive comment-free import declarations. Semicolons and other source
  * elements end a run; blank lines between imports follow the repository's one-group policy.
  */
-func importEdits(root: CjSyntaxNode, source: String): Array<TextEdit> {
+func importEdits(root: CjSyntaxNode, source: String, moduleName: String): Array<TextEdit> {
     if (root.kind != SyntaxKind.SourceFile) {
         return []
     }
@@ -105,9 +130,9 @@ func importEdits(root: CjSyntaxNode, source: String): Array<TextEdit> {
                 continue
             }
         }
-        flushImports(run, source, edits)
+        flushImports(run, source, edits, moduleName)
     }
-    flushImports(run, source, edits)
+    flushImports(run, source, edits, moduleName)
     edits.toArray()
 }
 
@@ -141,13 +166,14 @@ private func canNormalizeImport(node: CjSyntaxNode, source: String): Bool {
 private func flushImports(
     run: ArrayList<CjSyntaxNode>,
     source: String,
-    edits: ArrayList<TextEdit>
+    edits: ArrayList<TextEdit>,
+    moduleName: String
 ): Unit {
     if (run.isEmpty()) {
         return
     }
     let ordered = groupedImports(run, source)
-    sort(ordered, stable: true, by: compareImports)
+    sort(ordered, stable: true, by: { a, b => compareImports(a, b, moduleName) })
     let result = String.join(
         ordered.map { entry => entry.source() },
         delimiter: lineBreakIn(source)
@@ -200,8 +226,8 @@ private func groupedImports(run: ArrayList<CjSyntaxNode>, source: String): Array
 /**
  * A group's representative must not depend on the author's member order.
  */
-private func compareImports(a: ImportGroup, b: ImportGroup): Ordering {
-    let category = a.category.compare(b.category)
+private func compareImports(a: ImportGroup, b: ImportGroup, moduleName: String): Ordering {
+    let category = a.category(moduleName).compare(b.category(moduleName))
     if (category != Ordering.EQ) {
         return category
     }
@@ -382,11 +408,12 @@ func formatImportRange(
     }
     // A single-line fragment carries no newline of its own; seed it with the file's convention.
     let fragment = "${source[from..to]}${lineBreakIn(source)}"
-    let formatted =
-        formatText(fragment, options: options)
+    let edits =
+        formatWithModule(parse(fragment), options, moduleImportPrefix(root))
             .getOrThrow {
                 IllegalStateException("an import-only selection is a valid source fragment")
             }
+    let formatted = applyEdits(fragment, edits)
     let result = if (to == source.size) { formatted } else { formatted.trimAsciiEnd() }
     Some(replacement(source, TextRange(from, to), result))
 }

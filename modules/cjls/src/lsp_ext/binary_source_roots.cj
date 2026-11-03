@@ -1,8 +1,8 @@
 package cjls.lsp_ext
 
-import cjls.lsp_types.*
 import fjson.*
 import stdxx.deriving.*
+import cjls.lsp_types.*
 
 /**
  * The complete replacement of the binary source roots protected by the client.

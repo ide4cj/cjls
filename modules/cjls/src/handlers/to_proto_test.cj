@@ -2,9 +2,9 @@ package cjls.handlers
 
 import std.unittest.*
 import std.unittest.testmacro.*
-import cjls.lsp_types.*
 import loupe.{Diagnostic as LoupeDiagnostic, Severity, TextRange}
 import rope.{Encoding, Rope}
+import cjls.lsp_types.*
 
 @Test
 class DiagnosticConversionTest {

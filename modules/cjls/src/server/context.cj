@@ -1,9 +1,9 @@
 package cjls.server
 
 import stdx.log.Logger
-import cjls.lsp_types.{LspOutboundNotification, LspOutboundRequest}
 import fjson.RawJson
 import jsonrpc.*
+import cjls.lsp_types.{LspOutboundNotification, LspOutboundRequest}
 
 /**
  * What a handler that runs on the read loop gets: its params, and the `ServerState` itself, since

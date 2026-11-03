@@ -1,10 +1,10 @@
 package cjls.handlers
 
+import loupe.highlightRelated
+import stdxx.Nullable
 import cjls.lsp_types.*
 import cjls.macros.LspHandler
 import cjls.server.*
-import loupe.highlightRelated
-import stdxx.Nullable
 
 /**
  * Every name of the document meaning what the one at the position does, each a read, a write or

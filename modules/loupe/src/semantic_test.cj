@@ -6,10 +6,10 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import calca.CancelledException
 import ginkgo.TextRange
+import rope.{Encoding, LineColumn, Rope}
 import loupe.db.{MappedSpan, SpanOrigin}
 import loupe.fixture.*
 import loupe.hir.*
-import rope.{Encoding, LineColumn, Rope}
 
 /**
  * Exact source excerpts for objects with available syntax origins.

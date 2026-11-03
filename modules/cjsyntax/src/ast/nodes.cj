@@ -3,8 +3,8 @@
 package cjsyntax.ast
 
 import std.deriving.*
-import cjsyntax.SyntaxKind
 import ginkgo.*
+import cjsyntax.SyntaxKind
 
 let NAME_SYMBOL = TokenSet<SyntaxKind>(
     [

@@ -8,11 +8,11 @@ import calca.*
 import calca.macros.*
 import cjsyntax.ast.identText
 import ginkgo.{SyntaxElement, TextRange}
+import rope.Rope
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.fixture.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
-import rope.Rope
 
 /**
  * The package a file of a fixture is in.

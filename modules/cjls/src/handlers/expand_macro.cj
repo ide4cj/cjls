@@ -3,10 +3,6 @@ package cjls.handlers
 import std.collection.collectArray
 import std.fs.{Directory, FSException, File, FileInfo, Path, exists, remove}
 import stdx.log.Logger
-import cjls.lsp_ext.{EXPAND_MACRO_COMMAND, MacroExpansion}
-import cjls.lsp_types.*
-import cjls.macros.LspHandler
-import cjls.server.*
 import fjson.{JsonValue, RawJson}
 import jsonrpc.{ErrorCode, ErrorLogValue, RpcException}
 import loupe.{
@@ -29,6 +25,10 @@ import loupe.db.SourceFile
 import loupe.vfs.{FileId, VfsPath}
 import rope.Rope
 import stdxx.Nullable
+import cjls.lsp_ext.{EXPAND_MACRO_COMMAND, MacroExpansion}
+import cjls.lsp_types.*
+import cjls.macros.LspHandler
+import cjls.server.*
 
 /**
  * What the macro call at the position, or the item it is in (`macroCallAt`), expands to, formatted (D150); one of std,

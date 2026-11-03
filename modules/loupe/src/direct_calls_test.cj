@@ -2,10 +2,10 @@ package loupe
 
 import std.unittest.*
 import std.unittest.testmacro.*
+import rope.Rope
 import loupe.db.{MappedSpan, SpanOrigin}
 import loupe.fixture.*
 import loupe.hir.*
-import rope.Rope
 
 @Test
 class DirectCallsTest {

@@ -5,9 +5,9 @@ import std.deriving.*
 import std.env.getTempDirectory
 import std.sort.*
 import ginkgo.TextRange
+import rope.Rope
 import loupe.db.*
 import loupe.vfs.*
-import rope.Rope
 
 /**
  * A fixture that does not say what it means: a header of an unknown key, a `$0` too many, an

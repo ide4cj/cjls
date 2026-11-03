@@ -1,9 +1,6 @@
 package cjls.handlers
 
 import std.collection.ArrayList
-import cjls.lsp_types.*
-import cjls.lsp_types.Range as LspRange
-import cjls.server.ServerSnapshot
 import loupe.{
     CallHierarchyEntry,
     Diagnostic as LoupeDiagnostic,
@@ -28,6 +25,9 @@ import loupe.{
     TextRange
 }
 import rope.{Encoding, LineColumn, PositionCursor, Rope}
+import cjls.lsp_types.*
+import cjls.lsp_types.Range as LspRange
+import cjls.server.ServerSnapshot
 
 /**
  * `start..end`, byte offsets into `text`, as the client counts: lines and columns of `encoding`.

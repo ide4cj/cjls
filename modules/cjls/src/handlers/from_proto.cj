@@ -1,10 +1,10 @@
 package cjls.handlers
 
-import cjls.lsp_types.*
-import cjls.server.ServerSnapshot
 import loupe.db.SourceFile
 import loupe.vfs.VfsPath
 import rope.LineColumn
+import cjls.lsp_types.*
+import cjls.server.ServerSnapshot
 
 /**
  * The file a document of the client is, as the snapshot has it; `None` for one the server does

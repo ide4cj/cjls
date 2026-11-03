@@ -12,9 +12,12 @@ prevents both normalization and C28's package/member ordering.
 ## Decision
 
 Narrow D150's preservation contract for imports. Normalize consecutive
-comment-free declarations: sort std, stdx and other packages in that order,
-then packages and names alphabetically; combine explicit names from the same
-package only when visibility and annotation tokens match. Whitespace outside
+comment-free declarations: sort std, stdx, dependencies and packages of the
+current module in that order, then packages and names alphabetically. Identify
+the module by the first package component in the file's header, including an
+organization qualifier; files without a header keep non-standard imports in the
+dependency group. Retain this context for import-only ranges. Combine explicit
+names from the same package only when visibility and annotation tokens match. Whitespace outside
 annotation literals does not distinguish conditions. Public reexports follow
 the same rule. Preserve every imported path, alias, condition and visibility,
 including duplicate names. Keep wildcard imports separate from explicit names;

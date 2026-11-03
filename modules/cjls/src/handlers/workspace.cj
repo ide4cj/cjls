@@ -5,10 +5,6 @@ import std.env.getVariable
 import std.fs.{FSException, FileInfo}
 import std.time.MonoTime
 import stdx.log.Logger
-import cjls.lsp_ext.{BinarySourceRootsNotificationSpec, BinarySourceRootsParams}
-import cjls.lsp_types.*
-import cjls.macros.LspHandler
-import cjls.server.*
 import loupe.workspaceSymbols
 import loupe.db.ProjectModel
 import loupe.vfs.{
@@ -43,6 +39,10 @@ import project_model.{
 }
 import rope.Rope
 import stdxx.Nullable
+import cjls.lsp_ext.{BinarySourceRootsNotificationSpec, BinarySourceRootsParams}
+import cjls.lsp_types.*
+import cjls.macros.LspHandler
+import cjls.server.*
 
 /**
  * How many declarations `workspace/symbol` answers with at most: a query of a letter or two

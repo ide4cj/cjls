@@ -8,10 +8,10 @@ import calca.*
 import calca.macros.*
 import cjsyntax.CjSyntaxNode
 import cjsyntax.ast.AnyHasName
+import rope.Rope
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.fixture.*
 import loupe.syntax.parse
-import rope.Rope
 
 /**
  * Checks the types inference gives the bodies of `fixture` are its annotations: `//^ Int64` under

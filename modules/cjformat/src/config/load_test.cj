@@ -2,8 +2,8 @@ package cjformat.config
 
 import std.env.getTempDirectory
 import std.fs.{Directory, File, remove}
-import cjformat.{SimpleIf, formatText}
 import ftoml.FtException
+import cjformat.{SimpleIf, formatText}
 
 @Test
 class FormatConfigTest {

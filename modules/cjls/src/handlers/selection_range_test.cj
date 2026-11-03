@@ -3,10 +3,10 @@ package cjls.handlers
 import std.collection.ArrayList
 import std.unittest.*
 import std.unittest.testmacro.*
-import cjls.lsp_types.*
-import cjls.server.*
 import rope.Encoding
 import stdxx.Nullable
+import cjls.lsp_types.*
+import cjls.server.*
 
 func selectionRanges(
     state: ServerState,

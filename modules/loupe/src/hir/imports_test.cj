@@ -9,11 +9,11 @@ import calca.macros.*
 import cjsyntax.CjSyntaxNode
 import cjsyntax.ast.{ImportDecl, ImportTree}
 import ginkgo.{SyntaxElement, TextRange}
+import rope.Rope
 import loupe.db.AnalysisDatabase
 import loupe.fixture.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
-import rope.Rope
 
 /**
  * The leaves of `tree`, in the order `ItemTree` lowers them to paths.

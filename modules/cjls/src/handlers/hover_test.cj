@@ -4,10 +4,10 @@ import std.fs.Path
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import cjls.lsp_types.*
-import cjls.server.*
 import loupe.builtinTypeDoc
 import stdxx.Nullable
+import cjls.lsp_types.*
+import cjls.server.*
 
 func hoverOf(state: ServerState, path: Path, line: UInt32, character: UInt32): Nullable<Hover> {
     handleHover(

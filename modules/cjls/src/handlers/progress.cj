@@ -2,10 +2,10 @@ package cjls.handlers
 
 import std.sync.AtomicBool
 import stdx.log.Logger
-import cjls.lsp_types.*
-import cjls.server.Client
 import fjson.{JsonValue, RawJson, ToJson}
 import stdxx.IntegerOrString
+import cjls.lsp_types.*
+import cjls.server.Client
 
 /**
  * Work the client is shown the progress of: `$/progress` under a token the server creates

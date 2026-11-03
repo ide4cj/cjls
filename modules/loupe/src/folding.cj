@@ -5,10 +5,10 @@ import std.deriving.*
 import std.sort.*
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import ginkgo.SyntaxElement
+import rope.Rope
 import loupe.db.AnalysisDatabase
 import loupe.syntax.parse
 import loupe.vfs.FileId
-import rope.Rope
 
 /**
  * What a fold is: LSP names the first two, the others are for whoever tells folds apart.

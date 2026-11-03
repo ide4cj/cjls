@@ -10,9 +10,9 @@ import calca.macros.*
 import cjsyntax.*
 import cjsyntax.ast.FuncDecl
 import ginkgo.*
+import rope.Rope
 import loupe.db.*
 import loupe.vfs.FileId
-import rope.Rope
 
 /**
  * How many trees `parse` keeps, as its `lru` says.

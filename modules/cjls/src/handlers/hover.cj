@@ -1,10 +1,10 @@
 package cjls.handlers
 
+import loupe.hoverAt
+import stdxx.Nullable
 import cjls.lsp_types.*
 import cjls.macros.LspHandler
 import cjls.server.*
-import loupe.hoverAt
-import stdxx.Nullable
 
 /**
  * What the name at the position stands for: its declaration, or its type, and its doc comment, as

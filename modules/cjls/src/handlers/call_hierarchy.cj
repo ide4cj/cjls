@@ -1,13 +1,13 @@
 package cjls.handlers
 
 import std.collection.{filter, first}
-import cjls.lsp_types.*
-import cjls.macros.LspHandler
-import cjls.server.*
 import fjson.JsonValue
 import loupe.{CallHierarchyEntry, incomingCalls, outgoingCalls, prepareCallHierarchy}
 import loupe.hir.ItemFile
 import stdxx.Nullable
+import cjls.lsp_types.*
+import cjls.macros.LspHandler
+import cjls.server.*
 
 /**
  * Resolves the callable named at the client's position.

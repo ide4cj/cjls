@@ -23,12 +23,23 @@ public struct TextEdit {
  * Macro token trees and string contents retain their layout. Long indivisible text may overflow.
  */
 public func format(parsed: CjParse, options!: FormatOptions = FormatOptions()): ?Array<TextEdit> {
+    formatWithModule(parsed, options, moduleImportPrefix(parsed.syntaxNode()))
+}
+
+/**
+ * Carry the enclosing file's module into formatting of an import-only fragment.
+ */
+func formatWithModule(
+    parsed: CjParse,
+    options: FormatOptions,
+    moduleName: String
+): ?Array<TextEdit> {
     if (!parsed.errors.isEmpty()) {
         return None
     }
     let original = parsed.syntaxNode()
     let source = original.text()
-    let imports = importEdits(original, source)
+    let imports = importEdits(original, source, moduleName)
     let normalized = if (imports.isEmpty()) { source } else { applyEdits(source, imports) }
     let input = if (imports.isEmpty()) { parsed } else { parse(normalized) }
     if (!input.errors.isEmpty()) {

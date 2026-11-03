@@ -1,8 +1,8 @@
 package cjsyntax.ast
 
 import std.collection.*
-import cjsyntax.SyntaxKind
 import ginkgo.*
+import cjsyntax.SyntaxKind
 
 // The accessors `syntax_codegen` leaves out, of children the grammar tells neither by the tokens around them nor by
 // position: each is found by the tokens around it as only this code knows them.

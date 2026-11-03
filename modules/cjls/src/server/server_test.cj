@@ -6,13 +6,13 @@ import std.sync.{AtomicBool, AtomicInt64}
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import cjls.lsp_types.*
-import cjls.macros.LspHandler
 import fjson.*
 import jsonrpc.*
 import loupe.vfs.VfsPath
 import rope.Rope
 import stdxx.{IntegerOrString, Nullable}
+import cjls.lsp_types.*
+import cjls.macros.LspHandler
 
 /**
  * A request as the connection would hand it over, with its answer caught on a queue so a test can

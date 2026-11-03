@@ -3,9 +3,9 @@ package loupe
 import std.collection.*
 import std.unittest.*
 import std.unittest.testmacro.*
+import rope.Rope
 import loupe.fixture.*
 import loupe.syntax.parse
-import rope.Rope
 
 /**
  * Checks the names `findReferences` finds at the `$0` of `fixture` are its annotations, each labeled with how it

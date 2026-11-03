@@ -1,8 +1,8 @@
 package cjls.lsp_ext
 
-import cjls.lsp_types.{LspInboundRequest, MessageDirection}
 import fjson.*
 import stdxx.deriving.*
+import cjls.lsp_types.{LspInboundRequest, MessageDirection}
 
 /**
  * `cjls/analysisStats`: the work the analysis has done, counted, for a driver to read before and

@@ -2,8 +2,8 @@ package cjformat.config
 
 import std.env.getWorkingDirectory
 import std.fs.{FSException, File, Path, exists}
-import cjformat.FormatOptions
 import ftoml.{FtException, fromTomlString}
+import cjformat.FormatOptions
 
 /**
  * Reads the nearest `cjformat.toml`, starting at a source file's parent and walking to the

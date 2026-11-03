@@ -1,11 +1,11 @@
 package cjls.handlers
 
 import std.collection.{collectArray, filter, map}
+import loupe.{ExpandedPlace, Reference, findReferences}
+import stdxx.Nullable
 import cjls.lsp_types.*
 import cjls.macros.LspHandler
 import cjls.server.*
-import loupe.{ExpandedPlace, Reference, findReferences}
-import stdxx.Nullable
 
 /**
  * Every name of the workspace meaning what the one at the position does, the declarations among them if the

@@ -5,9 +5,9 @@ import std.deriving.*
 import std.time.MonoTime
 import stdx.log.*
 import calca.CancelledException
-import cjls.lsp_types.*
 import fjson.{FjReader, RawJson}
 import jsonrpc.*
+import cjls.lsp_types.*
 
 @Derive[Equatable]
 enum Lifecycle {

@@ -2,9 +2,9 @@ package loupe
 
 import cjsyntax.parse
 import cjsyntax.ast.SourceFile as AstSourceFile
+import rope.Rope
 import loupe.db.ProjectModel
 import loupe.vfs.VfsPath
-import rope.Rope
 
 /**
  * The header for a new file, or `None` when its project names no package. Explicit macro metadata
