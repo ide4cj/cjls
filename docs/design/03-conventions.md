@@ -456,7 +456,8 @@ start beside `=` when their first line fits.
 Nonempty declaration and control-flow bodies have one statement per line, except
 comment-free single-expression `if/else` branches in `simple_if = "compact"` mode
 when the complete expression fits.
-Commas and other significant tokens are preserved. Indivisible text may overflow.
+Comment-free singleton import lists without a trailing comma lose their redundant braces
+(D163). Commas and all other significant tokens are preserved. Indivisible text may overflow.
 
 Comments retain source order and their leading/trailing/dangling placement.
 Blank lines are capped at one; nonempty files end with one newline in their

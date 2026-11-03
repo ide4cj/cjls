@@ -3,7 +3,7 @@ package cjformat
 import std.collection.{ArrayList, collectArray}
 import std.env.getVariable
 import std.fs.{Directory, File, Path}
-import cjsyntax.{SyntaxKind, parse}
+import cjsyntax.{CjSyntaxNode, SyntaxKind, parse}
 import ginkgo.SyntaxElement
 
 /**
@@ -44,15 +44,18 @@ func formattingProblems(
     options!: FormatOptions = FormatOptions()
 ): Array<String> {
     let formatted = formatText(text, options: options) ?? return []
+    // Compare canonical import syntax independently of the formatter's layout implementation.
+    let canonical = canonicalImports(parse(text).syntaxNode())
+    let canonicalFormatted = canonicalImports(parse(formatted).syntaxNode())
     let problems = ArrayList<String>()
-    if (significant(formatted) != significant(text)) {
-        problems.add("${name}: formatting changed more than whitespace")
+    if (significant(canonicalFormatted) != significant(canonical)) {
+        problems.add("${name}: formatting changed tokens beyond singleton import braces")
     }
     let reparsed = parse(formatted)
     if (!reparsed.errors.isEmpty()) {
         problems.add("${name}: formatting introduced syntax errors: ${reparsed.errors}")
     }
-    if (structure(text) != structure(formatted)) {
+    if (structure(canonical) != structure(canonicalFormatted)) {
         problems.add("${name}: formatting changed the syntax tree")
     }
     if (formatText(formatted, options: options) != Some(formatted)) {
@@ -89,8 +92,8 @@ private func cjFilesUnder(dir: Path, files: ArrayList<Path>): Unit {
 }
 
 /**
- * A formatter over real code preserves tokens and syntax, produces parseable output, and
- * leaves its own output unchanged.
+ * Real code keeps tokens and syntax modulo singleton import braces, reparses successfully,
+ * and stays unchanged on a second formatting pass.
  */
 @Test
 @Tag[gate]
@@ -149,4 +152,31 @@ private func structure(text: String): Array<SyntaxKind> {
         .filter { e => !e.kind.isTrivia() }
         .map { e => e.kind } |>
         collectArray
+}
+
+/**
+ * Reference syntax for preservation checks: flatten only comment-free, comma-free singleton lists.
+ * Reparse it before comparing structure, since removing a list merges nested import-tree nodes.
+ */
+private func canonicalImports(n: CjSyntaxNode): String {
+    if (isOpaque(n.kind)) {
+        return n.text()
+    }
+    let children = n.childrenWithTokens() |> collectArray
+    let significant = children.filter { e => !e.kind.isTrivia() }
+    let canFlatten =
+        n.kind == SyntaxKind.ImportTreeList && significant.size == 3 &&
+            significant[1].kind == SyntaxKind.ImportTree &&
+            !n.descendantsWithTokens().any { e => isComment(e.kind) }
+    let out = StringBuilder()
+    for (child in children) {
+        if (canFlatten && (child.kind == SyntaxKind.LBrace || child.kind == SyntaxKind.RBrace)) {
+            continue
+        }
+        match (child) {
+            case SyntaxElement.Node(node) => out.append(canonicalImports(node))
+            case SyntaxElement.Token(token) => out.append(token.text())
+        }
+    }
+    out.toString()
 }

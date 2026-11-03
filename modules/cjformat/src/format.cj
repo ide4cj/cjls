@@ -17,7 +17,8 @@ public struct TextEdit {
 
 /**
  * Formats a file using `options`. Returns no edits for canonical
- * input, or `None` for a file with syntax errors. Tokens, including commas, are preserved.
+ * input, or `None` for a file with syntax errors. Removes redundant singleton import braces
+ * without comments or a trailing comma; all other significant tokens are preserved.
  * Macro token trees and string contents retain their layout. Long indivisible text may overflow.
  */
 public func format(parse: CjParse, options!: FormatOptions = FormatOptions()): ?Array<TextEdit> {

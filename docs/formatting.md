@@ -31,6 +31,11 @@ Both branches must contain exactly one expression and no comments. Longer
 expressions, multiple statements and `else if` retain multiline layout. Use
 `"multiline"` to expand all nonempty control bodies.
 
+Singleton import lists without comments or a trailing comma are simplified:
+`import source_change.{applyEdits}` becomes `import source_change.applyEdits`.
+Aliases and visibility are retained. This also applies to nested lists and range
+formatting. Imports are not sorted, merged or removed.
+
 Unknown keys, wrong types, invalid values and malformed TOML are errors. The CLI
 reports the config path and skips that file with a failing exit code. The LSP
 returns a failed formatting request. Other CLI files can still be formatted.
