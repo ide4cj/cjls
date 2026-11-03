@@ -3,7 +3,6 @@ package loupe
 import std.collection.*
 import std.deriving.*
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import cjsyntax.ast.SourceFile as SourceFileNode
 import cjsyntax.ast.{
     AnyHasName,
     AnyHasTypeParams,
@@ -20,12 +19,12 @@ import cjsyntax.ast.{
     isIdent
 }
 import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
-import py_interop.*
-import py_interop.internal_macros.DerivePython
 
 /**
  * A declaration a request goes to: its file, its whole node, and its name, what an editor selects;

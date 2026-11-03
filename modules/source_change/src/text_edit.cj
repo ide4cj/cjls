@@ -1,9 +1,9 @@
 package source_change
 
-import py_interop.*
-import py_interop.internal_macros.DerivePython
 import std.sort.sort
 import ginkgo.TextRange
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A replacement in UTF-8 byte offsets into the original text, with an exclusive end.

@@ -1,22 +1,19 @@
 package cjmcp
 
 import cjformat.{FormatOptions, SimpleIf}
-import source_change.{FileChange, SourceChange, TextEdit}
-import loupe.Reference as AnalysisReference
 import loupe.{
+    BuiltinDoc,
     CallDeclaration,
     CallGap,
-    DirectCall,
-    DirectCalls,
-    BuiltinDoc,
     CallHierarchyEntry,
-    HierarchyCalls,
     CompletionItem,
     CompletionKind,
     CompletionOverload,
     CompletionResult,
     CompletionSource,
     Definition,
+    DirectCall,
+    DirectCalls,
     ExpandedFile,
     ExpandedMacro,
     ExpandedOrigin,
@@ -27,12 +24,14 @@ import loupe.{
     Fold,
     FoldKind,
     FoundSymbol,
+    HierarchyCalls,
     HighlightModifier,
     HighlightModifiers,
     HighlightTag,
     HighlightedRange,
     MacroCallAt,
     NavigationTarget,
+    Reference as AnalysisReference,
     ReferenceAccess,
     RelatedHighlight,
     ShownExpansion
@@ -51,7 +50,6 @@ import loupe.db.{
     SourceFile,
     SpanOrigin
 }
-import loupe.hir.Resource as BodyResource
 import loupe.hir.{
     AccessTarget,
     ArgNameError,
@@ -69,7 +67,6 @@ import loupe.hir.{
     CatchArm,
     CfgExpr,
     CompilerType,
-    GenericOwner,
     DeclAttr,
     Def,
     DefId,
@@ -82,6 +79,7 @@ import loupe.hir.{
     ExtendedType,
     FieldResolution,
     FieldTargets,
+    GenericOwner,
     Generics,
     Glob,
     ImportError,
@@ -123,6 +121,7 @@ import loupe.hir.{
     Receiver,
     Redefinition,
     Resolution,
+    Resource as BodyResource,
     ScopeData,
     ScopeDiagnostic,
     ScopeId,
@@ -155,6 +154,7 @@ import loupe.hir.{
 import loupe.vfs.FileId
 @When[os == "Linux"]
 import py_interop.PyObj
+import source_change.{FileChange, SourceChange, TextEdit}
 
 /**
  * Register the native analysis types available in each Python script namespace.

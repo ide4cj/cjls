@@ -16,12 +16,12 @@ import cjsyntax.ast.{
     RefExpr,
     TrailingLambdaExpr
 }
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
-import py_interop.*
-import py_interop.internal_macros.DerivePython
 
 /**
  * A callable with source locations, independent of protocol positions. Without attached sources,

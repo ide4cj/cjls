@@ -5,8 +5,6 @@ import std.runtime.blackBox
 import stdx.log.{Logger, NoopLogger}
 import fjson.{JsonValue, fromJsonBytes}
 import ginkgo.TextRange
-import source_change.SourceChange
-import loupe.diagnostics as fileDiagnostics
 import loupe.{
     Diagnostic,
     HoverItem,
@@ -15,6 +13,7 @@ import loupe.{
     StructureKind,
     StructureNode,
     definitionAt,
+    diagnostics as fileDiagnostics,
     fileStructure,
     hoverAt
 }
@@ -23,6 +22,7 @@ import loupe.vfs.{FileId, VfsPath}
 import py_interop.*
 @When[os == "Linux"]
 import py_interop.internal_macros.DerivePython
+import source_change.SourceChange
 
 /**
  * Redirect file descriptors as well as Python streams so native output stays off the MCP wire.

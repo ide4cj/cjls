@@ -5,9 +5,6 @@ import std.deriving.*
 import calca.*
 import calca.macros.*
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import cjsyntax.ast.Expr as AstExpr
-import cjsyntax.ast.Param as AstParam
-import cjsyntax.ast.Stmt as AstStmt
 import cjsyntax.ast.{
     AnyHasName,
     Arg,
@@ -41,10 +38,10 @@ import cjsyntax.ast.{
     identText
 }
 import ginkgo.{Kind, SyntaxElement, SyntaxNodePtr}
-import loupe.db.{AnalysisDatabase, MacroSeverity}
-import loupe.syntax.parse
 import py_interop.*
 import py_interop.internal_macros.DerivePython
+import loupe.db.{AnalysisDatabase, MacroSeverity}
+import loupe.syntax.parse
 
 /**
  * An expression of a body, by its place among the body's `exprs`.

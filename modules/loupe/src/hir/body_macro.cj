@@ -6,10 +6,10 @@ import calca.macros.*
 import cjsyntax.{CjSyntaxNode, SyntaxKind}
 import cjsyntax.ast.{Decl, MacroArgs, MacroAttr, MacroExpandDecl, MacroExpandExpr, NameRef}
 import ginkgo.{SyntaxNodePtr, TextRange}
-import loupe.db.{AnalysisDatabase, SourceFile}
-import loupe.syntax.parse
 import py_interop.*
 import py_interop.internal_macros.DerivePython
+import loupe.db.{AnalysisDatabase, SourceFile}
+import loupe.syntax.parse
 
 /**
  * A macro called in an item, in a body or an initializer, not on the item (D117), as `bodyMacroCalls` finds it: its

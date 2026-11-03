@@ -17,9 +17,9 @@ import cjo.{
     TypeKind,
     openCjo
 }
-import loupe.db.{AnalysisDatabase, BinaryPackageFile}
 import py_interop.*
 import py_interop.internal_macros.DerivePython
+import loupe.db.{AnalysisDatabase, BinaryPackageFile}
 
 /**
  * A type and its bounds, `T <: A & B` of a `where`, as types.

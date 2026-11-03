@@ -2,65 +2,58 @@ package cjmcp
 
 import std.collection.ArrayList
 import std.fs.Path
-import ginkgo.TextRange
 import cjformat.{FormatOptions, TextEdit}
-import loupe.Reference as AnalysisReference
-import loupe.completionDetails as nativeCompletionDetails
-import loupe.prepareCallHierarchy as nativePrepareCallHierarchy
-import loupe.incomingCalls as nativeIncomingCalls
-import loupe.outgoingCalls as nativeOutgoingCalls
-import loupe.builtinTypeDoc as nativeBuiltinTypeDoc
-import loupe.builtinAnnotationDoc as nativeBuiltinAnnotationDoc
-import loupe.builtinMacroDoc as nativeBuiltinMacroDoc
-import loupe.fileSymbols as nativeFileSymbols
-import loupe.formatting as nativeFormatting
-import loupe.rangeFormatting as nativeRangeFormatting
-import loupe.hoverInExpansion as nativeHoverInExpansion
-import loupe.definitionInExpansion as nativeDefinitionInExpansion
-import loupe.typeDefinitionInExpansion as nativeTypeDefinitionInExpansion
+import ginkgo.TextRange
 import loupe.{
-    CallDeclaration,
-    DirectCalls,
     BuiltinDoc,
+    CallDeclaration,
     CallHierarchyEntry,
-    HierarchyCalls,
     CompletionItem,
     CompletionResult,
+    DirectCalls,
     ExpandedFile,
     ExpandedMacro,
-    Fold,
     FileSymbol,
+    Fold,
     FoundSymbol,
+    HierarchyCalls,
     HighlightedRange,
     HoverItem,
     HoverResult,
     MacroCallAt,
     NavigationTarget,
+    Reference as AnalysisReference,
     RelatedHighlight,
+    builtinAnnotationDoc as nativeBuiltinAnnotationDoc,
+    builtinMacroDoc as nativeBuiltinMacroDoc,
+    builtinTypeDoc as nativeBuiltinTypeDoc,
+    callDeclaration as nativeCallDeclaration,
+    completionDetails as nativeCompletionDetails,
     completionsAt,
+    definitionInExpansion as nativeDefinitionInExpansion,
+    directCalls as nativeDirectCalls,
     expandFile,
     expandedMacro,
     extendSelection,
+    fileSymbols as nativeFileSymbols,
     findReferences,
     foldingRanges,
+    formatting as nativeFormatting,
     highlight,
     highlightRelated,
+    hoverInExpansion as nativeHoverInExpansion,
     implementationsAt,
+    incomingCalls as nativeIncomingCalls,
     macroCallAt,
+    outgoingCalls as nativeOutgoingCalls,
+    prepareCallHierarchy as nativePrepareCallHierarchy,
+    rangeFormatting as nativeRangeFormatting,
+    trackedCallRoots as nativeTrackedCallRoots,
     typeDefinitionAt,
+    typeDefinitionInExpansion as nativeTypeDefinitionInExpansion,
     workspaceSymbols
 }
 import loupe.db.SourceFile
-import loupe.trackedCallRoots as nativeTrackedCallRoots
-import loupe.directCalls as nativeDirectCalls
-import loupe.callDeclaration as nativeCallDeclaration
-import loupe.hir.body as nativeBody
-import loupe.hir.signature as nativeSignature
-import loupe.hir.signatureWithSourceMap as nativeSignatureWithSourceMap
-import loupe.hir.allMembers as nativeAllMembers
-import loupe.hir.signatureTypes as nativeSignatureTypes
-import loupe.hir.supertypes as nativeSupertypes
-import loupe.hir.whenDiagnostics as nativeWhenDiagnostics
 import loupe.hir.{
     Body,
     BodyMacroCall,
@@ -83,6 +76,8 @@ import loupe.hir.{
     TyKind,
     TypeScope,
     WhenDiagnostics,
+    allMembers as nativeAllMembers,
+    body as nativeBody,
     bodyMacroCalls,
     bodyWithSourceMap,
     declaredTyOf,
@@ -97,8 +92,13 @@ import loupe.hir.{
     receiverOf,
     receiverTyOf,
     resolveField,
+    signature as nativeSignature,
+    signatureTypes as nativeSignatureTypes,
+    signatureWithSourceMap as nativeSignatureWithSourceMap,
     substitute,
-    typeScopeOf
+    supertypes as nativeSupertypes,
+    typeScopeOf,
+    whenDiagnostics as nativeWhenDiagnostics
 }
 import loupe.vfs.{FileId, VfsPath}
 @When[os == "Linux"]
