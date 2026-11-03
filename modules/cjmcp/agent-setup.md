@@ -65,6 +65,9 @@ For an agent host you control, retain the MCP initialization instructions in the
 model context and expose the `runPython` schema. Put the selection rule in your
 host's system/developer instructions if it has no persistent project file.
 Do not treat a successful MCP connection as evidence the agent used analysis.
+When forwarding tool results to the model, pass either `structuredContent` or the
+JSON text in `content`, rather than serializing both copies. Keep the full MCP
+response available to the client; this is a model-context presentation choice.
 
 ## Install the optional skill
 
