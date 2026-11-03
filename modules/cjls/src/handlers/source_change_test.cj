@@ -7,14 +7,14 @@ import cjls.lsp_types.*
 import loupe.TextRange
 import loupe.vfs.VfsPath
 import rope.Encoding
-import source_change.{FileChange, SourceChange}
 import source_change.TextEdit as SourceTextEdit
-import stdxx.Nullable
+import source_change.{FileChange, SourceChange}
 
 @Test
 class SourceChangeEditTest {
     @TestCase
     func legacyTextEditsUseExpectedTextAndCheckedInsertionOrder(): Unit {
+        // arrange
         let path = getTempDirectory().join("source-change.cj").toString()
         let change = SourceChange(
             [
@@ -30,6 +30,7 @@ class SourceChangeEditTest {
             ]
         )
 
+        // act
         let edit = sourceChangeEdit(
             change,
             Encoding.Utf16,
@@ -38,8 +39,10 @@ class SourceChangeEditTest {
             documentChanges: false
         )
 
+        // assert
         @Expect(edit.documentChanges.isNone())
-        let changes = edit.changes.getOrThrow()
+        let changes =
+            edit.changes.getOrThrow { IllegalStateException("expected unversioned changes") }
         @Expect(changes.size, 1)
         let edits = changes[VfsPath.file(path).toUri()]
         @Expect(edits.map { one => one.newText }, ["first", "second", "y"])
@@ -51,6 +54,7 @@ class SourceChangeEditTest {
 
     @TestCase
     func resourceOperationsRequireDocumentChangesEvenWhenAdvertised(): Unit {
+        // arrange
         let path = getTempDirectory().join("source-change.cj").toString()
         let operations =
             [
@@ -59,11 +63,17 @@ class SourceChangeEditTest {
                 FileChange.DeleteFile(path, "before")
             ]
 
+        // act / assert
         for (operation in operations) {
             let change = SourceChange([operation])
             @AssertThrows[IllegalArgumentException](
-                sourceChangeEdit(change, Encoding.Utf8, { _ => None },
-                    ["create", "rename", "delete"], documentChanges: false)
+                sourceChangeEdit(
+                    change,
+                    Encoding.Utf8,
+                    { _ => None },
+                    ["create", "rename", "delete"],
+                    documentChanges: false
+                )
             )
         }
     }
@@ -78,13 +88,15 @@ class SourceChangeEditTest {
 
         // act
         let edit = sourceChangeEdit(change, Encoding.Utf16, { _ => Some(7) }, [])
-        let documents = edit.documentChanges.getOrThrow()
+        let documents =
+            edit.documentChanges.getOrThrow { IllegalStateException("expected documentChanges") }
 
         // assert
         @Expect(documents.size, 1)
         match (documents[0]) {
             case AsTextDocumentEdit(document) =>
-                @Expect(document.textDocument.version.getOrThrow(), 7)
+                let version = document.textDocument.version.getOrThrow()
+                @Expect(version, 7)
                 match (document.edits[0]) {
                     case AsTextEdit(text) =>
                         @Expect(text.range.start.character, 3)
@@ -120,7 +132,8 @@ class SourceChangeEditTest {
             { _ => None },
             ["create", "rename", "delete"]
         )
-        let documents = edit.documentChanges.getOrThrow()
+        let documents =
+            edit.documentChanges.getOrThrow { IllegalStateException("expected documentChanges") }
 
         // assert
         @Expect(documents.size, 4)
@@ -169,9 +182,11 @@ class SourceChangeEditTest {
 
         // act
         let edit = sourceChangeEdit(change, Encoding.Utf8, { _ => None }, [])
+        let documents =
+            edit.documentChanges.getOrThrow { IllegalStateException("expected documentChanges") }
 
         // assert
-        match (edit.documentChanges.getOrThrow()[0]) {
+        match (documents[0]) {
             case AsTextDocumentEdit(document) =>
                 let texts =
                     document
@@ -195,6 +210,8 @@ class SourceChangeEditTest {
         let change = SourceChange([FileChange.CreateFile(path, "")])
 
         // act / assert
-        @AssertThrows[IllegalArgumentException](sourceChangeEdit(change, Encoding.Utf8, { _ => None }, []))
+        @AssertThrows[IllegalArgumentException](
+            sourceChangeEdit(change, Encoding.Utf8, { _ => None }, [])
+        )
     }
 }

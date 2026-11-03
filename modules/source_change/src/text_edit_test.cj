@@ -40,39 +40,40 @@ class TextEditTest {
     @TestCase
     func emptyChangesAndWholeFileDeletionAreValid(): Unit {
         // arrange
-        let original = "привет\r\n"
+        const ORIGINAL = "привет\r\n"
 
         // act
-        let unchanged = applyEdits(original, [])
-        let deleted = applyEdits(original, [TextEdit(TextRange(0, original.size), "")])
-        let created = applyEdits("", [TextEdit(TextRange(0, 0), original)])
+        let unchanged = applyEdits(ORIGINAL, [])
+        let deleted = applyEdits(ORIGINAL, [TextEdit(TextRange(0, ORIGINAL.size), "")])
+        let created = applyEdits("", [TextEdit(TextRange(0, 0), ORIGINAL)])
 
         // assert
-        @Expect(unchanged, original)
+        @Expect(unchanged, ORIGINAL)
         @Expect(deleted, "")
-        @Expect(created, original)
+        @Expect(created, ORIGINAL)
     }
 
     @TestCase
     func overlapAndInsertionsInsideReplacementsAreRejected(): Unit {
         // arrange
         let replacement = TextEdit(TextRange(0, 2), "x")
+        let overlapping = [replacement, replacement]
+        let inside = [replacement, TextEdit(TextRange(1, 1), "y")]
 
         // act / assert
-        @AssertThrows[IllegalArgumentException](applyEdits("abc", [replacement, replacement]))
-        @AssertThrows[IllegalArgumentException](applyEdits("abc", [replacement,
-            TextEdit(TextRange(1, 1), "y")]))
+        @AssertThrows[IllegalArgumentException](applyEdits("abc", overlapping))
+        @AssertThrows[IllegalArgumentException](applyEdits("abc", inside))
     }
 
     @TestCase
     func outOfBoundsAndSplitUtf8CharactersAreRejected(): Unit {
         // arrange
-        let text = "ё😀"
+        const TEXT = "ё😀"
 
         // act / assert
-        @AssertThrows[IllegalArgumentException](applyEdits(text, [TextEdit(TextRange(7, 7), "x")]))
-        @AssertThrows[IllegalArgumentException](applyEdits(text, [TextEdit(TextRange(0, 7), "x")]))
-        @AssertThrows[IllegalArgumentException](applyEdits(text, [TextEdit(TextRange(1, 2), "x")]))
-        @AssertThrows[IllegalArgumentException](applyEdits(text, [TextEdit(TextRange(2, 3), "x")]))
+        @AssertThrows[IllegalArgumentException](applyEdits(TEXT, [TextEdit(TextRange(7, 7), "x")]))
+        @AssertThrows[IllegalArgumentException](applyEdits(TEXT, [TextEdit(TextRange(0, 7), "x")]))
+        @AssertThrows[IllegalArgumentException](applyEdits(TEXT, [TextEdit(TextRange(1, 2), "x")]))
+        @AssertThrows[IllegalArgumentException](applyEdits(TEXT, [TextEdit(TextRange(2, 3), "x")]))
     }
 }

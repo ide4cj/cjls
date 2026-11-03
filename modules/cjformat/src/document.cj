@@ -1,9 +1,8 @@
 package cjformat
 
-import source_change.{applyEdits, TextEdit}
-
 import std.collection.{ArrayList, count}
 import ginkgo.TextRange
+import source_change.{TextEdit, applyEdits}
 
 /**
  * Marks a document that cannot flatten. A quarter of Int64.Max leaves room to add cached

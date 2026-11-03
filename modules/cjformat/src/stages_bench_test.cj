@@ -1,12 +1,11 @@
 package cjformat
 
-import source_change.{applyEdits, TextEdit}
-
 import std.env.getVariable
 import std.unittest.*
 import std.unittest.testmacro.*
 import cjsyntax.{CjParse, CjSyntaxNode, parse}
 import ginkgo.TextRange
+import source_change.{TextEdit, applyEdits}
 
 // Match formatter_cli.py explicitly so default policy changes cannot skew stage comparisons.
 let FORMAT_STAGE_OPTIONS = FormatOptions(

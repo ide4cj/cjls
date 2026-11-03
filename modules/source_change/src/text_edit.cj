@@ -65,6 +65,9 @@ public func validatedEdits(text: String, edits: Array<TextEdit>): Array<TextEdit
     ordered
 }
 
-private func isBoundary(text: String, offset: Int64): Bool {
+/**
+ * Whether an in-bounds byte offset starts a UTF-8 character or follows the last one.
+ */
+func isBoundary(text: String, offset: Int64): Bool {
     offset == text.size || (text[offset] & 0xC0) != 0x80
 }

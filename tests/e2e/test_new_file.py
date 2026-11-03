@@ -1,6 +1,9 @@
 """New-file headers share source-change translation with other editor edits."""
 
 import asyncio
+from pathlib import Path
+from urllib.parse import urlsplit
+from urllib.request import url2pathname
 
 import pytest
 from lsprotocol import types
@@ -14,14 +17,11 @@ from test_documents import open_document
 async def test_package_header_is_an_insertion_in_the_open_buffer(
     server: LanguageClient, tmp_path, versioned
 ):
+    # arrange
     (tmp_path / "cjpm.toml").write_text('[package]\nname = "app"\n')
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.cj").write_text("package app\nmain() {}\n")
     path = tmp_path / "src" / "new.cj"
-    expected_uri = path.as_uri()
-    # VfsPath canonicalizes the Windows drive letter, preserving the rest of the path (D12).
-    if len(path.drive) == 2:
-        expected_uri = expected_uri.replace(path.drive, path.drive.lower(), 1)
     caps = capabilities("neovim")
     caps.workspace.apply_edit = True
     caps.workspace.workspace_edit.document_changes = versioned
@@ -43,21 +43,27 @@ async def test_package_header_is_an_insertion_in_the_open_buffer(
     ))
     await loaded(server)
 
+    # act
     open_document(server, path.as_uri(), " \t\r\n\n", version=3)
-    params = await asyncio.wait_for(edits.get(), timeout=10)
+    params = await edits.get()
 
+    # assert
     assert params.label == "package app"
     if versioned:
         assert params.edit.changes is None
         assert len(params.edit.document_changes) == 1
         document = params.edit.document_changes[0]
-        assert document.text_document.uri == expected_uri
+        edit_uri = document.text_document.uri
         assert document.text_document.version == 3
         text_edits = document.edits
     else:
         assert params.edit.document_changes is None
-        assert list(params.edit.changes) == [expected_uri]
-        text_edits = params.edit.changes[expected_uri]
+        assert len(params.edit.changes) == 1
+        (edit_uri, text_edits), = params.edit.changes.items()
+    uri = urlsplit(edit_uri)
+    assert uri.scheme == "file"
+    assert uri.netloc == ""
+    assert Path(url2pathname(uri.path)) == path
     assert len(text_edits) == 1
     assert text_edits[0].range == types.Range(
         start=types.Position(line=0, character=0), end=types.Position(line=0, character=0)

@@ -1,9 +1,9 @@
 package cjformat
 
-public import source_change.TextEdit
-import source_change.applyEdits
 import cjsyntax.{CjParse, SyntaxKind, parse}
 import ginkgo.TextRange
+import source_change.applyEdits
+public import source_change.TextEdit
 
 const INDENT = 4
 const LINE_WIDTH = 100

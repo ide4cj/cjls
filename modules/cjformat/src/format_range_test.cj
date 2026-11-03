@@ -1,11 +1,10 @@
 package cjformat
 
-import source_change.{applyEdits}
-
 import std.unittest.*
 import std.unittest.testmacro.*
 import cjsyntax.parse
 import ginkgo.TextRange
+import source_change.applyEdits
 
 /**
  * `text` with the edits of `formatRange` over `range` made to it.

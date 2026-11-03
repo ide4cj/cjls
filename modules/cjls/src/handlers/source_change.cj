@@ -1,10 +1,11 @@
 package cjls.handlers
 
-import std.collection.{ArrayList, HashMap}
+import std.collection.HashMap
 import cjls.lsp_types.*
 import cjls.lsp_types.Range as LspRange
 import loupe.vfs.VfsPath
 import rope.{Encoding, Rope}
+import source_change.TextEdit as SourceTextEdit
 import source_change.{FileChange, SourceChange, validatedEdits}
 import stdxx.Nullable
 
@@ -26,101 +27,127 @@ func sourceChangeEdit(
 ): WorkspaceEdit {
     change.validate()
     if (!documentChanges) {
-        let changes = HashMap<DocumentUri, Array<TextEdit>>()
-        for (file in change.files) {
-            match (file) {
-                case FileChange.EditFile(path, before, edits) =>
-                    let text = Rope(before)
-                    changes.add(
-                        VfsPath.file(path).toUri(),
-                        validatedEdits(before, edits).map { edit => textEdit(text, edit, encoding) }
-                    )
-                case _ =>
-                    throw IllegalArgumentException(
-                        "file operations require documentChanges support"
-                    )
-            }
-        }
-        return WorkspaceEdit(changes: changes)
+        return unversionedSourceChangeEdit(change, encoding)
     }
-    let changes = ArrayList<TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile>()
-    for (file in change.files) {
-        match (file) {
-            case FileChange.EditFile(path, before, edits) =>
-                let uri = VfsPath.file(path).toUri()
-                let version =
-                    match (versionOf(path)) {
-                        case Some(value) => Nullable<Int32>.Value(value)
-                        case None => Nullable<Int32>.Null
-                    }
-                let text = Rope(before)
-                changes.add(
-                    TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile.AsTextDocumentEdit(
-                        TextDocumentEdit(
-                            textDocument: OptionalVersionedTextDocumentIdentifier(
-                                uri: uri,
-                                version: version
-                            ),
-                            edits: validatedEdits(before, edits)
-                                .map {
-                                    edit =>
-                                    TextEditOrAnnotatedTextEditOrSnippetTextEdit.AsTextEdit(
-                                        textEdit(text, edit, encoding)
-                                    )
-                                }
-                        )
-                    )
-                )
-            case FileChange.CreateFile(path, text) =>
-                requireResourceOperation(resourceOperations, "create")
-                let uri = VfsPath.file(path).toUri()
-                changes.add(
-                    TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile.AsCreateFile(
-                        CreateFile(uri: uri)
-                    )
-                )
-                let start = Position(line: 0, character: 0)
-                changes.add(
-                    TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile.AsTextDocumentEdit(
-                        TextDocumentEdit(
-                            textDocument: OptionalVersionedTextDocumentIdentifier(
-                                uri: uri,
-                                version: Nullable.Null
-                            ),
-                            edits: [
-                                TextEditOrAnnotatedTextEditOrSnippetTextEdit.AsTextEdit(
-                                    TextEdit(
-                                        range: LspRange(start: start, end: start),
-                                        newText: text
-                                    )
-                                )
-                            ]
-                        )
-                    )
-                )
-            case FileChange.RenameFile(path, target, _) =>
-                requireResourceOperation(resourceOperations, "rename")
-                changes.add(
-                    TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile.AsRenameFile(
-                        RenameFile(
-                            oldUri: VfsPath.file(path).toUri(),
-                            newUri: VfsPath.file(target).toUri()
-                        )
-                    )
-                )
-            case FileChange.DeleteFile(path, _) =>
-                requireResourceOperation(resourceOperations, "delete")
-                changes.add(
-                    TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile.AsDeleteFile(
-                        DeleteFile(uri: VfsPath.file(path).toUri())
-                    )
-                )
-        }
-    }
-    WorkspaceEdit(documentChanges: changes.toArray())
+    let changes =
+        change
+            .files
+            .flatMap { file => sourceFileChanges(file, encoding, versionOf, resourceOperations) }
+    WorkspaceEdit(documentChanges: changes)
 }
 
-private func requireResourceOperation(supported: Array<String>, operation: String): Unit {
+/**
+ * Translates text-only changes for a client without documentChanges support.
+ *
+ * @throws IllegalArgumentException - if the change contains a resource operation
+ */
+func unversionedSourceChangeEdit(change: SourceChange, encoding: Encoding): WorkspaceEdit {
+    let changes =
+        change
+            .files
+            .map {
+                file =>
+                match (file) {
+                    case FileChange.EditFile(path, before, edits) =>
+                        (VfsPath.file(path).toUri(), sourceTextEdits(before, edits, encoding))
+                    case _ =>
+                        throw IllegalArgumentException(
+                            "file operations require documentChanges support"
+                        )
+                }
+            }
+    WorkspaceEdit(changes: HashMap<DocumentUri, Array<TextEdit>>(changes))
+}
+
+/**
+ * Translates one file operation, putting creation before its initial contents.
+ *
+ * @throws IllegalArgumentException - if the client does not support the resource operation
+ */
+func sourceFileChanges(
+    file: FileChange,
+    encoding: Encoding,
+    versionOf: (String) -> ?Int32,
+    resourceOperations: Array<String>
+): Array<TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile> {
+    match (file) {
+        case FileChange.EditFile(path, before, edits) =>
+            let version =
+                versionOf(path).map { value => Nullable<Int32>.Value(value) } ??
+                    Nullable<Int32>.Null
+            [
+                sourceDocumentEdit(
+                    VfsPath.file(path).toUri(),
+                    version,
+                    sourceTextEdits(before, edits, encoding)
+                )
+            ]
+        case FileChange.CreateFile(path, text) =>
+            requireResourceOperation(resourceOperations, "create")
+            let uri = VfsPath.file(path).toUri()
+            let start = Position(line: 0, character: 0)
+            let edit = TextEdit(range: LspRange(start: start, end: start), newText: text)
+            [
+                TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile.AsCreateFile(
+                    CreateFile(uri: uri)
+                ),
+                sourceDocumentEdit(uri, Nullable.Null, [edit])
+            ]
+        case FileChange.RenameFile(path, target, _) =>
+            requireResourceOperation(resourceOperations, "rename")
+            [
+                TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile.AsRenameFile(
+                    RenameFile(
+                        oldUri: VfsPath.file(path).toUri(),
+                        newUri: VfsPath.file(target).toUri()
+                    )
+                )
+            ]
+        case FileChange.DeleteFile(path, _) =>
+            requireResourceOperation(resourceOperations, "delete")
+            [
+                TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile.AsDeleteFile(
+                    DeleteFile(uri: VfsPath.file(path).toUri())
+                )
+            ]
+    }
+}
+
+/**
+ * Wraps text edits with the document version captured alongside their original text.
+ */
+func sourceDocumentEdit(
+    uri: DocumentUri,
+    version: Nullable<Int32>,
+    edits: Array<TextEdit>
+): TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile {
+    let document = TextDocumentEdit(
+        textDocument: OptionalVersionedTextDocumentIdentifier(uri: uri, version: version),
+        edits: edits.map { edit => TextEditOrAnnotatedTextEditOrSnippetTextEdit.AsTextEdit(edit) }
+    )
+    TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile.AsTextDocumentEdit(document)
+}
+
+/**
+ * Converts checked byte ranges using the original document text.
+ *
+ * @throws IllegalArgumentException - for invalid or overlapping edits
+ */
+func sourceTextEdits(
+    before: String,
+    edits: Array<SourceTextEdit>,
+    encoding: Encoding
+): Array<TextEdit> {
+    let text = Rope(before)
+    validatedEdits(before, edits).map { edit => textEdit(text, edit, encoding) }
+}
+
+/**
+ * Requires the client's advertised support before translating a resource operation.
+ *
+ * @throws IllegalArgumentException - if the operation is unsupported
+ */
+func requireResourceOperation(supported: Array<String>, operation: String): Unit {
     if (!supported.contains(operation)) {
         throw IllegalArgumentException("client does not support ${operation} resource operations")
     }
