@@ -6,10 +6,10 @@ import calca.macros.*
 import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind}
 import cjsyntax.ast.{AnyHasName, Decl, MacroExpandDecl, SourceFile as SourceFileNode, identText}
 import ginkgo.{SyntaxElement, SyntaxNodePtr}
-import loupe.db.{AnalysisDatabase, SourceFile}
-import loupe.syntax.parse
 import py_interop.*
 import py_interop.internal_macros.DerivePython
+import loupe.db.{AnalysisDatabase, SourceFile}
+import loupe.syntax.parse
 
 /**
  * What an item is: a declaration the item tree holds, an import, or a macro call on no declaration;

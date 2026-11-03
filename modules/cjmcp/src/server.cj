@@ -1,8 +1,8 @@
 package cjmcp
 
+import stdx.log.{Logger, NoopLogger}
 import fjson.{JsonValue, fromJsonBytes}
 import loupe.vfs.VfsPath
-import stdx.log.{Logger, NoopLogger}
 
 class McpException <: Exception {
     McpException(message: String, let code: Int64) {

@@ -7,11 +7,12 @@ import ginkgo.{Direction, SyntaxElement, SyntaxNodePtr, TokenSet}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{Annotation, Decl, isIdent}
 public import ginkgo.TextRange
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
-import py_interop.*
-import py_interop.internal_macros.DerivePython
+import loupe.vfs.FileId
 
 /**
  * What a token is: by the tree, and a name at its use by what it means (D72). In a file of no

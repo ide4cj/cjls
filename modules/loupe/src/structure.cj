@@ -4,11 +4,11 @@ import std.collection.*
 import cjsyntax.{CjParse, CjSyntaxNode, CjSyntaxToken}
 import cjsyntax.ast.{AnyHasName, Decl, ExtendDecl, Name, Pattern, SourceFile, VarDecl, identText}
 import ginkgo.{SyntaxElement, TextRange}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.AnalysisDatabase
 import loupe.syntax.parse
 import loupe.vfs.FileId
-import py_interop.*
-import py_interop.internal_macros.DerivePython
 
 @DerivePython
 public enum StructureKind <: ToString & Equatable<StructureKind> {

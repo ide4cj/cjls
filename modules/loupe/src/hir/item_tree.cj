@@ -15,10 +15,10 @@ import cjsyntax.ast.{
     VarDecl
 }
 import ginkgo.{SyntaxElement, SyntaxNodePtr}
-import loupe.db.{AnalysisDatabase, SourceFile}
-import loupe.syntax.parse
 import py_interop.*
 import py_interop.internal_macros.DerivePython
+import loupe.db.{AnalysisDatabase, SourceFile}
+import loupe.syntax.parse
 
 /**
  * A modifier, as written before a declaration.
