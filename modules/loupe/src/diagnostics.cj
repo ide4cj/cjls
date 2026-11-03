@@ -15,12 +15,12 @@ import cjsyntax.ast.{
     TrailingLambdaExpr
 }
 import ginkgo.{SyntaxElement, TextRange}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, MacroSeverity, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
-import py_interop.*
-import py_interop.internal_macros.DerivePython
 
 @DerivePython
 public enum Severity <: Equatable<Severity> {

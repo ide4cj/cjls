@@ -18,12 +18,12 @@ import cjsyntax.ast.{
     isIdent
 }
 import ginkgo.SyntaxElement
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.hir.ItemFile
 import loupe.syntax.parse
 import loupe.vfs.FileId
-import py_interop.*
-import py_interop.internal_macros.DerivePython
 
 /**
  * How a name reaches what it means: reads it, or gives it a value.

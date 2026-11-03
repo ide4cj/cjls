@@ -3,11 +3,11 @@ package cjmcp
 import std.collection.{ArrayList, HashSet}
 import std.fs.{Directory, File, FileInfo, HardLink, Path, exists, remove}
 import loupe.vfs.VfsPath
-import source_change.{FileChange, SourceChange, applyEdits}
 @When[os == "Linux"]
 import py_interop.*
 @When[os == "Linux"]
 import py_interop.internal_macros.DerivePython
+import source_change.{FileChange, SourceChange, applyEdits}
 
 /**
  * Application report using zero-based operation indices in the supplied SourceChange.

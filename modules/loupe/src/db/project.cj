@@ -6,9 +6,9 @@ import std.sort.*
 import calca.*
 import calca.macros.*
 import index_map.IndexMap
-import loupe.vfs.*
 import py_interop.*
 import py_interop.internal_macros.DerivePython
+import loupe.vfs.*
 
 /**
  * The package of a file with no `package` line, as cjc names it.

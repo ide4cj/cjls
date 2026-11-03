@@ -2,9 +2,9 @@ package loupe
 
 import std.collection.{ArrayList, HashMap, HashSet}
 import std.deriving.Derive
-import loupe.hir.{DefId, Ty}
 import py_interop.*
 import py_interop.internal_macros.DerivePython
+import loupe.hir.{DefId, Ty}
 
 /**
  * A declaration in a completion group, seen through its receiver type when it is a member.

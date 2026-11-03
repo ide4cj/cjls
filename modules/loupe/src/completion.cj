@@ -5,12 +5,12 @@ import std.sort.*
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind, reparse}
 import cjsyntax.ast.{Decl, MemberAccessExpr, RefExpr}
 import ginkgo.{Direction, SyntaxElement, SyntaxNodePtr, TextRange, TokenAtOffset}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
-import py_interop.*
-import py_interop.internal_macros.DerivePython
 
 /**
  * The name completion inserts at the cursor to parse the file as if one were there, R1's

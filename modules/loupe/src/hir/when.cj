@@ -14,10 +14,10 @@ import cjsyntax.ast.{
     StringLit
 }
 import ginkgo.TextRange
-import loupe.db.{AnalysisDatabase, Cfg, SourceFile}
-import loupe.syntax.parse
 import py_interop.*
 import py_interop.internal_macros.DerivePython
+import loupe.db.{AnalysisDatabase, Cfg, SourceFile}
+import loupe.syntax.parse
 
 const CJC_VERSION = "cjc_version"
 

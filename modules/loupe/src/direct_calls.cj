@@ -6,6 +6,8 @@ import calca.macros.*
 import cjsyntax.{CjSyntaxNode, SyntaxKind}
 import cjsyntax.ast.{CallExpr, Param, TrailingLambdaExpr}
 import ginkgo.SyntaxNodePtr
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.hir.{
     ActiveFilter,
@@ -30,8 +32,6 @@ import loupe.hir.{
 }
 import loupe.syntax.parse
 import loupe.vfs.FileId
-import py_interop.*
-import py_interop.internal_macros.DerivePython
 
 /**
  * A possible immediate call at a UTF-8 source site. Targets belong to the producing database/revision.

@@ -6,10 +6,10 @@ import calca.*
 import calca.macros.*
 import cjsyntax.parse as parseText
 import ginkgo.TextRange
-import loupe.db.{AnalysisDatabase, SourceFile}
-import loupe.vfs.FileId
 import py_interop.*
 import py_interop.internal_macros.DerivePython
+import loupe.db.{AnalysisDatabase, SourceFile}
+import loupe.vfs.FileId
 
 /**
  * A declaration of a file, as a search of the workspace sees it: an entry of its outline, and the
