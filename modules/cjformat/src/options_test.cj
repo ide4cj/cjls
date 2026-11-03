@@ -2,6 +2,7 @@ package cjformat
 
 import cjsyntax.parse
 import ginkgo.TextRange
+import source_change.applyEdits
 
 @Test
 class FormatOptionsTest {

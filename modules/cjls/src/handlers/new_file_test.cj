@@ -4,11 +4,11 @@ import std.fs.{Path, remove}
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import jsonrpc.RequestBody
-import rope.Rope
 import cjls.lsp_types.*
 import cjls.lsp_types.Range as LspRange
 import cjls.server.*
+import jsonrpc.RequestBody
+import rope.Rope
 
 /**
  * A cjpm module `app`, with the packages `app` and `app.util`.
@@ -130,8 +130,8 @@ class NewFilePackageTest {
         @Expect(changesOf(edit, uriOf(path))[0].newText, "macro package app.ms\n")
     }
 
-    @TestCase
-    func aClientTakingVersionsIsGivenTheLineOfTheVersionOpened() {
+    @TestCase[text in ["", "\n", " \t\r\n\n"]]
+    func aClientTakingVersionsIsGivenTheLineOfTheVersionOpened(text: String): Unit {
         // arrange
         let root = appModule()
         let loop = editableWith(root, versioned: true)
@@ -140,7 +140,7 @@ class NewFilePackageTest {
         let path = root.join("src").join("util").join("new.cj")
 
         // act
-        openBlank(loop, client, path, text: "")
+        openBlank(loop, client, path, text: text)
         client.close()
         remove(root, recursive: true)
 

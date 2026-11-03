@@ -2,6 +2,7 @@ package cjformat
 
 import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind}
 import ginkgo.TextRange
+import source_change.TextEdit
 
 /**
  * Formats the smallest complete statement/declaration enclosing the selected non-whitespace
