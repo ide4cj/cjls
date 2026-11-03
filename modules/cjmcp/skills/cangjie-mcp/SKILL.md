@@ -16,6 +16,18 @@ compute global maxima first and preserve all ties. Use the documented API before
 introspection; another call is warranted for errors, missing evidence or a fresh
 revision after edits. Do not replay scripts with effects without inspecting state.
 
+Common source workflow: locate declarations with symbols or fileSymbols,
+then return source_excerpts(a, [(path, node.range), ...], max_bytes=12000).
+The helper supplies paths, lines, byte ranges and pagination without cutting text.
+Choose members instead of entire large classes. Keep full a.text(path) strings
+inside Python for applyChange expected text; return its report and a short diff.
+Reacquire analysis in a new call and check diagnostics and affected semantics.
+Small files may be returned whole when useful. See [navigation](references/navigation.md)
+for a complete example and [editing](references/editing.md) for checked edits.
+runPython rejects responses over 24000 UTF-8 JSON bytes by default. On
+OutputBudgetExceeded, use last_output to select evidence without replaying
+the script. Set tool argument maxOutputBytes=0 for an explicitly unlimited reply.
+
 Read only the recipe needed for an unfamiliar operation:
 
 - [Declarations and usages](references/navigation.md)

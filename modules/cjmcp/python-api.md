@@ -7,19 +7,25 @@ The server sends a semantic-query playbook in the MCP initialization response.
 they ship with the Linux archive alongside the skill. Native objects and types
 are injected into scripts; there is no importable `loupe` Python package.
 
-For example, a single script can find functions across the workspace:
+For source work, select declarations with native queries and return a budgeted page:
 
-```python
-result = [
-    {"path": path, "name": node.name, "start": node.selectionRange.start}
-    for path in workspace.files()
-    for node in workspace.structure(path)
-    if node.kind.toString() == "Function"
-]
-```
+~~~python
+a = workspace.analysis()
+matches = a.symbols("targetName", 20)
+result = {"search_may_have_more": len(matches) == 20,
+          "source": source_excerpts(a, [(a.path(s.fileId), s.symbol.range) for s in matches])}
+~~~
 
-`node` is a native `loupe.StructureNode` exported through `py_interop`, and
-`node.range` is the original `ginkgo.TextRange`. They are not JSON dictionaries.
+The injected Python helper source_excerpts(analysis, requests, max_bytes=12000,
+offset=0, limit=20, context_lines=0) takes (path, TextRange) pairs. Keyword options
+control a shared compact UTF-8 JSON budget, pagination and surrounding lines.
+It presents source; it adds no semantic query or write API. It returns paths,
+one-based inclusive lines, requested/shown byte ranges, revision, total, returned,
+omitted and next_offset; oversized fragments remain unreturned with required_bytes.
+See [navigation](skills/cangjie-mcp/references/navigation.md) for exact paging
+semantics and selecting members of large classes.
+
+Native node/range values are objects, not JSON dictionaries.
 The workspace handle provides:
 
 | Workspace member | Result |
@@ -142,7 +148,7 @@ An `AnalysisRevision` also offers:
 
 Native navigation/reference/symbol results contain `FileId`; call `path(fileId)`
 on the same revision. `NavigationTarget.expansion` identifies expansion-relative
-ranges. SDK macro outputs are loaded before the revision is returned.
+ranges. Expansion availability must be checked for queries that depend on macro output.
 Expansion queries reject unavailable expansion text and invalid byte positions;
 their hover ranges refer to that expansion. Navigation targets may refer to source
 or another expansion; inspect `NavigationTarget.expansion` before slicing text.
@@ -209,6 +215,32 @@ already performed external effects. Preparation failures are retried before a
 later script; no script is run on a workspace whose preparation threw.
 
 ## Script execution
+
+The optional tool argument maxOutputBytes defaults to 24000 ([D164](../../docs/adr/0164-cjmcp-output-budget.md)). It bounds the
+complete compact UTF-8 JSON payload (result, stdout, stderr, error, revision),
+before the MCP text/structuredContent wrapper duplicates it. It is not a wire-size,
+token, memory or execution limit. A nonnegative integer is required; 0 explicitly
+allows an unlimited reply. Existing code-only calls remain valid, with this new
+default protection. Small results have the same fields as before.
+
+After execution/stream capture, exceeding the limit returns isError=true with
+OutputBudgetExceeded, empty stdout/stderr, null result, the original revision and
+outputBudget {limit_bytes, actual_bytes, retained}. Nothing is partially
+truncated. This actionable error envelope is exempt from the requested budget,
+so even maxOutputBytes=1 reports a useful failure. Side effects have already
+happened; scripts are never replayed automatically.
+
+The complete rejected payload, including stdout, stderr, traceback and its
+original revision, is injected as last_output in subsequent scripts. It is null
+before the first rejection and retained until another rejection replaces it.
+Filter that dictionary in Python, for example result = last_output["result"][0],
+or retrieve it whole with code="result = last_output", maxOutputBytes=0. A
+successful recovery does not clear it. It is session-local, holds one response
+in memory and is not a durable artifact. Native objects are not retained by this
+feature: the saved value is a JSON round-trip. It may describe an older revision;
+reacquire analysis and compare revisions before acting on saved source ranges.
+The budget prevents context overflow, not the memory needed to construct and
+serialize a large result or capture native output.
 
 Each script gets a fresh global namespace and ordinary Python imports. Assign
 JSON-serializable data to `result`, print output, or both. The MCP response has

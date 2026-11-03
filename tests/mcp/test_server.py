@@ -11,6 +11,8 @@ import textwrap
 import threading
 import unittest
 
+from output_checks import OutputChecks
+
 ROOT = Path(__file__).resolve().parents[2]
 BINARY = os.environ.get("CJMCP_BIN", str(ROOT / "target/release/bin/cjmcp"))
 
@@ -24,7 +26,7 @@ def server_environment():
 
 
 @unittest.skipUnless(sys.platform.startswith("linux"), "embedded CPython experiment supports native Linux")
-class McpStdioTest(unittest.TestCase):
+class McpStdioTest(OutputChecks, unittest.TestCase):
     def test_repeated_native_proxy_allocation(self):
         # Reentering through enum constructors and payload getters exposed invalid GC roots.
         # This needs the real process: an interpreter crash cannot become a tool error.
@@ -146,9 +148,12 @@ result = i + 1
                 self.assertNotIn("error", reply)
                 return reply["result"]
 
-            def run(code, *, error=False):
+            def run(code, *, error=False, max_output_bytes=None):
+                arguments = {"code": textwrap.dedent(code)}
+                if max_output_bytes is not None:
+                    arguments["maxOutputBytes"] = max_output_bytes
                 result = rpc("tools/call", {
-                    "name": "runPython", "arguments": {"code": textwrap.dedent(code)},
+                    "name": "runPython", "arguments": arguments,
                 })
                 self.assertEqual(result["isError"], error, result)
                 self.assertEqual(json.loads(result["content"][0]["text"]), result["structuredContent"])
@@ -228,6 +233,9 @@ result = i + 1
                 self.assertEqual(unchanged["revision"], native["revision"])
                 self.assertEqual(unchanged["result"], native["revision"])
 
+                self._check_output_budgets(root, run)
+                self._check_source_excerpts(run)
+                self._check_large_source_workflow(run)
                 self._check_source_editing(run)
                 self._check_source_changes(run)
 
@@ -799,6 +807,7 @@ result = i + 1
             result = a.revision
         """)
         self.assertGreater(renamed['revision'], checked['revision'])
+
 
     def _check_source_editing(self, run):
         # arrange - create and then edit UTF-8 source entirely inside runPython.

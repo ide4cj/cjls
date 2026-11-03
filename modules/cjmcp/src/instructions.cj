@@ -16,6 +16,33 @@ limiting output. Compute global maxima before limiting and return every tied
 winner. Keep intermediate objects in Python; include totals and omitted counts.
 Return paths, relevant source/ranges and needed signatures with the conclusions.
 
+Source workflow (small full files are fine; keep large file text inside Python):
+1. Locate names with a.symbols(name, 20), or filter a.fileSymbols(path) / nested
+   workspace.structure(path) when paths are known. Return a compact candidate list
+   before choosing an ambiguous declaration; symbols' limit is not a total count.
+2. Pass selected (path, symbol.range) pairs to
+   source_excerpts(a, requests, max_bytes=12000, offset=0, limit=20, context_lines=0).
+   found = a.symbols("targetName", 20)
+   result = {"search_may_have_more": len(found) == 20,
+             "source": source_excerpts(a, [(a.path(s.fileId), s.symbol.range)
+                                          for s in found])}
+   It returns paths, one-based lines, UTF-8 requested/shown ranges, revision,
+   total requests, omitted count and next_offset. It never cuts an excerpt.
+   Recreate the same ordered requests at the same revision to page next_offset.
+   If an entry cannot fit, narrow its range (e.g. select a member rather than
+   its class) or raise max_bytes; required_bytes reports the blocked page size.
+3. Edit using applyChange below; keep full expectedText in Python, not in result.
+   Return the application report and a small unified diff (difflib, n=2).
+4. In a fresh call check changed ranges, references/inference as relevant and
+   diagnostics (message/range); report totals and omissions. Run compiler/tests.
+Do semantic selection before implementing, rather than only checking afterwards.
+runPython defaults to maxOutputBytes=24000 for the complete UTF-8 JSON payload.
+Excess returns an explicit OutputBudgetExceeded error after the script executed.
+The complete rejected payload is available as last_output in later calls until
+replaced by another rejection: select only needed fields, without replaying edits.
+For an intentionally large response set maxOutputBytes higher, or 0 (unlimited).
+Output budgets concern returned data, not reading full files inside Python.
+
 Capture a = workspace.analysis() in each call. Core queries:
 - a.symbols(name, limit) -> matches with .fileId and .symbol (name, range,
   selectionRange). Resolve paths with a.path(fileId).
@@ -30,7 +57,9 @@ Capture a = workspace.analysis() in each call. Core queries:
 
 Include workspace.root, workspace.problems and workspace.hasExpandedMacros in the
 first useful task query, not a separate setup call; report mismatched roots or
-incomplete analysis. Use documented APIs before introspection; make another call
+incomplete analysis. hasExpandedMacros=false alone can be transient while macro
+work runs; inspect problems and query only expansion-dependent evidence again
+when needed. Do not wait for expansion on every query. Use documented APIs before introspection; make another call
 for errors, missing evidence or a fresh revision after edits.
 Ranges are UTF-8 bytes, end exclusive: slice a.text(path).encode('utf-8').
 Use workspace.applyChange(SourceChange([...]), a.revision) for project edits.

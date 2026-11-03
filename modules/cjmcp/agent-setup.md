@@ -56,7 +56,12 @@ project instructions so tool selection does not depend on a user reminder:
 When cjmcp is connected, use runPython for Cangjie source analysis, reading and
 editing; do not substitute shell commands or subprocesses. Follow server
 instructions and report partial analysis without a shell fallback. Batch a
-self-contained read-only task into one script and return bounded evidence.
+self-contained read-only task into Python. Find declarations, select relevant
+members, then return source_excerpts(a, [(path, node.range)], max_bytes=12000).
+Keep full expected text inside Python for applyChange; return a short diff and
+check fresh diagnostics. Small whole files are fine. On OutputBudgetExceeded,
+select from last_output without replaying effects; maxOutputBytes=0 explicitly
+permits a full reply.
 Use shell for Git, builds, tests and non-Cangjie files. Without a connection,
 use ordinary source tools.
 ```
@@ -113,7 +118,7 @@ with the first useful query instead.
 
 Then ask it to find a known declaration and its usages, showing resolved paths,
 byte ranges and a bounded source excerpt. Use the
-[recipes](skills/cangjie-mcp/references/navigation.md#find-declarations-and-their-usages).
+[recipes](skills/cangjie-mcp/references/navigation.md).
 Finally, apply a small source change through `runPython` using the
 [editing recipe](skills/cangjie-mcp/references/editing.md), and ask for diagnostics in a new call. The
 revision should change for an observed input change and the answer should use
@@ -123,6 +128,9 @@ If the tool is absent, check configuration, tool enablement and schema discovery
 If it fails to start, check the binary and CPython 3.9–3.14/SDK environment in the
 client-launched process and server stderr. If results are partial, inspect
 `problems` and `hasExpandedMacros`; an empty result does not establish correctness.
+A transient hasExpandedMacros=false alone does not establish a failure: inspect
+problems and repeat only queries that need missing expansion evidence. Ordinary
+source queries do not require mandatory waiting for macro completion.
 If the agent keeps grepping usages, check that project instructions and the skill
 are actually loaded and that the host exposes the server's instructions. Do not
 fall back to shell for Cangjie source work. Keep shell available for non-Cangjie

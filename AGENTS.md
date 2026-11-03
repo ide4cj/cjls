@@ -50,14 +50,19 @@ guidance unless it changed. See [documentation navigation](docs/README.md#read-f
 
 ## Efficient cjmcp queries
 
-- Aim for one `runPython` call per self-contained read-only task. Compose queries,
-  filtering, aggregation and supporting source excerpts inside Python; include
+- Compose each self-contained read-only task in Python; call count is not the
+  goal. Use queries, filtering, aggregation and supporting source excerpts inside Python; include
   root, loading problems and macro status with that first useful query.
 - Use the API documented by the tool. Load one relevant recipe only for an
   unfamiliar operation; avoid preliminary calls just to print types or `dir()`.
-- Return bounded JSON evidence: conclusions, paths, ranges and needed signatures
-  or excerpts. Keep intermediate objects inside Python; report totals and omitted
-  counts. Compute global maxima before limiting output and preserve all ties.
+- Find declarations with symbols/fileSymbols, select relevant members, then
+  return source_excerpts(a, [(path, node.range), ...], max_bytes=12000) for paths,
+  lines, UTF-8 ranges and explicit pagination. Keep full file strings in Python
+  for checked edits; return a short diff and application report, then fresh
+  diagnostics. Small full files are fine. On OutputBudgetExceeded, select from
+  last_output without replaying effects; explicit maxOutputBytes=0 permits
+  full replies. Report totals and omitted counts. Compute global maxima before
+  limiting output and preserve all ties.
 - Make another call when an error, incomplete evidence or a new analysis revision
   requires it. After edits, validate against a fresh revision in a separate call;
   do not replay a script with effects without inspecting state.

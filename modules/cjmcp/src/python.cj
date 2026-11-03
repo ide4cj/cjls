@@ -39,8 +39,12 @@ import sys as _cjmcp_sys
 import tempfile as _cjmcp_tempfile
 import traceback as _cjmcp_traceback
 
-def __cjmcp_run(code, workspace, classes):
-    scope = dict(classes, workspace=workspace, __name__='__cjmcp_script__')
+_cjmcp_last_output = None
+
+def __cjmcp_run(code, workspace, classes, max_output_bytes):
+    global _cjmcp_last_output
+    scope = dict(classes, workspace=workspace, source_excerpts=source_excerpts,
+                 last_output=_cjmcp_last_output, __name__='__cjmcp_script__')
     result = None
     error = None
     saved_out = _cjmcp_os.dup(1)
@@ -71,10 +75,26 @@ def __cjmcp_run(code, workspace, classes):
             _cjmcp_os.close(saved_err)
         out.seek(0)
         err.seek(0)
-        return _cjmcp_json.dumps(dict(
+        payload = dict(
             stdout=out.read().decode('utf-8', errors='replace'),
             stderr=err.read().decode('utf-8', errors='replace'),
-            result=result, error=error), allow_nan=False)
+            result=result, error=error, revision=workspace.revision)
+        serialized = _cjmcp_json.dumps(payload, ensure_ascii=False, allow_nan=False, separators=(',', ':'))
+        size = len(serialized.encode('utf-8'))
+        if max_output_bytes and size > max_output_bytes:
+            # Retain one rejected response so callers never need to replay effects.
+            # Round-trip freezes mutable script values and verifies serialization.
+            _cjmcp_last_output = _cjmcp_json.loads(serialized)
+            return _cjmcp_json.dumps(dict(
+                stdout='', stderr='', result=None, revision=workspace.revision,
+                error='OutputBudgetExceeded: script executed; full response retained in last_output. '
+                      'In the next call select last_output["result"] or stdout/stderr/error in Python. '
+                      'Use source_excerpts for bounded source pages; narrow ranges or use next_offset. '
+                      'For the complete retained response use code="result = last_output" with '
+                      'maxOutputBytes=0 (unlimited), or raise maxOutputBytes. Do not replay edits.',
+                outputBudget=dict(limit_bytes=max_output_bytes, actual_bytes=size,
+                                  retained=True)), ensure_ascii=False)
+        return serialized
 "#
 
 /**
@@ -232,19 +252,23 @@ class PythonSession {
     }
 
     func run(code: String): JsonValue {
+        run(code, 24000)
+    }
+
+    func run(code: String, maxOutputBytes: Int64): JsonValue {
         session
             .withWorkspace {
                 state =>
                 workspace.bind(state)
-                let output = execute(code)
-                obj(output.asObject().concat([("revision", JsonInteger(state.revision))]))
+                execute(code, maxOutputBytes)
             }
     }
 
-    private func execute(code: String): JsonValue {
+    private func execute(code: String, maxOutputBytes: Int64): JsonValue {
         if (runner.isNone()) {
             Python.load(loglevel: LogLevel.ERROR)
             Python.exec(PYTHON_RUNNER)
+            Python.exec(PYTHON_EVIDENCE)
             workspaceProxy = workspace.toPyObj()
             types =
                 PyDict<String, PyObj>(
@@ -272,7 +296,8 @@ class PythonSession {
                     .getOrThrow {
                         IllegalStateException("Python workspace proxy was not initialized")
                     },
-                types.getOrThrow { IllegalStateException("Python types were not initialized") }
+                types.getOrThrow { IllegalStateException("Python types were not initialized") },
+                maxOutputBytes.toPyObj()
             ]
         )
         let gil =
@@ -312,6 +337,10 @@ class PythonSession {
     PythonSession(root: VfsPath, logger!: Logger = NoopLogger()) {}
     func close(): Unit {}
     func run(code: String): JsonValue {
+        run(code, 24000)
+    }
+
+    func run(code: String, maxOutputBytes: Int64): JsonValue {
         throw IllegalStateException(
             "Embedded Python is currently supported by this experiment on native Linux only"
         )
