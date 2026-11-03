@@ -55,11 +55,8 @@ private class ImportGroup {
         if (sortPackage == "stdx" || sortPackage.startsWith("stdx.")) {
             return 1
         }
-        let name = sortPackage.replace("`", "")
-        if (
-            !moduleName.isEmpty() && separator != "::" &&
-                (name == moduleName || name.startsWith("${moduleName}."))
-        ) {
+        let name = names[0].path.text.replace("`", "")
+        if (!moduleName.isEmpty() && (name == moduleName || name.startsWith("${moduleName}."))) {
             return 3
         }
         2

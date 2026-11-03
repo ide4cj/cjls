@@ -81,9 +81,9 @@ class ImportFormatTest {
     func organizationQualifiersDistinguishModules(): Unit {
         // arrange
         let source =
-            "package org::app.handlers\n\nimport org::app.z.Z\nimport org::other.A\nimport app.a.A\nimport org::app.a.*\nimport z.Z\n"
+            "package org::app.handlers\n\nimport org::app.z.Z\nimport org::app as current\nimport org::other.A\nimport app.a.A\nimport org::app.a.*\nimport z.Z\n"
         let expected =
-            "package org::app.handlers\n\nimport app.a.A\nimport org::other.A\nimport z.Z\nimport org::app.a.*\nimport org::app.z.Z\n"
+            "package org::app.handlers\n\nimport app.a.A\nimport org::other.A\nimport z.Z\nimport org::app as current\nimport org::app.a.*\nimport org::app.z.Z\n"
 
         // act
         let formatted = formatText(source)
