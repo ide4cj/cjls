@@ -7,34 +7,84 @@ The server sends a semantic-query playbook in the MCP initialization response.
 they ship with the Linux archive alongside the skill. Native objects and types
 are injected into scripts; there is no importable `loupe` Python package.
 
-For example, a single script can find functions across the workspace:
-
-```python
-result = [
-    {"path": path, "name": node.name, "start": node.selectionRange.start}
-    for path in workspace.files()
-    for node in workspace.structure(path)
-    if node.kind.toString() == "Function"
-]
-```
-
-`node` is a native `loupe.StructureNode` exported through `py_interop`, and
-`node.range` is the original `ginkgo.TextRange`. They are not JSON dictionaries.
+Native node/range values are objects, not JSON dictionaries.
 The workspace handle provides:
 
 | Workspace member | Result |
 |---|---|
 | `root` | Absolute root path |
-| `problems` | Loading, macro build and expansion problems; inspect before trusting answers |
-| `hasExpandedMacros` | Whether macro preparation finished without build errors, failed or unsent resolved calls |
+| `loadDiagnostics` | Structured project/binary/source loading diagnostics |
+| `macros` | MacroStatus with state and structured preparation diagnostics |
 | `files()` | Source paths of the loaded project |
 | `structure(path)` | Native `StructureNode` objects with nested `children` |
-| `diagnostics(path)` | Native `Diagnostic` objects |
+| `diagnostics(path)` | Located WorkspaceDiagnostic values for this revision |
 | `hover(path, offset)` | Native `HoverResult` with `HoverItem` objects, or `None` |
 | `definition(path, offset)` | `Location` values containing a path and native ranges |
 | `revision` | Session-local revision used by this script and returned in the tool response |
 | `reload()` | Request preparation after this script; the running script keeps its revision |
 | `analysis()` | Retain an `AnalysisRevision` for HIR, inference and navigation |
+
+### Macro state and structured diagnostics
+
+The old problems/hasExpandedMacros API is removed. Use workspace.loadDiagnostics
+for loading issues, workspace.macros for macro preparation, and
+workspace.diagnostics(path) for a selected file. These native values serialize
+directly in result; no record projection or message parsing is needed:
+
+~~~python
+a = workspace.analysis()
+result = {
+    "root": workspace.root,
+    "load_diagnostics": workspace.loadDiagnostics,
+    "macros": workspace.macros,
+    "diagnostics": workspace.diagnostics("src/main.cj"),
+}
+~~~
+
+MacroStatus has a native MacroState enum and diagnostics. Compare state with
+`MacroState.Pending()` or `MacroState.Settled()` in Python; variants support
+`isinstance` and pattern matching. JSON encodes them as pending/settled strings,
+including when returned directly or nested. String arguments to MacroStatus
+are rejected. State is pending while the revision's macro preparation remains
+to be performed; settled means its preparation attempt
+finished, including a project with no macro calls. Settled can include errors.
+Pending alone is not an error, and warnings do not become failures. Completion
+and diagnostic severity are independent ([D165](../../docs/adr/0165-cjmcp-structured-diagnostics.md)).
+The status and locations belong to the script's fixed revision, not a live worker
+progress feed. Writing/reload does not change them during a script. This session
+implementation still serializes preparation and Python, so normal scripts see
+settled after preparation; this API change adds no wait or new scheduling policy.
+
+WorkspaceDiagnostic exposes these native fields and their JSON representation:
+
+| Field | Meaning |
+| --- | --- |
+| source | workspace (loading), macro (preparation), or analysis (per-file loupe diagnostics) |
+| code | Stable preparation category, or null when the analysis API has no diagnostic code |
+| severity | Native Severity; JSON error, warning or hint |
+| message | Human-readable detail, with macro hints retained |
+| path | Absolute source path, or null when no source file is attributable |
+| range | Native TextRange; JSON {start, end}, zero-based UTF-8 bytes, end-exclusive; or null |
+| line, column | One-based source line and UTF-8 byte column, or null when unavailable |
+| unnecessary | Whether the source should be shown as unnecessary |
+
+Preparation codes are workspace_load, macro_sdk, macro_build, macro_not_sent and
+macro_expansion. SDK/build messages without a structured source location keep
+location fields null; the server never guesses coordinates by parsing stderr.
+Macro errors and warnings use loupe's mapped source range and retain hint text.
+A thrown macro exception falls back to the call range if the SDK has no more
+precise location. Per-file loupe diagnostics can also include macro findings;
+requesting both channels can therefore expose the same finding.
+
+In Python filter severity with d.severity == Severity.Error(), not a string
+comparison. Return the values directly and JSON will contain lowercase strings.
+TextRange and Severity are also supported by the tool's JSON encoder. Other
+native analysis objects still need explicit projection. Plain json.dumps inside
+a user script does not use the tool's encoder.
+
+Scope diagnostic queries to relevant files. For diagnostic source excerpts, pass
+non-null (path, range) pairs to [source_excerpts](#source-excerpts).
+[Script execution](#script-execution) describes response budgets and recovery.
 
 ### Applying source changes
 
@@ -142,7 +192,7 @@ An `AnalysisRevision` also offers:
 
 Native navigation/reference/symbol results contain `FileId`; call `path(fileId)`
 on the same revision. `NavigationTarget.expansion` identifies expansion-relative
-ranges. SDK macro outputs are loaded before the revision is returned.
+ranges. Expansion availability must be checked for queries that depend on macro output.
 Expansion queries reject unavailable expansion text and invalid byte positions;
 their hover ranges refer to that expansion. Navigation targets may refer to source
 or another expansion; inspect `NavigationTarget.expansion` before slicing text.
@@ -165,6 +215,33 @@ results, `Cfg` and `CfgExpr`, plus the original workspace result types. The
 registration in `src/python_types.cj` is the complete list. Generic syntax trees,
 calca database mutation/storage, and collection-backed package indexes are not
 exported. This is not a binding of every public loupe API.
+
+## Source excerpts
+
+The injected helper `source_excerpts(analysis, requests, max_bytes=12000,
+offset=0, limit=20, context_lines=0)` presents an ordered list of (path, TextRange)
+pairs from one analysis revision. It adds no semantic query or write API. See the
+[navigation recipe](skills/cangjie-mcp/references/navigation.md) for selection examples.
+
+The shared budget counts compact UTF-8 JSON bytes for the page. Each excerpt is
+returned whole, with request index, path, one-based inclusive start/end lines,
+requested/shown byte ranges and source. `context_lines=0` returns exactly the
+requested range; larger values add complete surrounding lines. Ranges count
+UTF-8 bytes and remain end-exclusive. Empty ranges and EOF are supported;
+invalid UTF-8 boundaries raise an error. Expansion-relative ranges require the
+[expansion recipe](skills/cangjie-mcp/references/expansions.md).
+
+The page includes revision, total, returned, omitted, next_offset and
+required_bytes. total counts selected input requests, not unqueried declarations;
+omitted is total minus returned, including earlier pages. next_offset is the
+first remaining request, or null. Recreate the same ordered requests at the same
+revision to continue; edits invalidate ranges and pagination offsets.
+
+The helper stops before an excerpt would exceed the budget or page limit.
+required_bytes is normally null; otherwise it reports the candidate page size
+that blocked progress. If next_offset equals offset, select a smaller range,
+reduce context_lines or increase max_bytes. The response-wide
+[output budget](#script-execution) applies independently to the complete reply.
 
 ## Revisions and synchronization
 
@@ -194,15 +271,12 @@ proof that disk is still unchanged when a result arrives. Ordinary Python file
 I/O reads live disk, independently of the analysis revision.
 
 Macro calls have a one-minute deadline; compiler builds and the whole preparation
-have no hard timeout. Missing required SDKs, build failures and failed or unsent
-resolved calls are reported in `problems` and make `hasExpandedMacros` false; the
-partial analysis remains usable. Preparation subprocess output goes to server
-stderr; `problems` is the tool-visible preparation report. Unresolved names remain
-analysis diagnostics.
-Macro diagnostic problems include `path:line:column: message`, with one-based
-lines and UTF-8 byte columns. They use the same source ranges and hint text as
-LSP diagnostics. A thrown macro exception is attached to the call when the SDK
-provides no more precise source location; its original failure text is retained.
+have no hard timeout. Missing required SDKs, failed builds and unsent calls appear
+as structured workspace.macros.diagnostics, independently of state. Loading
+failures are in workspace.loadDiagnostics. Partial analysis remains usable.
+Preparation subprocess output goes to server stderr; tool-visible diagnostics
+carry known locations as fields, never as a path:line:column message prefix.
+Unresolved names remain per-file analysis diagnostics.
 Failures before Python starts are tool errors with a null revision. Script errors
 include the revision used and are never retried automatically: Python may have
 already performed external effects. Preparation failures are retried before a
@@ -210,8 +284,34 @@ later script; no script is run on a workspace whose preparation threw.
 
 ## Script execution
 
+The optional tool argument maxOutputBytes defaults to 24000 ([D164](../../docs/adr/0164-cjmcp-output-budget.md)). It bounds the
+complete compact UTF-8 JSON payload (result, stdout, stderr, error, revision),
+before the MCP text/structuredContent wrapper duplicates it. It is not a wire-size,
+token, memory or execution limit. A nonnegative integer is required; 0 explicitly
+allows an unlimited reply. Existing code-only calls remain valid, with this new
+default protection. Small results have the same fields as before.
+
+After execution/stream capture, exceeding the limit returns isError=true with
+OutputBudgetExceeded, empty stdout/stderr, null result, the original revision and
+outputBudget {limit_bytes, actual_bytes, retained}. Nothing is partially
+truncated. This actionable error envelope is exempt from the requested budget,
+so even maxOutputBytes=1 reports a useful failure. Side effects have already
+happened; scripts are never replayed automatically.
+
+The complete rejected payload, including stdout, stderr, traceback and its
+original revision, is injected as last_output in subsequent scripts. It is null
+before the first rejection and retained until another rejection replaces it.
+Filter that dictionary in Python, for example result = last_output["result"][0],
+or retrieve it whole with code="result = last_output", maxOutputBytes=0. A
+successful recovery does not clear it. It is session-local, holds one response
+in memory and is not a durable artifact. Native objects are not retained by this
+feature: the saved value is a JSON round-trip. It may describe an older revision;
+reacquire analysis and compare revisions before acting on saved source ranges.
+The budget prevents context overflow, not the memory needed to construct and
+serialize a large result or capture native output.
+
 Each script gets a fresh global namespace and ordinary Python imports. Assign
-JSON-serializable data to `result`, print output, or both. The MCP response has
+JSON-serializable data or supported diagnostic/status values to `result`, print output, or both. The MCP response has
 `result`, captured `stdout`/`stderr`, `revision`, and `error` (a traceback or null),
 in both `structuredContent` and text content. Non-serializable results are script errors.
 Python exceptions, including `SystemExit`, become tool errors; the session can

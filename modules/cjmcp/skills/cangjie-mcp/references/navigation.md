@@ -1,36 +1,50 @@
-# Find declarations and their usages
+# Find declarations, then return selected source
 
-`symbols` searches names by case-insensitive subsequence. Keep a small limit and
-show the actual matches so ambiguous names are visible. `references` includes
-declarations, distinguished by `isDeclaration`.
+Keep revision text inside Python. Existing symbols, fileSymbols, structure and
+references queries do the semantic selection; source_excerpts only presents it.
+For known paths, filter the complete file outline so overloads and totals remain
+visible. For an unknown path, start with a.symbols("name", 20): it searches by
+case-insensitive subsequence, and a full limit means there may be more matches,
+not that the total is 20. Narrow the name/path before selecting an ambiguous hit.
 
-```python
-analysis = workspace.analysis()
-result = []
-for found in analysis.symbols("AnalysisDatabase", 5):
-    path = analysis.path(found.fileId)
-    refs = analysis.references(path, found.symbol.selectionRange.start)
-    span = found.symbol.range
-    source = analysis.text(path).encode("utf-8")
-    excerpt = source[span.start:span.end].decode("utf-8")
-    result.append({
-        "name": found.symbol.name,
-        "path": path,
-        "start": span.start,
-        "end": span.end,
-        "source": excerpt[:2000],
-        "source_truncated": len(excerpt) > 2000,
-        "reference_count": len(refs),
-        "references_truncated": len(refs) > 20,
-        "references": [
-            {
-                "path": analysis.path(ref.fileId),
-                "start": ref.range.start,
-                "end": ref.range.end,
-                "declaration": ref.isDeclaration,
-                "access": None if ref.access is None else ref.access.toString(),
-            }
-            for ref in refs[:20]
-        ],
-    })
-```
+~~~python
+a = workspace.analysis()
+path = "src/runtime/app.cj"
+candidates = [s for s in a.fileSymbols(path)
+              if s.name in ("run", "dispatch")]
+result = {
+    "root": workspace.root,
+    "load_diagnostics": workspace.loadDiagnostics,
+    "macros": workspace.macros,
+    "source": source_excerpts(a, [(path, s.range) for s in candidates],
+                              max_bytes=12000),
+}
+~~~
+
+The helper returns whole excerpts with paths, line/range metadata and explicit
+omissions. Follow next_offset with the same ordered requests and revision;
+if it cannot advance, select a smaller member/range or increase max_bytes.
+See the [API contract](../../../python-api.md#source-excerpts) for field meanings,
+context lines and exact paging/budget semantics.
+
+For a large class or test suite, traverse nested structure children and select
+individual methods/tests before asking for source. Do not send the entire class
+just to locate one method. If semantic selection is unavailable, search the full
+text in Python and return only matching UTF-8 ranges with context; label this as
+textual evidence. It is fine to return a small file in full when it helps.
+
+References include declarations (isDeclaration). Select a few relevant usages,
+but preserve the complete count:
+
+~~~python
+a = workspace.analysis()
+path = "src/main.cj"
+symbol = next(s for s in a.fileSymbols(path) if s.name == "target")
+refs = a.references(path, symbol.selectionRange.start)
+requests = [(a.path(r.fileId), r.range) for r in refs]
+result = source_excerpts(a, requests, context_lines=2, max_bytes=10000)
+~~~
+
+For NavigationTarget values, inspect expansion before slicing: an expansion range
+belongs to expansion text, not a.text(path). This helper accepts source-file
+ranges; expansion excerpts still use the [expansion recipe](expansions.md).

@@ -48,20 +48,6 @@ Read the relevant sections, using headings and rule IDs to locate them; do not
 load every module note or the ADR index for each change. Reuse already-read
 guidance unless it changed. See [documentation navigation](docs/README.md#read-for-a-task).
 
-## Efficient cjmcp queries
-
-- Aim for one `runPython` call per self-contained read-only task. Compose queries,
-  filtering, aggregation and supporting source excerpts inside Python; include
-  root, loading problems and macro status with that first useful query.
-- Use the API documented by the tool. Load one relevant recipe only for an
-  unfamiliar operation; avoid preliminary calls just to print types or `dir()`.
-- Return bounded JSON evidence: conclusions, paths, ranges and needed signatures
-  or excerpts. Keep intermediate objects inside Python; report totals and omitted
-  counts. Compute global maxima before limiting output and preserve all ties.
-- Make another call when an error, incomplete evidence or a new analysis revision
-  requires it. After edits, validate against a fresh revision in a separate call;
-  do not replay a script with effects without inspecting state.
-
 ## Issues and board
 
 When creating or triaging an issue, follow
