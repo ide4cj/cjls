@@ -12,7 +12,7 @@ mkdir "$work/$name"
 cp "$binary" "$work/$name/cjmcp"
 chmod +x "$work/$name/cjmcp"
 cp modules/cjmcp/README.md LICENSE-MIT LICENSE-APACHE .cangjie-version .cangjie-sha256 "$work/$name/"
-cp modules/cjmcp/agent-setup.md "$work/$name/"
+cp modules/cjmcp/agent-setup.md modules/cjmcp/python-api.md "$work/$name/"
 cp -R modules/cjmcp/skills "$work/$name/skills"
 {
   echo "commit=$sha"
