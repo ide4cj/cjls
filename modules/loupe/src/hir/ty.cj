@@ -3,9 +3,9 @@ package loupe.hir
 import std.deriving.*
 import calca.*
 import calca.macros.*
-import loupe.db.AnalysisDatabase
 import py_interop.*
 import py_interop.internal_macros.DerivePython
+import loupe.db.AnalysisDatabase
 
 /**
  * A type as inference takes it, rust-analyzer's `Ty`: its names resolved, its aliases expanded,

@@ -5,10 +5,10 @@ import std.deriving.*
 import calca.*
 import calca.macros.*
 import index_map.IndexMap
-import loupe.db.{AnalysisDatabase, Package, SourceFile}
-import loupe.vfs.FileId
 import py_interop.*
 import py_interop.internal_macros.DerivePython
+import loupe.db.{AnalysisDatabase, Package, SourceFile}
+import loupe.vfs.FileId
 
 /**
  * The path of an import a name came by: its file, its import, the path's index in it, and the

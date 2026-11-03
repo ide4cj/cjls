@@ -1,11 +1,11 @@
 package loupe
 
 import ginkgo.TextRange
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.AnalysisDatabase
 import loupe.hir.*
 import loupe.vfs.FileId
-import py_interop.*
-import py_interop.internal_macros.DerivePython
 
 /**
  * The macro call at a position (`macroCallAt`): the call whose expansion shows it, and where the call at the position

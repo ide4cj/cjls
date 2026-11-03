@@ -5,9 +5,9 @@ import std.deriving.*
 import calca.*
 import calca.macros.*
 import index_map.IndexMap
-import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package}
 import py_interop.*
 import py_interop.internal_macros.DerivePython
+import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package}
 
 /**
  * A package of either kind, as name resolution takes it: one of the project's sources, or one

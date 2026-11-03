@@ -18,9 +18,9 @@ import cjsyntax.ast.{
     TypeParam
 }
 import ginkgo.SyntaxNodePtr
-import loupe.db.AnalysisDatabase
 import py_interop.*
 import py_interop.internal_macros.DerivePython
+import loupe.db.AnalysisDatabase
 
 /**
  * A type of a signature, by its place among the signature's `types`.

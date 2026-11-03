@@ -3,6 +3,8 @@ package loupe
 import std.collection.*
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken}
 import cjsyntax.ast.{ImportAlias, Name, identText, isIdent}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.hir.{
     DefId,
@@ -21,8 +23,6 @@ import loupe.hir.{
 }
 import loupe.syntax.parse
 import loupe.vfs.FileId
-import py_interop.*
-import py_interop.internal_macros.DerivePython
 
 /**
  * A name of the workspace meaning what the one asked about does: where it is, how it reaches it, as

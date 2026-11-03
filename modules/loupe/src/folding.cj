@@ -4,12 +4,12 @@ import std.collection.*
 import std.sort.*
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import ginkgo.SyntaxElement
-import loupe.db.AnalysisDatabase
-import loupe.syntax.parse
-import loupe.vfs.FileId
 import py_interop.*
 import py_interop.internal_macros.DerivePython
 import rope.Rope
+import loupe.db.AnalysisDatabase
+import loupe.syntax.parse
+import loupe.vfs.FileId
 
 /**
  * What a fold is: LSP names the first two, the others are for whoever tells folds apart.

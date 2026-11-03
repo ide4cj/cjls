@@ -5,11 +5,11 @@ import calca.*
 import calca.macros.*
 import cjsyntax.CjSyntaxNode
 import cjsyntax.ast.{FuncDecl, InitDecl, PropDecl, VarDecl}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.syntax.parse
 import loupe.vfs.FileId
-import py_interop.*
-import py_interop.internal_macros.DerivePython
 
 /**
  * The `common` declarations `def`, a `specific` one, completes (#318): of its package, its name and

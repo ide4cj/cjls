@@ -4,8 +4,6 @@ import std.collection.*
 import std.deriving.*
 import calca.*
 import calca.macros.*
-import cjo.Decl as CjoDecl
-import cjo.Package as CjoPackage
 import cjo.{
     AccessLevel,
     AccessModifier,
@@ -23,9 +21,9 @@ import cjo.{
     TypeKind,
     openCjo
 }
-import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package, SourceFile}
 import py_interop.*
 import py_interop.internal_macros.DerivePython
+import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package, SourceFile}
 
 /**
  * Where an item is declared: a source file, a file of a package compiled already, by its index
