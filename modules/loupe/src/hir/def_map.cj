@@ -175,7 +175,7 @@ public func collectDefMap(db: AnalysisDatabase, files: Array<(ItemFile, ItemTree
                 }
                 taken.add((def, item.kind))
             }
-            // an enum's constructors are seen as the enum is: they take no modifiers of their own
+            // Constructors retain the enum's visibility for exports; bare names have package scope.
             let completed =
                 item.has(Modifier.Common) &&
                     item

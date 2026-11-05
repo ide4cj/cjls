@@ -578,10 +578,8 @@ public func lookUpIn(
     if (ns != Namespace.Values) {
         return Resolution.NotFound
     }
-    let ownCtors =
-        (defs.ctors.get(name) ?? [])
-            .filter { def => def.visibility != Visibility.Private || def.id.file(db) == from }
-            .map { def => def.id }
+    // cjc exposes bare constructors throughout the package, even when the enum's name is private.
+    let ownCtors = (defs.ctors.get(name) ?? []).map { def => def.id }
     let ctorsOfImports = ctorImports.named(db, name)
     if (ownCtors.isEmpty() && ctorsOfImports.isEmpty()) {
         Resolution.NotFound
