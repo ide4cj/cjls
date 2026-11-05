@@ -192,10 +192,12 @@ public func relationOf(from: String, target: String): PackageRelation {
 
 extend Visibility {
     /**
-     * Whether a declaration of this visibility is seen by a package standing so to its own (N1–N4).
+     * Whether package visibility grants access (N1–N4). Private declarations require a separate
+     * file check; private members instead require their declaring type or extend.
      */
     public func isSeen(by!: PackageRelation): Bool {
         match ((this, by)) {
+            case (Private, _) => false
             case (Public, _) | (_, SamePackage) => true
             case (Protected, rel) => rel != PackageRelation.Unrelated
             case (Internal, rel) => rel == PackageRelation.Child

@@ -1,0 +1,14 @@
+// ISSUE: 397
+// PACKAGE: audit .
+// STEP: broken
+// CJC: audit error: undeclared type name 'Secret'
+// CJC: audit error: undeclared identifier 'hidden'
+// SOURCE: src/declarations.cj inputs/cross_file_private/broken/declarations.cj
+// SOURCE: src/main.cj inputs/cross_file_private/broken/main.cj
+// KNOWN-MISSING: hidden_type issue=541
+// KNOWN-MISSING: hidden_value issue=541
+// STEP: fixed
+// CJC: audit clean
+// SOURCE: src/declarations.cj inputs/cross_file_private/fixed/declarations.cj
+// SOURCE: src/main.cj inputs/cross_file_private/fixed/main.cj
+// STEP: restored FROM broken

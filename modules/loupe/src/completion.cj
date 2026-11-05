@@ -701,8 +701,9 @@ func fileScopeCompletions(
     if (typesOnly) {
         return
     }
+    // Bare constructors have package scope even when their enum's type name is file-private.
     for ((name, defs) in declared.ctors) {
-        for (one in defs where one.visibility != Visibility.Private || one.id.file(db) == own) {
+        for (one in defs) {
             found.add(CompletionItem(name, CtorItem, 60, DeclSource(one.id, None)))
         }
     }
