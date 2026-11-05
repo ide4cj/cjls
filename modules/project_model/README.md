@@ -135,6 +135,38 @@ non-selected files remain explicitly inactive. Do not combine all source
 directories into one package or silently accept branches cjpm rejects. The chain
 algorithm and its compiler observations are documented beside
 [source_set.cj](src/source_set.cj); common/specific analysis belongs to loupe (D99).
+Feature selection is resolved before any module is lowered. A consumer can enable
+`user.dep.fast` directly in `always-enabled-features`, or map an enabled feature to
+it with `[[feature]] name = "os.linux"` and `mapping = ["user.dep.fast"]`.
+The qualified name selects its owner module; consumer flags are not copied to
+every dependency. Mappings and requests from modules in the selected feature graph are combined to
+a fixed point, so transitive mappings and later workspace members affect modules
+already discovered. Source replacement is settled first; discarded sources do not
+contribute features.
+
+The explicit `enabledFeatures` and `deduceFeatures` discovery inputs correspond to
+cjpm's `--enable-features` and `--no-feature-deduce`. Defaults retain target OS
+deduction. `includeTestFeatures = false` selects the ordinary graph as `cjpm build` does;
+`true` adds test dependency requests as `cjpm test`/`cjpm check` do. Test modules
+remain discovered in either configuration, and their import visibility stays
+file scoped. Shared dependencies use the source chain of this one selected build
+configuration; the model does not represent simultaneous production/test source
+variants. Script dependencies resolve separately, without the entry module's
+features or command-line feature inputs. They deduce the host OS even when the
+ordinary graph selects another target or disables deduction, and still apply
+their own declarations and mappings. These discovery inputs have no editor
+setting in this change.
+Invalid feature inputs produce recoverable loading problems. A qualified feature
+whose owner is outside the selected graph is accepted, as in cjpm; a feature of a
+participating owner must be declared by it.
+
+These forms and boundaries were probed with pinned SDK
+`1.3.0-alpha.20261102001050` (`cjpm 1.3.0-alpha.09`). The main-branch manual's
+`feature.os.*` and `[source-set.<name>] condition` examples describe a different
+syntax. The propagation algorithm follows cjpm's `implement/dep_model.cj` and
+`config/cjmp.cj` at
+[`0b9cf295`](https://github.com/cangjielanguage/cangjie_tools/tree/0b9cf2952c012a52003eaee849bfaa4eb45792f6/cjpm/src).
+
 In particular, preserve the serialized `features` key while keeping the Cangjie
 field named `featureNames`: its source comment records the nightly that drops
 the keyword-named field from macro input.

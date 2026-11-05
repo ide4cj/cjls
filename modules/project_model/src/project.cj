@@ -114,17 +114,32 @@ class Loading {
  * taken.
  *
  * `env` gives the value of an environment variable, for `${VAR}` and `CANGJIE_HOME`.
+ * CJMP feature inputs follow `loadCjpmProject`, including the selected build/test feature graph.
  */
 public func findProject(
     root: VfsPath,
     env!: (String) -> ?String,
     cfg!: Cfg = hostCfg(),
     buildMode!: BuildMode = Release,
+    enabledFeatures!: Array<String> = [],
+    deduceFeatures!: Bool = true,
+    includeTestFeatures!: Bool = false,
     budget!: Int64 = Int64.Max,
     open!: Array<VfsPath> = []
 ): ProjectLoad {
     let problems = ArrayList<String>()
-    if (let Some(found) <- manifestProject(root, env, cfg, buildMode, problems)) {
+    if (
+        let Some(found) <- manifestProject(
+            root,
+            env,
+            cfg,
+            buildMode,
+            enabledFeatures,
+            deduceFeatures,
+            includeTestFeatures,
+            problems
+        )
+    ) {
         return found
     }
     let loose = looseProject(root, env: env, cfg: cfg, budget: budget, open: open)
@@ -142,12 +157,26 @@ func manifestProject(
     env: (String) -> ?String,
     cfg: Cfg,
     buildMode: BuildMode,
+    enabledFeatures: Array<String>,
+    deduceFeatures: Bool,
+    includeTestFeatures: Bool,
     problems: ArrayList<String>
 ): ?ProjectLoad {
     for (
         load in [
             { => loadProjectJson(dir.join(PROJECT_JSON), env: env, cfg: cfg) },
-            { => loadCjpmProject(dir.join("cjpm.toml"), env: env, cfg: cfg, buildMode: buildMode) }
+            {
+                =>
+                loadCjpmProject(
+                    dir.join("cjpm.toml"),
+                    env: env,
+                    cfg: cfg,
+                    buildMode: buildMode,
+                    enabledFeatures: enabledFeatures,
+                    deduceFeatures: deduceFeatures,
+                    includeTestFeatures: includeTestFeatures
+                )
+            }
         ]
     ) {
         try {
@@ -557,6 +586,7 @@ func entriesOf(dir: VfsPath): Array<FileInfo> {
  * first, and those whatever the budget. Then the projects of the directories `found`, each the
  * manifest in it, found from a document opened (`projectDirOf`, #265); one whose manifest is gone
  * is no project.
+ * All roots, linked directories and subsequently found projects use the supplied CJMP feature inputs.
  */
 public func findProjects(
     roots: Array<VfsPath>,
@@ -564,6 +594,9 @@ public func findProjects(
     env!: (String) -> ?String,
     cfg!: Cfg = hostCfg(),
     buildMode!: BuildMode = Release,
+    enabledFeatures!: Array<String> = [],
+    deduceFeatures!: Bool = true,
+    includeTestFeatures!: Bool = false,
     budget!: Int64 = Int64.Max,
     open!: Array<VfsPath> = [],
     found!: Array<VfsPath> = []
@@ -579,22 +612,62 @@ public func findProjects(
                     env: env,
                     cfg: cfg,
                     buildMode: buildMode,
+                    enabledFeatures: enabledFeatures,
+                    deduceFeatures: deduceFeatures,
+                    includeTestFeatures: includeTestFeatures,
                     budget: budget,
                     open: open
                 )
             )
         } else {
             loads.add(
-                all: under.map { path => linkedProject(path, env, cfg, buildMode, budget, open) }
+                all: under
+                    .map {
+                        path =>
+                        linkedProject(
+                            path,
+                            env,
+                            cfg,
+                            buildMode,
+                            enabledFeatures,
+                            deduceFeatures,
+                            includeTestFeatures,
+                            budget,
+                            open
+                        )
+                    }
             )
         }
     }
     for (path in linked where !roots.iterator().any { root => path.isUnder(root) }) {
-        loads.add(linkedProject(path, env, cfg, buildMode, budget, open))
+        loads.add(
+            linkedProject(
+                path,
+                env,
+                cfg,
+                buildMode,
+                enabledFeatures,
+                deduceFeatures,
+                includeTestFeatures,
+                budget,
+                open
+            )
+        )
     }
     for (dir in found) {
         let problems = ArrayList<String>()
-        match (manifestProject(dir, env, cfg, buildMode, problems)) {
+        match (
+            manifestProject(
+                dir,
+                env,
+                cfg,
+                buildMode,
+                enabledFeatures,
+                deduceFeatures,
+                includeTestFeatures,
+                problems
+            )
+        ) {
             case Some(load) => loads.add(load)
             case None where !problems.isEmpty() =>
                 loads.add(
@@ -619,6 +692,9 @@ func linkedProject(
     env: (String) -> ?String,
     cfg: Cfg,
     buildMode: BuildMode,
+    enabledFeatures: Array<String>,
+    deduceFeatures: Bool,
+    includeTestFeatures: Bool,
     budget: Int64,
     open: Array<VfsPath>
 ): ProjectLoad {
@@ -629,6 +705,9 @@ func linkedProject(
             env: env,
             cfg: cfg,
             buildMode: buildMode,
+            enabledFeatures: enabledFeatures,
+            deduceFeatures: deduceFeatures,
+            includeTestFeatures: includeTestFeatures,
             budget: budget,
             open: open
         )
