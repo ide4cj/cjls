@@ -80,6 +80,12 @@ The server implements the [MCP 2025-11-25 lifecycle](https://modelcontextprotoco
 and [tools](https://modelcontextprotocol.io/specification/2025-11-25/server/tools)
 over newline-delimited JSON-RPC on stdio. Initialize, send
 `notifications/initialized`, then call `runPython` with `{ "code": "..." }`.
+Pass an optional absolute `root` in each call to select another project/worktree
+without reconnecting; omission always uses `--dir`. Up to four independent
+workspace sessions are cached by recency; calls remain sequential. See
+[workspace selection](python-api.md#selecting-a-project-or-worktree) for isolation,
+eviction and response identity.
+
 Other offered versions receive `2025-11-25`; clients must accept it or disconnect.
 Newer stateless MCP revisions are not implemented. Closing stdin ends the
 process. Incoming messages must end in a newline and are limited to 8 MiB.
@@ -135,7 +141,10 @@ revision numbers, nested workspace and std macro execution, changed macro
 libraries, stale analysis handles and build failures. Unit tests verify that
 unchanged synchronization preserves cached queries and that preparation cannot
 overlap a script.
-It runs in CI; `CJMCP_BIN` overrides the binary.
+A real Git worktree scenario checks explicit root routing, canonical aliases,
+independent edits/revisions/rejected output, invalid-root failures, bounded cache
+eviction, invalidated retained handles, deletion/recreation and separate macro
+builds for matching package names. It runs in CI; `CJMCP_BIN` overrides the binary.
 
 The full Cangjie suite includes `ServedDiagnosticsGateTest`, which checks the
 expanded Python bindings for false diagnostics. Run it without excluding gates
