@@ -32,6 +32,8 @@ class CommandTest {
         // assert
         @Expect(exitCode, 0)
         @Expect(help.contains(usage))
+        @Expect(!help.contains("--output"))
+        @Expect(!help.contains("OUTPUT"))
         @Expect(help.contains(option))
         if (usage == "Usage: cjls") {
             @Expect(help.contains("Serve LSP over stdio"))
@@ -52,6 +54,8 @@ class CommandTest {
             [
                 ["frob"],
                 ["--frob"],
+                ["--output", "file"],
+                ["fmt", "--output", "file"],
                 ["project", "sub"],
                 ["project", "--frob"],
                 ["project", "--dir"],
@@ -176,6 +180,96 @@ class CommandTest {
             // assert
             @Expect(rechecked, 0)
             @Expect(written(err), "")
+        } finally {
+            remove(dir, recursive: true)
+        }
+    }
+
+    @TestCase
+    func invocationStreamsCaptureCallbackCommandHelpAndUsageIndependently() {
+        // Reuse application state without storing output streams in it.
+        let context = CommandContext(NoopLogger())
+        let (schemaOut, schemaErr) = (ByteBuffer(), ByteBuffer())
+        let (helpOut, helpErr) = (ByteBuffer(), ByteBuffer())
+        let (commandOut, commandErr) = (ByteBuffer(), ByteBuffer())
+        let (usageOut, usageErr) = (ByteBuffer(), ByteBuffer())
+
+        let schemaCode = CJLS_APP.run(
+            ["--config-schema"],
+            context: context,
+            stdout: schemaOut,
+            stderr: schemaErr
+        )
+        let schema = written(schemaOut)
+        let helpCode = CJLS_APP.run(
+            ["fmt", "--help"],
+            context: context,
+            stdout: helpOut,
+            stderr: helpErr
+        )
+        let dir = Directory.createTemp(getWorkingDirectory())
+        try {
+            let commandCode = CJLS_APP.run(
+                ["fmt", dir.join("missing.cj").toString()],
+                context: context,
+                stdout: commandOut,
+                stderr: commandErr
+            )
+            let usageCode = CJLS_APP.run(
+                ["fmt", "--output", "x"],
+                context: context,
+                stdout: usageOut,
+                stderr: usageErr
+            )
+
+            @Expect(schemaCode, 0)
+            @Expect(fromJsonBytes<JsonValue>(schema.toArray()), settingsSchema())
+            @Expect(written(schemaErr), "")
+            @Expect(helpCode, 0)
+            let help = written(helpOut)
+            @Expect(help.contains("Usage: cjls fmt"))
+            @Expect(!help.contains("--output"))
+            @Expect(written(helpErr), "")
+            @Expect(commandCode, 1)
+            @Expect(written(commandOut), "")
+            @Expect(!written(commandErr).isEmpty())
+            @Expect(usageCode, 2)
+            @Expect(written(usageOut), "")
+            @Expect(written(usageErr).contains("Usage: cjls fmt"))
+            @Expect(written(schemaOut), "")
+        } finally {
+            remove(dir, recursive: true)
+        }
+    }
+
+    @TestCase
+    func repeatedInvocationsKeepCallbackAndCommandStreamsSeparate() {
+        // arrange
+        let (schemaOut, schemaErr) = (ByteBuffer(), ByteBuffer())
+        let (commandOut, commandErr) = (ByteBuffer(), ByteBuffer())
+        let dir = Directory.createTemp(getWorkingDirectory())
+        try {
+            // act
+            let schemaCode = runCommand(
+                ["--config-schema"],
+                logger: NoopLogger(),
+                out: schemaOut,
+                err: schemaErr
+            )
+            let commandCode = runCommand(
+                ["fmt", dir.join("missing.cj").toString()],
+                logger: NoopLogger(),
+                out: commandOut,
+                err: commandErr
+            )
+
+            // assert
+            @Expect(schemaCode, 0)
+            @Expect(fromJsonBytes<JsonValue>(readToEnd(schemaOut)), settingsSchema())
+            @Expect(written(schemaErr), "")
+            @Expect(commandCode, 1)
+            @Expect(written(commandOut), "")
+            @Expect(written(commandErr).contains("missing.cj"))
         } finally {
             remove(dir, recursive: true)
         }

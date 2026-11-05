@@ -20,12 +20,14 @@ class SyntaxCommandTest {
         @Expect(code, 0)
         let help = String.fromUtf8(out.bytes())
         @Expect(help.contains("Usage: syntax_codegen"))
+        @Expect(!help.contains("--output"))
+        @Expect(!help.contains("OUTPUT"))
         @Expect(help.contains("KINDS-FILE"))
         @Expect(help.contains("Generate syntax kinds"))
         @Expect(err.bytes().isEmpty())
     }
 
-    @TestCase[args in [[], ["a.toml", "b.toml"], [""], ["   "], ["--unknown"], ["-x", "a.toml"]]]
+    @TestCase[args in [[], ["a.toml", "b.toml"], [""], ["   "], ["--unknown"], ["--output", "file"], ["-x", "a.toml"]]]
     func invalidInputsAreUsageErrors(args: Array<String>) {
         // arrange
         let (out, err) = (ByteBuffer(), ByteBuffer())
