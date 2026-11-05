@@ -119,6 +119,7 @@ public class SemanticAnalysis {
         let origin = if (item.isNone()) { expansion } else { None<MacroCallId> }
         let definitions = semanticDefinitions(db, file, token, owner, expansion: origin)
         SemanticOccurrence(
+            this,
             location(file, token.textRange, token.textRange),
             owner.map { id => object(NamedIdentity(Definition.DeclDef(id))) },
             definitions.map { defs => defs.map { def => object(NamedIdentity(def)) } },
@@ -201,6 +202,7 @@ public class SemanticAnalysis {
  */
 public class SemanticOccurrence {
     SemanticOccurrence(
+        let analysis: SemanticAnalysis,
         public let location: SemanticLocation,
         public let owner: ?SemanticObject,
         public let definitions: ?Array<SemanticObject>,

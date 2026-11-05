@@ -181,6 +181,54 @@ public struct ArgTarget <: ByIndex {
 }
 
 /**
+ * A final substitution, keyed by the binder that declared the parameter.
+ */
+@Derive[Equatable]
+public struct GenericBinding {
+    public GenericBinding(
+        public let owner: GenericOwner,
+        public let index: Int64,
+        public let ty: Ty
+    ) {}
+}
+
+/**
+ * Selection outcome; unavailable input reasons remain in the inferred expression and signature types.
+ */
+@Derive[Equatable]
+public enum CallResolutionOutcome {
+    | Resolved
+    | Ambiguous
+    | Unresolved
+}
+
+/**
+ * The final inference evidence for one application, keyed by its callee.
+ */
+@Derive[Equatable]
+public struct CallResolution <: ByIndex {
+    public CallResolution(
+        public let expr: ExprId,
+        public let outcome: CallResolutionOutcome,
+        public let decl!: ?DefId = None,
+        public let local!: ?LocalId = None,
+        public let signature!: ?Ty = None,
+        /**
+         * Final substitutions of a successful call; unsuccessful candidates expose none.
+         */
+        public let bindings!: Array<GenericBinding> = [],
+        /**
+         * Argument-to-parameter mapping, in argument order, including packed variadic arguments.
+         */
+        public let params!: Array<Int64> = []
+    ) {}
+
+    public func keyIndex(): Int64 {
+        expr.index
+    }
+}
+
+/**
  * What inference finds in a body (D55), rust-analyzer's `InferenceResult`: the type of each of its
  * expressions, patterns and locals, by id; the members found after the `.` of a value; the
  * declaration each resolved call takes. A type not found is an error, or one the analysis cannot
@@ -197,6 +245,8 @@ public struct InferenceResult {
         public let locals!: Array<Ty> = [],
         public let fields!: Array<FieldTargets> = [],
         public let callees!: Array<CalleeTarget> = [],
+        public let calls!: Array<CallResolution> = [],
+        public let setterCalls!: Array<CallResolution> = [],
         /**
          * The `[]` taking a value `a[i] op= v` and `a[i]++` call, by the assignment, whose callee is
          * its operator: `a[i]`'s is the `[]` reading it (#245).
@@ -256,6 +306,20 @@ public struct InferenceResult {
             case Some(one) => one.targets
             case None => None
         }
+    }
+
+    /**
+     * The second call of an index assignment or update, keyed by the assignment expression.
+     */
+    public func setterCallOf(expr: ExprId): ?CallResolution {
+        findByIndex(setterCalls, expr.index)
+    }
+
+    /**
+     * Final resolution evidence for the application whose callee is `expr`.
+     */
+    public func callOf(expr: ExprId): ?CallResolution {
+        findByIndex(calls, expr.index)
     }
 
     /**
@@ -444,7 +508,10 @@ struct Callable {
         let defaults!: Array<Bool> = [],
         let isCVariadic!: Bool = false,
         let isValue!: Bool = false,
-        let applied!: ?AppliedCall = None
+        let applied!: ?AppliedCall = None,
+        let local!: ?LocalId = None,
+        let evidenceDecl!: ?DefId = None,
+        let bindings!: Array<GenericBinding> = []
     ) {}
 
     func at(level: Int64): Callable {
@@ -459,7 +526,10 @@ struct Callable {
             defaults: defaults,
             isCVariadic: isCVariadic,
             isValue: isValue,
-            applied: applied
+            applied: applied,
+            local: local,
+            evidenceDecl: evidenceDecl,
+            bindings: bindings
         )
     }
 
@@ -555,6 +625,8 @@ enum Undo {
     | PatWas(PatId, Ty)
     | LocalWas(LocalId, Ty)
     | FieldWas(ExprId, ?FieldTargets)
+    | CallWas(ExprId, ?CallResolution)
+    | SetterCallWas(ExprId, ?CallResolution)
     | CalleeWas(ExprId, ?CalleeTarget)
     | SetterWas(ExprId, ?CalleeTarget)
     | ArgsWas(ExprId, ?ArgTarget)
@@ -584,6 +656,8 @@ class Inference {
     private let fields = HashMap<Int64, FieldTargets>()
     // by callee: an argument inferred again replaces what it found
     private let callees = HashMap<Int64, CalleeTarget>()
+    private let calls = HashMap<Int64, CallResolution>()
+    private let setterCalls = HashMap<Int64, CallResolution>()
     // by assignment: the `[]` taking a value `a[i] op= v` calls, its operator its callee (#245)
     private let setters = HashMap<Int64, CalleeTarget>()
     // by callee: where the arguments of the call it takes go
@@ -687,7 +761,19 @@ class Inference {
             accessed,
             by: { a: AccessTarget, b: AccessTarget => a.expr.index.compare(b.expr.index) }
         )
+        let applications = calls.values() |> collectArray
+        sort(
+            applications,
+            by: { a: CallResolution, b: CallResolution => a.expr.index.compare(b.expr.index) }
+        )
+        let setterApplications = setterCalls.values() |> collectArray
+        sort(
+            setterApplications,
+            by: { a: CallResolution, b: CallResolution => a.expr.index.compare(b.expr.index) }
+        )
         InferenceResult(
+            calls: applications,
+            setterCalls: setterApplications,
             exprs: exprs,
             pats: pats,
             locals: locals,
@@ -905,6 +991,40 @@ class Inference {
         fields[expr.index] = targets
     }
 
+    private func setCall(call: CallResolution): Unit {
+        if (trying > 0) {
+            undo.add(CallWas(call.expr, calls.get(call.expr.index)))
+        }
+        calls[call.expr.index] = call
+    }
+
+    private func recordCall(
+        expr: ExprId,
+        callable: Callable,
+        signature: Ty,
+        bindings: Array<GenericBinding>,
+        failed: Bool,
+        ambiguous!: Bool = false
+    ): Unit {
+        setCall(
+            CallResolution(
+                expr,
+                if (ambiguous) {
+                    CallResolutionOutcome.Ambiguous
+                } else if (failed) {
+                    CallResolutionOutcome.Unresolved
+                } else {
+                    CallResolutionOutcome.Resolved
+                },
+                decl: callable.evidenceDecl ?? callable.decl,
+                local: callable.local,
+                signature: signature,
+                bindings: if (failed || ambiguous) { [] } else { bindings },
+                params: argTargets.get(expr.index).map { one => one.params } ?? []
+            )
+        )
+    }
+
     private func setCallee(expr: ExprId, decl: DefId): Unit {
         if (trying > 0) {
             undo.add(CalleeWas(expr, callees.get(expr.index)))
@@ -990,6 +1110,10 @@ class Inference {
                 case LocalWas(id, ty) => locals[id.index] = ty
                 case FieldWas(expr, Some(was)) => fields[expr.index] = was
                 case FieldWas(expr, None) => fields.remove(expr.index)
+                case SetterCallWas(expr, Some(was)) => setterCalls[expr.index] = was
+                case SetterCallWas(expr, None) => setterCalls.remove(expr.index)
+                case CallWas(expr, Some(was)) => calls[expr.index] = was
+                case CallWas(expr, None) => calls.remove(expr.index)
                 case CalleeWas(expr, Some(was)) => callees[expr.index] = was
                 case CalleeWas(expr, None) => callees.remove(expr.index)
                 case SetterWas(expr, Some(was)) => setters[expr.index] = was
@@ -2182,6 +2306,19 @@ class Inference {
                 if (let Some(target) <- callees.get(rhs.index)) {
                     setCallee(id, target.decl)
                 }
+                if (let Some(call) <- calls.get(rhs.index)) {
+                    setCall(
+                        CallResolution(
+                            id,
+                            call.outcome,
+                            decl: call.decl,
+                            local: call.local,
+                            signature: call.signature,
+                            bindings: call.bindings,
+                            params: call.params
+                        )
+                    )
+                }
                 return prim("Unit")
             }
         }
@@ -2351,6 +2488,40 @@ class Inference {
         setter!: Bool = false,
         second!: Bool = false
     ): (Ty, ?Callable) {
+        let previous = calls.get(id.index)
+        if (second) {
+            if (trying > 0) {
+                undo.add(CallWas(id, previous))
+            }
+            calls.remove(id.index)
+        }
+        let result = operatorCallOf(id, recv, op, args, expected, setter: setter, second: second)
+        if (second) {
+            if (trying > 0) {
+                undo.add(SetterCallWas(id, setterCalls.get(id.index)))
+            }
+            setterCalls[id.index] =
+                calls.get(id.index) ?? CallResolution(id, CallResolutionOutcome.Unresolved)
+            if (trying > 0) {
+                undo.add(CallWas(id, calls.get(id.index)))
+            }
+            match (previous) {
+                case Some(was) => calls[id.index] = was
+                case None => calls.remove(id.index)
+            }
+        }
+        result
+    }
+
+    private func operatorCallOf(
+        id: ExprId,
+        recv: Ty,
+        op: String,
+        args: Array<CallArg>,
+        expected: ?Ty,
+        setter!: Bool = false,
+        second!: Bool = false
+    ): (Ty, ?Callable) {
         let candidates =
             operatorCallables(recv, op)
                 .filter { one => one.params.size == args.size && one.takesValue() == setter }
@@ -2399,6 +2570,18 @@ class Inference {
                 }
                 (callWith(id, callable, inOrder, args, expected), callable)
             case _ =>
+                if (!candidates.isEmpty()) {
+                    setCall(
+                        CallResolution(
+                            id,
+                            if (let Tied <- choice) {
+                                CallResolutionOutcome.Ambiguous
+                            } else {
+                                CallResolutionOutcome.Unresolved
+                            }
+                        )
+                    )
+                }
                 // as a call's: candidates of which none fits, or no one most specific
                 if (!candidates.isEmpty()) {
                     mismatches++
@@ -2916,8 +3099,25 @@ class Inference {
             names: sig.paramNames,
             isC: isC,
             defaults: sig.paramDefaults,
-            isCVariadic: sig.isCVariadic
+            isCVariadic: sig.isCVariadic,
+            bindings: callableBindings(id, seen)
         )
+    }
+
+    /**
+     * Keep binder identities before signature substitution loses their origin.
+     */
+    private func callableBindings(id: DefId, seen: (Ty) -> Ty): Array<GenericBinding> {
+        let found = ArrayList<GenericBinding>()
+        var current: ?DefId = id
+        while (let Some(one) <- current) {
+            let owner = GenericOwner.Declaration(one)
+            for (i in 0..genericsOf(db, one).size) {
+                found.add(GenericBinding(owner, i, seen(Ty(db, ParamTy(owner, i)))))
+            }
+            current = parentOf(db, one)
+        }
+        found.toArray()
     }
 
     /**
@@ -2942,7 +3142,11 @@ class Inference {
             signatureTypes(db, id).params.map { one => substitute(db, one, parent, args) },
             Ty(db, DeclTy(parent, args)),
             open: open,
-            decl: id
+            decl: id,
+            bindings: Array(args.size) {
+                i =>
+                GenericBinding(GenericOwner.Declaration(parent), i, args[i])
+            }
         )
     }
 
@@ -3011,7 +3215,17 @@ class Inference {
                     member.kind == ItemKind.Init || member.kind == ItemKind.PrimaryInit
                 }
         if (inits.isEmpty()) {
-            return [Callable([], self, open: open)]
+            return [
+                Callable(
+                    [],
+                    self,
+                    open: open,
+                    bindings: Array(args.size) {
+                        i =>
+                        GenericBinding(GenericOwner.Declaration(id), i, args[i])
+                    }
+                )
+            ]
         }
         inits
             .map {
@@ -3024,9 +3238,46 @@ class Inference {
                     open: open,
                     decl: one,
                     names: sig.paramNames,
-                    defaults: sig.paramDefaults
+                    defaults: sig.paramDefaults,
+                    bindings: Array(args.size) {
+                        i =>
+                        GenericBinding(GenericOwner.Declaration(id), i, args[i])
+                    }
                 )
             }
+    }
+
+    private func capturedBindings(tys: Array<Ty>, found: ArrayList<GenericBinding>): Unit {
+        for (ty in tys) {
+            match (ty.kind(db)) {
+                case ParamTy(owner, index) =>
+                    if (!found.iterator().any { one => one.owner == owner && one.index == index }) {
+                        found.add(GenericBinding(owner, index, ty))
+                    }
+                case DeclTy(_, args) => capturedBindings(args, found)
+                case BuiltInTy(_, args) => capturedBindings(args, found)
+                case TupleTy(args) => capturedBindings(args, found)
+                case FuncTy(params, ret, _) => capturedBindings(params.concat([ret]), found)
+                case VArrayTy(element, _) => capturedBindings([element], found)
+                case _ => ()
+            }
+        }
+    }
+
+    private func localBindings(
+        owner: GenericOwner,
+        explicit: Array<Ty>,
+        tys: Array<Ty>
+    ): Array<GenericBinding> {
+        let count = genericsOf(db, owner).size
+        let found = ArrayList<GenericBinding>(
+            Array(count) {
+                i =>
+                GenericBinding(owner, i, explicit.get(i) ?? Ty(db, ParamTy(owner, i)))
+            }
+        )
+        capturedBindings(tys, found)
+        found.toArray()
     }
 
     /**
@@ -3052,7 +3303,13 @@ class Inference {
                             own(ret),
                             open: open,
                             names: fn.params.map { param => param.passedBy },
-                            defaults: fn.params.map { param => param.defaultValue.isSome() }
+                            defaults: fn.params.map { param => param.defaultValue.isSome() },
+                            local: local,
+                            bindings: localBindings(
+                                owner,
+                                explicit,
+                                params.map(own).concat([own(ret)])
+                            )
                         )
                     ]
                 case _ => return []
@@ -3066,7 +3323,7 @@ class Inference {
      */
     private func valueCallables(ty: Ty): Array<Callable> {
         match (ty.kind(db)) {
-            case FuncTy(params, ret, _) => [Callable(params, ret, isValue: true)]
+            case FuncTy(params, ret, isC) => [Callable(params, ret, isValue: true, isC: isC)]
             case ErrorTy | TodoTy(_) | UnknownTy(_) => []
             // of another type, its `operator func ()` (N130): what is called is the value, not
             // the operator a name of it goes to
@@ -3079,7 +3336,10 @@ class Inference {
                             one.ret,
                             open: one.open,
                             names: one.names,
-                            defaults: one.defaults
+                            defaults: one.defaults,
+                            evidenceDecl: one.decl,
+                            local: one.local,
+                            bindings: one.bindings
                         )
                     }
         }
@@ -3176,7 +3436,8 @@ class Inference {
                 case CallExpr(_, _) => !all.iterator().any { one => one.applied.isSome() }
                 case _ => false
             }
-        match (choose(callee, all, args, expected)) {
+        let choice = choose(callee, all, args, expected)
+        match (choice) {
             case Chose(callable, matched) =>
                 if (let Some(decl) <- callable.decl) {
                     setCallee(callee, decl)
@@ -3198,8 +3459,30 @@ class Inference {
                 quiet++
                 let ty = callWith(callee, callable, looseMatch(callable, args), args, expected)
                 quiet--
+                if (let Some(one) <- calls.get(callee.index)) {
+                    setCall(
+                        CallResolution(
+                            callee,
+                            CallResolutionOutcome.Unresolved,
+                            decl: one.decl,
+                            local: one.local,
+                            signature: one.signature,
+                            params: one.params
+                        )
+                    )
+                }
                 ty
             case _ =>
+                setCall(
+                    CallResolution(
+                        callee,
+                        if (let Tied <- choice) {
+                            CallResolutionOutcome.Ambiguous
+                        } else {
+                            CallResolutionOutcome.Unresolved
+                        }
+                    )
+                )
                 // candidates of which none fits, or no one most specific, fail a candidate around
                 // (cjc's "no matching function", "ambiguous match")
                 if (!all.isEmpty()) {
@@ -3271,6 +3554,16 @@ class Inference {
                 for (one in all) {
                     for (application in applicationsOf(one)) {
                         setExpr(application.callee, failure)
+                        setCall(
+                            CallResolution(
+                                application.callee,
+                                if (let Tied <- choice) {
+                                    CallResolutionOutcome.Ambiguous
+                                } else {
+                                    CallResolutionOutcome.Unresolved
+                                }
+                            )
+                        )
                         setExpr(application.expr, failure)
                     }
                 }
@@ -4027,6 +4320,7 @@ class Inference {
         args: Array<CallArg>,
         expected: ?Ty
     ): Ty {
+        let before = mismatches
         setArgs(callee, matched)
         if (let Some(owner) <- callable.open) {
             return genericCallTy(callee, callable, matched, owner, args, expected)
@@ -4050,6 +4344,7 @@ class Inference {
         if (isInout) {
             quiet--
         }
+        recordCall(callee, callable, callable.ty(db), callable.bindings, mismatches > before)
         callable.ret
     }
 
@@ -4123,6 +4418,7 @@ class Inference {
         outerArgs: Array<CallArg>,
         expected: ?Ty
     ): Ty {
+        let before = mismatches
         let asFunctions =
             match (hir[callee]) {
                 case BinaryExpr("~>", _, _) => true
@@ -4271,8 +4567,43 @@ class Inference {
         for (one in applications) {
             setExpr(one.callee, final(open(one.callable.ty(db))))
             setExpr(one.expr, final(open(one.callable.ret)))
+            recordCall(
+                one.callee,
+                one.callable,
+                Ty(
+                    db,
+                    FuncTy(
+                        one.callable.params.map { ty => final(open(ty)) },
+                        final(open(one.callable.ret)),
+                        one.callable.isC
+                    )
+                ),
+                one
+                    .callable
+                    .bindings
+                    .map {
+                        binding =>
+                        GenericBinding(binding.owner, binding.index, final(open(binding.ty)))
+                    },
+                unsolved > 0 || mismatches > before,
+                ambiguous: isAmbiguous
+            )
         }
-        setExpr(callee, Ty(db, FuncTy(params.map(final), final(ret), callable.isC)))
+        let finalSignature = Ty(db, FuncTy(params.map(final), final(ret), callable.isC))
+        setExpr(callee, finalSignature)
+        recordCall(
+            callee,
+            callable,
+            finalSignature,
+            callable
+                .bindings
+                .map {
+                    binding =>
+                    GenericBinding(binding.owner, binding.index, final(open(binding.ty)))
+                },
+            unsolved > 0 || mismatches > before,
+            ambiguous: isAmbiguous
+        )
         if (isAmbiguous) {
             return error
         }
@@ -4571,7 +4902,8 @@ class Inference {
                                     level: one.level,
                                     isValue: true,
                                     isC: isC,
-                                    applied: AppliedCall(callee, inner, one, matched, args)
+                                    applied: AppliedCall(callee, inner, one, matched, args),
+                                    bindings: one.bindings
                                 )
                             )
                         }
@@ -4580,7 +4912,28 @@ class Inference {
                 if (pending.iterator().any { one => one.open.isSome() }) {
                     pending.toArray()
                 } else {
-                    valueCallables(infer(callee, None))
+                    let result = valueCallables(infer(callee, None))
+                    let bindings = calls.get(inner.index).map { one => one.bindings } ?? []
+                    result
+                        .map {
+                            one =>
+                            Callable(
+                                one.params,
+                                one.ret,
+                                open: one.open,
+                                decl: one.decl,
+                                level: one.level,
+                                names: one.names,
+                                isC: one.isC,
+                                defaults: one.defaults,
+                                isCVariadic: one.isCVariadic,
+                                isValue: one.isValue,
+                                applied: one.applied,
+                                local: one.local,
+                                evidenceDecl: one.evidenceDecl,
+                                bindings: bindings.concat(one.bindings)
+                            )
+                        }
                 }
             case FieldExpr(receiver, name, args) =>
                 fieldCallables(callee, receiver, name, args, expected, callArgs: callArgs)
@@ -4600,9 +4953,13 @@ class Inference {
                                 Callable(
                                     one.params,
                                     prim("Unit"),
+                                    open: one.open,
                                     decl: one.decl,
                                     names: one.names,
-                                    defaults: one.defaults
+                                    defaults: one.defaults,
+                                    local: one.local,
+                                    evidenceDecl: one.evidenceDecl,
+                                    bindings: one.bindings
                                 )
                             }
                     case _ => []
