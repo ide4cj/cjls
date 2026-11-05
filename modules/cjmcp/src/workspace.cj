@@ -126,6 +126,8 @@ class WorkspaceState {
     }
 
     func close(): Unit {
+        // Retained Python analysis handles must fail after their session is evicted.
+        revision++
         macros.close()
     }
 

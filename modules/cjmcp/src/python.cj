@@ -39,12 +39,9 @@ import sys as _cjmcp_sys
 import tempfile as _cjmcp_tempfile
 import traceback as _cjmcp_traceback
 
-_cjmcp_last_output = None
-
-def __cjmcp_run(code, workspace, classes, max_output_bytes):
-    global _cjmcp_last_output
+def __cjmcp_run(code, workspace, classes, max_output_bytes, state, session_id):
     scope = dict(classes, workspace=workspace, source_excerpts=source_excerpts,
-                 last_output=_cjmcp_last_output, __name__='__cjmcp_script__')
+                 last_output=state.get("last_output"), __name__='__cjmcp_script__')
     def encode_native(value):
         if isinstance(value, classes['WorkspaceDiagnostic']):
             return {key: getattr(value, key) for key in
@@ -96,15 +93,17 @@ def __cjmcp_run(code, workspace, classes, max_output_bytes):
         payload = dict(
             stdout=out.read().decode('utf-8', errors='replace'),
             stderr=err.read().decode('utf-8', errors='replace'),
-            result=result, error=error, revision=workspace.revision)
+            result=result, error=error, revision=workspace.revision,
+            root=workspace.root, sessionId=session_id)
         serialized = _cjmcp_json.dumps(payload, ensure_ascii=False, allow_nan=False, separators=(',', ':'), default=encode_native)
         size = len(serialized.encode('utf-8'))
         if max_output_bytes and size > max_output_bytes:
             # Retain one rejected response so callers never need to replay effects.
             # Round-trip freezes mutable script values and verifies serialization.
-            _cjmcp_last_output = _cjmcp_json.loads(serialized)
+            state["last_output"] = _cjmcp_json.loads(serialized)
             return _cjmcp_json.dumps(dict(
                 stdout='', stderr='', result=None, revision=workspace.revision,
+                root=workspace.root, sessionId=session_id,
                 error='OutputBudgetExceeded: script executed; full response retained in last_output. '
                       'In the next call select last_output["result"] or stdout/stderr/error in Python. '
                       'Use source_excerpts for bounded source pages; narrow ranges or use next_offset. '
@@ -276,8 +275,13 @@ class PythonSession {
     private var runner: ?PyObj = None
     private var workspaceProxy: ?PyObj = None
     private var types: ?PyObj = None
+    private var outputState: ?PyObj = None
 
-    PythonSession(root: VfsPath, logger!: Logger = NoopLogger()) {
+    PythonSession(
+        root: VfsPath,
+        logger!: Logger = NoopLogger(),
+        private let sessionId!: String = "standalone"
+    ) {
         workspace = Workspace(root.toString())
         session = WorkspaceSession(root, logger: logger)
         session.start()
@@ -324,6 +328,7 @@ class PythonSession {
                         ("ApplyChangeResult", ApplyChangeResult.pyClass())
                     ].concat(analysisTypes())
                 )
+            outputState = Python.eval("{}")
             runner = Python.eval("__cjmcp_run")
         }
         let callable =
@@ -336,7 +341,12 @@ class PythonSession {
                         IllegalStateException("Python workspace proxy was not initialized")
                     },
                 types.getOrThrow { IllegalStateException("Python types were not initialized") },
-                maxOutputBytes.toPyObj()
+                maxOutputBytes.toPyObj(),
+                outputState
+                    .getOrThrow {
+                        IllegalStateException("Python output state was not initialized")
+                    },
+                PyString(sessionId)
             ]
         )
         let gil =
@@ -373,7 +383,11 @@ class PythonSession {
 
 @When[os != "Linux"]
 class PythonSession {
-    PythonSession(root: VfsPath, logger!: Logger = NoopLogger()) {}
+    PythonSession(
+        root: VfsPath,
+        logger!: Logger = NoopLogger(),
+        private let sessionId!: String = "standalone"
+    ) {}
     func close(): Unit {}
     func run(code: String): JsonValue {
         run(code, 24000)

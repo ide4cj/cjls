@@ -7,6 +7,38 @@ The server sends a semantic-query playbook in the MCP initialization response.
 they ship with the Linux archive alongside the skill. Native objects and types
 are injected into scripts; there is no importable `loupe` Python package.
 
+## Selecting a project or worktree
+
+runPython accepts an optional root argument: an absolute directory path. Omission
+always selects the startup --dir (or startup working directory), independently of
+previous calls. The server validates and canonicalizes it before preparing or
+executing Python. Symlink and dot-component aliases of the same root reuse one
+session. Invalid/missing roots never fall back to another workspace or run code.
+This selection is not a filesystem sandbox: scripts retain process permissions.
+
+Each root owns its database, VFS, macro host, revision and last_output. All calls
+remain sequential; scripts use the injected workspace without changing queries.
+Responses, including budget and preparation errors, include root and sessionId.
+Preparation/root-selection errors have null revision; selection failures also
+have null sessionId and report the requested path. Successful selection reports
+the canonical root. Compare (sessionId, revision) within this MCP connection;
+IDs are connection-local, not globally unique across restarts.
+
+At most four sessions are retained, including the default root when used. Selecting
+a fifth closes the least recently used session's polling worker and macro host.
+Eviction invalidates retained analysis handles with ContentModified.
+Returning to an evicted root creates a new sessionId and resets revisions and
+last_output. Shutdown closes all sessions. Observed deleted roots are retired
+before selection; recreating their path starts a fresh session. Replacing a root
+entirely between checks is not tracked as filesystem identity: the existing
+session synchronizes its new inputs. Native proxy retention remains an independent
+limitation; eviction does not promise to reclaim all Python-exported values.
+
+Retained native objects and semantic IDs must never cross workspace sessions.
+Python imports and process state are shared; these are independent analysis
+sessions, not isolated Python interpreters or processes. Modules used to retain
+objects across calls must keep their producing session identity too.
+
 Native node/range values are objects, not JSON dictionaries.
 The workspace handle provides:
 
@@ -245,12 +277,13 @@ reduce context_lines or increase max_bytes. The response-wide
 
 ## Revisions and synchronization
 
-Paths are absolute or relative to `--dir` (the working directory by default).
+Paths are absolute or relative to the selected workspace root (defaulting to
+`--dir`, or the startup working directory when omitted).
 Offsets/ranges count UTF-8 bytes from zero; ends are exclusive. An offset must
 fall on a UTF-8 boundary. The database, query caches, macro build artifacts and SDK
-macro processes persist until the MCP process exits. Closing the client's stdin
-stops the background worker and closes SDK processes before removing the session's
-temporary build directory. There is no daemon or cache shared across MCP sessions.
+macro processes persist until their workspace session is evicted or the MCP
+process exits. Closing the client's stdin stops all workspace workers and closes
+SDK processes before removing each session's temporary build directory. There is no daemon or cache shared across MCP connections.
 
 The first script prepares the workspace. Between calls a worker polls disk every
 500 ms, rediscovers project membership and compares source contents. Before every
@@ -285,7 +318,8 @@ later script; no script is run on a workspace whose preparation threw.
 ## Script execution
 
 The optional tool argument maxOutputBytes defaults to 24000 ([D164](../../docs/adr/0164-cjmcp-output-budget.md)). It bounds the
-complete compact UTF-8 JSON payload (result, stdout, stderr, error, revision),
+complete compact UTF-8 JSON payload (result, stdout, stderr, error, revision,
+root and sessionId),
 before the MCP text/structuredContent wrapper duplicates it. It is not a wire-size,
 token, memory or execution limit. A nonnegative integer is required; 0 explicitly
 allows an unlimited reply. Existing code-only calls remain valid, with this new
@@ -312,7 +346,8 @@ serialize a large result or capture native output.
 
 Each script gets a fresh global namespace and ordinary Python imports. Assign
 JSON-serializable data or supported diagnostic/status values to `result`, print output, or both. The MCP response has
-`result`, captured `stdout`/`stderr`, `revision`, and `error` (a traceback or null),
+`result`, captured `stdout`/`stderr`, `root`, `sessionId`, `revision`,
+and `error` (a traceback or null),
 in both `structuredContent` and text content. Non-serializable results are script errors.
 Python exceptions, including `SystemExit`, become tool errors; the session can
 continue. File descriptor redirection captures subprocess/native output as well

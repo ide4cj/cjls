@@ -3,6 +3,11 @@ name: cangjie-mcp
 description: Analyze, read and edit Cangjie sources through cjmcp runPython when exploring, changing or reviewing code.
 ---
 
+For a different worktree pass its absolute root in every runPython call. Omission
+always uses the server's --dir. Verify the returned root and sessionId; revision
+and last_output belong to that session, which can be evicted from the four-root
+cache. Do not pass native IDs between sessions.
+
 Follow server instructions for common queries; discover `runPython` if deferred.
 Use this skill for an unfamiliar operation, loading only its relevant recipe.
 Minimize total task token use without sacrificing correctness, evidence or
