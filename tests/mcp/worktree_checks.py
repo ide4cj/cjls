@@ -126,7 +126,7 @@ class WorktreeChecks:
             a = workspace.analysis()
             assert workspace.loadDiagnostics == [], workspace.loadDiagnostics
             assert workspace.macros.state == MacroState.Settled(), workspace.macros
-            assert workspace.macros.diagnostics == [], workspace.macros
+            assert workspace.macros.diagnostics == [], [d.message for d in workspace.macros.diagnostics]
             text = a.text('src/macro_use.cj')
             call = a.macroCall('src/macro_use.cj', text.encode().index(b'@Emit'))
             result = a.expansion(call.call).text
