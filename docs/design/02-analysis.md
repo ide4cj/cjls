@@ -489,3 +489,11 @@ also need `.corpora/` at the runtime commit matching the nightly:
 an arbitrary SDK source checkout (D65). Use the corpus fetch procedure in
 Development; missing SDK or corpus data is a prerequisite failure, not permission
 to silently skip a case.
+
+Std-macro fixtures use `checkStdMacroReadings` to compare the same source answers
+before and after a supplied server answer (D132). The caller supplies expansion
+text and mapped spans; observations include source diagnostic ranges as well as
+the requested types or navigation results. Recorded answers exercise replacement
+handling without running the SDK macro server. The existing `ServedDiagnosticsGateTest`
+checks live SDK output over the repository; std.unittest expression-call delivery
+remains #375.
