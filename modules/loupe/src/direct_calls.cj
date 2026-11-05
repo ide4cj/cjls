@@ -6,7 +6,7 @@ import calca.macros.*
 import cjsyntax.{CjSyntaxNode, SyntaxKind}
 import cjsyntax.ast.{CallExpr, Param, TrailingLambdaExpr}
 import ginkgo.SyntaxNodePtr
-import loupe.db.AnalysisDatabase
+import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.hir.{
     ActiveFilter,
     BodySource,
@@ -223,7 +223,7 @@ public func directCalls(db: AnalysisDatabase, def: DefId): DirectCalls {
             case _ => return DirectCalls([], [CallGap("unavailable-body", None)])
         }
     let node = itemNodeOf(db, def) ?? return DirectCalls([], [CallGap("unavailable-body", None)])
-    let scan = DirectCallScan(db, def, file.fileId(db), ActiveFilter.of(db, file))
+    let scan = DirectCallScan(db, def, file, ActiveFilter.of(db, file))
     let item = itemOf(db, def) ?? return DirectCalls([], [CallGap("unavailable-body", None)])
     // CalcaTracked is intentionally transparent: the audit concerns the original user body.
     if (macrosOf(db, def).any { one => !isTrackedMacro(db, one) }) {
@@ -237,6 +237,16 @@ public func directCalls(db: AnalysisDatabase, def: DefId): DirectCalls {
         if (child.kind == SyntaxKind.Block) {
             hasBody = true
             scan.visit(child)
+        }
+        if (child.kind == SyntaxKind.PropBody) {
+            // A property identity groups both potential accessor bodies; reading a property
+            // elsewhere still reports property-or-initialization rather than an implicit call.
+            for (accessor in child.children()) {
+                for (block in accessor.children() where block.kind == SyntaxKind.Block) {
+                    hasBody = true
+                    scan.visit(block)
+                }
+            }
         }
         if (child.kind == SyntaxKind.ParamList) {
             // Default arguments execute at a call site, not unconditionally in this body.
@@ -258,18 +268,18 @@ public func directCalls(db: AnalysisDatabase, def: DefId): DirectCalls {
     DirectCalls(scan.edges.toArray(), scan.gaps.toArray())
 }
 
-private class DirectCallScan {
+class DirectCallScan {
     DirectCallScan(
         let db: AnalysisDatabase,
         let def: DefId,
-        let fileId: FileId,
+        let file: SourceFile,
         let active: ActiveFilter
     ) {}
     let edges = ArrayList<DirectCall>()
     let gaps = ArrayList<CallGap>()
 
     private func site(node: CjSyntaxNode): NavigationTarget {
-        NavigationTarget(fileId, node.textRange, node.textRange)
+        NavigationTarget(file.fileId(db), node.textRange, node.textRange)
     }
     func gap(reason: String, node: CjSyntaxNode): Unit {
         gaps.add(CallGap(reason, site(node)))
@@ -346,7 +356,6 @@ private class DirectCallScan {
 
     private func value(node: CjSyntaxNode): Unit {
         let range = calleeName(node) ?? return
-        let file = db.sourceFile(fileId) ?? return
         let token = tokenAt(parse(db, file).syntaxNode(), range.start) ?? return
         let definitions = classifyName(db, file, Some(def), token) ?? []
         if (definitions.isEmpty()) {
@@ -372,7 +381,6 @@ private class DirectCallScan {
                     gap("functional-value", node)
                     return
             }
-        let file = db.sourceFile(fileId) ?? return
         let definitions = callDefinitions(db, file, range.start)
         var found = false
         for (definition in definitions) {

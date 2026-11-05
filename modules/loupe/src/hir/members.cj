@@ -435,7 +435,7 @@ func stdViewerOf(db: AnalysisDatabase, def: DefId): ?PackageRef {
  * package, `std.core` for a type of the language, in the file's, and among the `extend`s of other
  * types the packages of its interfaces hold (`interfaceExtendsOf`).
  */
-func extendsOf(db: AnalysisDatabase, ty: ExtendedType, from: ?SourceFile): Array<DefId> {
+public func extendsOf(db: AnalysisDatabase, ty: ExtendedType, from: ?SourceFile): Array<DefId> {
     let viewer = from.flatMap { file => packageOfFile(db, file).map { pkg => (pkg, file) } }
     let typePackage =
         match (ty) {
