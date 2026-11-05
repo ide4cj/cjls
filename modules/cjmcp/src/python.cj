@@ -39,8 +39,9 @@ import sys as _cjmcp_sys
 import tempfile as _cjmcp_tempfile
 import traceback as _cjmcp_traceback
 
-def __cjmcp_run(code, workspace, classes, max_output_bytes, state, session_id):
+def __cjmcp_run(code, workspace, classes, max_output_bytes, state, session_id, server_info_json):
     scope = dict(classes, workspace=workspace, source_excerpts=source_excerpts,
+                 server_info=_cjmcp_json.loads(server_info_json),
                  last_output=state.get("last_output"), __name__='__cjmcp_script__')
     def encode_native(value):
         if isinstance(value, classes['WorkspaceDiagnostic']):
@@ -346,7 +347,8 @@ class PythonSession {
                     .getOrThrow {
                         IllegalStateException("Python output state was not initialized")
                     },
-                PyString(sessionId)
+                PyString(sessionId),
+                PyString(serverInfo().toString())
             ]
         )
         let gil =
