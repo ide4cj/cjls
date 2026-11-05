@@ -73,6 +73,11 @@ func annotateTypes(
             @Expect(result.exprs.iterator().all { ty => ty.map { one => !hasInferVars(db, one) } ?? true })
             @Expect(result.locals.iterator().all { ty => !hasInferVars(db, ty) })
             @Expect(result.pats.iterator().all { ty => !hasInferVars(db, ty) })
+            @Expect(result.calls.concat(result.setterCalls).iterator().all {
+                call =>
+                (call.signature.map { ty => !hasInferVars(db, ty) } ?? true) &&
+                    call.bindings.iterator().all { binding => !hasInferVars(db, binding.ty) }
+            })
             let pkg = packageOfFile(db, source).getOrThrow()
             for (i in 0..lowered.body.locals.size) {
                 let local = lowered.body.locals[i]
