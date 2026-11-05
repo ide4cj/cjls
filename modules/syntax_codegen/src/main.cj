@@ -5,22 +5,7 @@ import std.fs.Path
 import std.io.OutputStream
 import jian.*
 
-/**
- * Supplies command output without retaining streams in the application.
- */
-@JianContext
-class CommandContext {
-    CommandContext(let output: CommandOutput) {}
-}
-
-/**
- * Jian resolves dependencies by type, so both output streams share one context value.
- */
-struct CommandOutput {
-    CommandOutput(let out: OutputStream, let err: OutputStream) {}
-}
-
-let SYNTAX_CODEGEN_APP = JianContextApp<CommandContext>(name: "syntax_codegen")
+let SYNTAX_CODEGEN_APP = JianApp(name: "syntax_codegen")
 
 /**
  * Runs the generator CLI; usage errors return 2, generation failures return 1.
@@ -38,12 +23,7 @@ func runCommand(
     err!: OutputStream = getStdErr()
 ): Int64 {
     try {
-        SYNTAX_CODEGEN_APP.run(
-            args,
-            context: CommandContext(CommandOutput(out, err)),
-            stdout: out,
-            stderr: err
-        )
+        SYNTAX_CODEGEN_APP.run(args, stdout: out, stderr: err)
     } catch (e: Exception) {
         err.write("error: ${e.message}\n".toArray())
         err.flush()
@@ -60,23 +40,22 @@ func generateSyntax(
         help: "Kinds file; paths in it are relative to this file.",
         preprocess: nonemptyKindsFile
     ),
-    context!: CommandContext = JianFromContext<CommandContext>()
+    output!: JianOutput = JianCurrentOutput()
 ): Int64 {
     let generated = generate(kindsFile)
     for (file in generated.files) {
         writeFormatted(file.path, file.contents)
-        context.output.out.write("info: wrote ${file.path}\n".toArray())
+        output.stdout.write("info: wrote ${file.path}\n".toArray())
     }
     for (n in generated.model.nodes where !n.handWritten.isEmpty()) {
-        context
-            .output
-            .out
+        output
+            .stdout
             .write(
                 "note: ${n.name} has accessors to write by hand: ${String.join(n.handWritten, delimiter: ", ")}\n"
                     .toArray()
             )
     }
-    context.output.out.flush()
+    output.stdout.flush()
     0
 }
 

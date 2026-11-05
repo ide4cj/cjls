@@ -1,6 +1,6 @@
 package cjls
 
-import std.env.{getStdErr, getStdOut, getVariable, getWorkingDirectory}
+import std.env.{getVariable, getWorkingDirectory}
 import std.fs.Path
 import std.io.OutputStream
 import stdx.log.Logger
@@ -12,17 +12,7 @@ import cjls.server.settingsSchema
 
 @JianContext
 class CommandContext {
-    CommandContext(
-        let logger: Logger,
-        let output!: CommandOutput = CommandOutput(getStdOut(), getStdErr())
-    ) {}
-}
-
-/**
- * Both streams share a context value because jian resolves dependencies by type.
- */
-struct CommandOutput {
-    CommandOutput(let out: OutputStream, let err: OutputStream) {}
+    CommandContext(let logger: Logger) {}
 }
 
 let CJLS_APP = JianContextApp<CommandContext>(name: "cjls", help: "Cangjie language server.")
@@ -31,6 +21,7 @@ let CJLS_APP = JianContextApp<CommandContext>(name: "cjls", help: "Cangjie langu
 func configureCommand(
     invocation!: JianInvocation = JianCurrentInvocation(),
     context!: CommandContext = JianFromContext<CommandContext>(),
+    output!: JianOutput = JianCurrentOutput(),
     configSchema!: Bool = JianOption(
         help: "Print the JSON Schema of the server's settings and exit.",
         default: false
@@ -41,7 +32,7 @@ func configureCommand(
         if (invocation.requestedSubcommand.isSome()) {
             throw JianUsageException("--config-schema takes no command")
         }
-        return JianCallbackResult.Exit(printConfigSchema(context.output.out))
+        return JianCallbackResult.Exit(printConfigSchema(output.stdout))
     }
     if (invocation.requestedSubcommand.isNone()) {
         return JianCallbackResult.Exit(runServer(context.logger))
@@ -52,19 +43,19 @@ func configureCommand(
 @JianCommand[CJLS_APP, name: "fmt", help: "Format Cangjie files or directories using their project settings."]
 func formatCommand(
     paths: Array<Path>,
-    context!: CommandContext = JianFromContext<CommandContext>(),
+    output!: JianOutput = JianCurrentOutput(),
     check!: Bool = JianOption(
         short: r'c',
         help: "Report files that would change without writing them.",
         default: false
     )
 ): Int64 {
-    formatPaths(paths.map { path => absolute(path) }, check, context.output.out, context.output.err)
+    formatPaths(paths.map { path => absolute(path) }, check, output.stdout, output.stderr)
 }
 
 @JianCommand[CJLS_APP, name: "fetch-src", help: "Download std sources for the detected SDK into its src directory."]
 func downloadSources(
-    context!: CommandContext = JianFromContext<CommandContext>(),
+    output!: JianOutput = JianCurrentOutput(),
     dir!: ?Path = JianOption(
         short: r'd',
         help: "Destination directory instead of the SDK's src.",
@@ -72,7 +63,7 @@ func downloadSources(
         normalize: absoluteDirectory
     )
 ): Int64 {
-    fetchSrcCommand(dir, context.output.out, context.output.err)
+    fetchSrcCommand(dir, output.stdout, output.stderr)
 }
 
 /**
@@ -90,7 +81,8 @@ func printProject(
         preprocess: nonemptyDirectory,
         normalize: absolute
     ),
-    context!: CommandContext = JianFromContext<CommandContext>()
+    context!: CommandContext = JianFromContext<CommandContext>(),
+    output!: JianOutput = JianCurrentOutput()
 ): Int64 {
     let root = VfsPath.file(dir)
     let env = { name: String => getVariable(name) }
@@ -100,8 +92,8 @@ func printProject(
     for (problem in load.problems) {
         context.logger.warn(problem)
     }
-    context.output.out.write(prettyProjectJson(toProjectJson(load.model, root)).toArray())
-    context.output.out.flush()
+    output.stdout.write(prettyProjectJson(toProjectJson(load.model, root)).toArray())
+    output.stdout.flush()
     0
 }
 

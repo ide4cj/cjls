@@ -5,22 +5,7 @@ import std.fs.Path
 import std.io.OutputStream
 import jian.*
 
-/**
- * Supplies command output without retaining streams in the application.
- */
-@JianContext
-class CommandContext {
-    CommandContext(let output: CommandOutput) {}
-}
-
-/**
- * Jian resolves dependencies by type, so both output streams share one context value.
- */
-struct CommandOutput {
-    CommandOutput(let out: OutputStream, let err: OutputStream) {}
-}
-
-let FBS_CODEGEN_APP = JianContextApp<CommandContext>(name: "fbs_codegen")
+let FBS_CODEGEN_APP = JianApp(name: "fbs_codegen")
 
 /**
  * Generates views from the config named on the command line.
@@ -38,12 +23,7 @@ func runCommand(
     err!: OutputStream = getStdErr()
 ): Int64 {
     try {
-        FBS_CODEGEN_APP.run(
-            args,
-            context: CommandContext(CommandOutput(out, err)),
-            stdout: out,
-            stderr: err
-        )
+        FBS_CODEGEN_APP.run(args, stdout: out, stderr: err)
     } catch (e: Exception) {
         err.write("error: ${e.message}\n".toArray())
         err.flush()
@@ -60,12 +40,12 @@ func generateCommand(
         help: "Generation config in TOML format.",
         preprocess: nonemptyConfig
     ),
-    context!: CommandContext = JianFromContext<CommandContext>()
+    output!: JianOutput = JianCurrentOutput()
 ): Int64 {
     let file = generate(config)
     writeFormatted(file.path, file.contents)
-    context.output.out.write("info: wrote ${file.path}\n".toArray())
-    context.output.out.flush()
+    output.stdout.write("info: wrote ${file.path}\n".toArray())
+    output.stdout.flush()
     0
 }
 
