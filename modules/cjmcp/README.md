@@ -95,7 +95,9 @@ process. Incoming messages must end in a newline and are limited to 8 MiB.
 Use the server instructions for common queries and one
 [task recipe](skills/cangjie-mcp/SKILL.md) for an unfamiliar operation. Configure
 the connection with [agent setup](agent-setup.md). Native objects are injected;
-there is no importable `loupe` Python package.
+there is no importable `loupe` Python package. Return `server_info` to identify
+the running build, Python API version and supported features before consulting
+documentation from another checkout; see [server identity](python-api.md#server-identity).
 
 Read the [API reference](python-api.md) only for detailed contracts:
 [source changes](python-api.md#applying-source-changes),

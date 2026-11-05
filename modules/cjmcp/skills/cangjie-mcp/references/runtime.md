@@ -35,4 +35,7 @@
   maxOutputBytes (default 24000 UTF-8 JSON bytes). Filter last_output in a new call;
   do not replay effects. It includes the original revision and all output channels.
   Explicit maxOutputBytes=0 permits a full response. The error itself is exempt
-  from the budget; see [API](../../../python-api.md) for retention and size semantics.
+  from the budget. last_output retains one rejected JSON response until another
+  rejection replaces it; successful recovery does not clear it. It is session-local
+  and may describe an older revision. The budget covers compact UTF-8 JSON across
+  result/stdout/stderr/error and root/sessionId/revision, before MCP wrappers.

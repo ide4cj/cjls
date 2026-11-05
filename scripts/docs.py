@@ -3,7 +3,7 @@
 
     python3 scripts/docs.py new-adr <slug> <decision>   # docs/adr/NNNN-<slug>.md, the next number
     python3 scripts/docs.py index                       # docs/adr/README.md's table, from the ADRs
-    python3 scripts/docs.py check [--open-prs N]        # every id once, every header readable
+    python3 scripts/docs.py check [--open-prs N]        # ids, headers and local links
 
 `new-adr` takes the number after the highest on this branch, on `origin/master` and in the open
 pull requests (through `gh`, when it is there). `index` is run by `docs.yml` after a merge, not by
@@ -12,13 +12,16 @@ hand: a pull request leaves the table alone, so that two of them never meet in i
 """
 
 import argparse
+import html
 import json
 import re
 import subprocess
 import sys
+import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
+from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parent.parent
 ADR_DIR = ROOT / "docs" / "adr"
@@ -145,6 +148,80 @@ def check_rules(root: Path = ROOT) -> None:
             seen.add(row.group(2))
 
 
+def markdown_lines(text: str):
+    """Ignore fenced examples so sample links and headings do not become contracts."""
+    fence = None
+    for number, line in enumerate(text.splitlines(), 1):
+        marker = re.match(r"^ {0,3}(`{3,}|~{3,})", line)
+        if marker:
+            token = marker.group(1)
+            if fence is None:
+                fence = token
+            elif token[0] == fence[0] and len(token) >= len(fence) and not line[marker.end():].strip():
+                fence = None
+            continue
+        if fence is None:
+            yield number, line
+
+
+def markdown_anchors(text: str) -> set:
+    anchors = set()
+    generated = set()
+    for _, line in markdown_lines(text):
+        heading = re.match(r"^ {0,3}#{1,6} +(.+?)(?: +#+ *)?$", line)
+        if heading:
+            title = html.unescape(re.sub(r"<[^>]+>", "", heading.group(1))).lower()
+            slug = "".join(c for c in title if c in "-_ " or
+                           unicodedata.category(c)[0] in "LN").replace(" ", "-")
+            candidate = slug
+            suffix = 0
+            while candidate in generated:
+                suffix += 1
+                candidate = f"{slug}-{suffix}"
+            generated.add(candidate)
+            anchors.add(candidate)
+        anchors.update(re.findall(r'<(?:a|span)\b[^>]*(?:id|name)=["\']([^"\']+)', line))
+    return anchors
+
+
+def check_links(root: Path = ROOT, paths=None, *, contained: bool = False) -> None:
+    """Check local Markdown destinations and fragments; contained validates copied skills."""
+    root = root.resolve()
+    if paths is None:
+        paths = [*root.glob("*.md"), *root.glob("docs/**/*.md"),
+                 *root.glob("modules/**/*.md"), *root.glob(".agents/**/*.md")]
+    anchors = {}
+    errors = []
+    for source in sorted(paths):
+        for number, line in markdown_lines(source.read_text(encoding="utf-8")):
+            line = re.sub(r"(`+).*?\1", "", line)
+            targets = re.findall(r"\]\((<[^>]+>|[^\s)]+)(?: +[\"'][^)]*)?\)", line)
+            definition = re.match(r"^ {0,3}\[[^]]+\]:\s*(<[^>]+>|\S+)", line)
+            if definition:
+                targets.append(definition.group(1))
+            for raw in targets:
+                link = urlsplit(html.unescape(raw.strip("<>")))
+                if link.scheme or link.netloc:
+                    continue
+                if link.path.startswith("/"):
+                    if contained:
+                        errors.append(f"{source.relative_to(root)}:{number}: {raw}: absolute skill link")
+                    continue
+                target = (source.parent / unquote(link.path)).resolve() if link.path else source.resolve()
+                location = f"{source.relative_to(root)}:{number}: {raw}"
+                if contained and not target.is_relative_to(root):
+                    errors.append(f"{location}: escapes the installed skill")
+                elif not target.exists():
+                    errors.append(f"{location}: missing local destination")
+                elif target.suffix == ".md" and link.fragment:
+                    if target not in anchors:
+                        anchors[target] = markdown_anchors(target.read_text(encoding="utf-8"))
+                    if unquote(link.fragment) not in anchors[target]:
+                        errors.append(f"{location}: missing heading or anchor")
+    if errors:
+        raise DocsError("\n".join(errors))
+
+
 def git(*args: str) -> Optional[str]:
     try:
         done = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True)
@@ -220,7 +297,7 @@ def main(argv: List[str]) -> int:
     new.add_argument("slug")
     new.add_argument("decision")
     commands.add_parser("index", help="write docs/adr/README.md's table")
-    check = commands.add_parser("check", help="every id once, every ADR header readable")
+    check = commands.add_parser("check", help="rule/ADR ids and local documentation links")
     check.add_argument("--open-prs", type=int, metavar="N",
                        help="fail pull request N if an older open one took its ADR number")
     args = parser.parse_args(argv)
@@ -233,6 +310,7 @@ def main(argv: List[str]) -> int:
         else:
             read_adrs()
             check_rules()
+            check_links()
             if args.open_prs is not None:
                 prs = open_pr_adrs()
                 if prs is None:

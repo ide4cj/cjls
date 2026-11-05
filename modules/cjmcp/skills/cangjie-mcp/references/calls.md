@@ -32,9 +32,9 @@ result = [
 edges and `CallGap` coverage markers. `analysis.callDeclaration(definition)`
 returns canonical declaration identity and ownership, independent of import aliases.
 `analysis.trackedCallRoots(path)` finds active original CalcaTracked declarations.
-Keep identities with the producing revision. The shared
-[coverage rule](../../../../../docs/design/02-analysis.md#a39-partial-call-evidence)
-defines the interpretation limits; native source comments document resolution
-labels and gap reasons. Transitive traversal and target selection
-belong to the calling script. An empty incomplete graph cannot establish absence
-of a call chain.
+Keep identities with the producing revision. Nested function/lambda bodies do not
+execute when declared; macro token arguments are not unconditional calls. Tracked
+roots inspect original bodies, excluding generated cache wrappers. Transitive
+traversal and target selection belong to the calling script. An incomplete graph
+cannot establish absence of a call chain; even without gaps, a negative answer
+is scoped to this model, not a general purity proof.

@@ -185,7 +185,7 @@ Project formatting policy is documented in [Formatter configuration](formatting.
 
 | Change | Start with | Broader verification |
 |---|---|---|
-| Documentation only | Local links, command/source consistency, `python3 scripts/docs.py check` | Docs-script tests when changing that tooling |
+| Documentation only | Local destinations/heading fragments, command/source consistency, `python3 scripts/docs.py check` | Docs-script tests when changing that tooling |
 | Library or analysis behavior | A focused unit/fixture regression test | Full Cangjie suite and formatting |
 | Routing, lifecycle, threading or wire behavior | Unit tests of the responsible layer | Relevant e2e tests with the built binary |
 | Grammar or generated code | Affected module's generation/conformance tests | Full suite and formatting; corpus/oracle checks where applicable |
