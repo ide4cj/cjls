@@ -25,3 +25,7 @@ __pycache__
 
 # tests/perf: what the servers wrote to stderr
 perf-logs
+
+# Nix build outputs
+/result
+/result-*
