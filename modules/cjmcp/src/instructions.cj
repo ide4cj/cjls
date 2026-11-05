@@ -6,6 +6,12 @@ let agentInstructions =
 Use runPython for all Cangjie source analysis, reading and editing; do not
 substitute shell commands or subprocesses. Report partial analysis without a
 shell fallback. Shell remains available for Git, builds, tests and non-Cangjie files.
+Pass root=<absolute edited project/worktree> on every runPython call when working
+outside the configured --dir. Omitting root always selects --dir, not the previous
+call. Canonical roots have independent analysis, macro and last_output state.
+Responses carry root and sessionId; revision numbers are meaningful only within
+that session. Four roots are cached by recency; eviction closes their workers and
+macro hosts. Reopening creates a new sessionId. Calls remain sequential.
 workspace and native types are injected; do not import loupe.
 
 Minimize total task token use without sacrificing correctness, evidence or
