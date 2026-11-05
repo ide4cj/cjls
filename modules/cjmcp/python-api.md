@@ -7,6 +7,24 @@ The server sends a semantic-query playbook in the MCP initialization response.
 they ship with the Linux archive alongside the skill. Native objects and types
 are injected into scripts; there is no importable `loupe` Python package.
 
+## Server identity
+
+Each script receives server_info, a fresh JSON dictionary also returned as
+serverInfo by MCP initialize. Its name/version identify the executable product;
+_meta contains apiVersion (currently 1), commit (full build-time Git SHA or null),
+dirty (whether the build checkout had local changes, or null without Git identity)
+and features: structuredDiagnostics, worktreeSessions, checkedSourceChanges,
+sourceExcerpts and outputBudget. Feature names describe this binary's supported
+Python/tool contracts, not analysis completeness or preparation success.
+
+The build hook embeds identity before compilation and preserves the generated
+file's timestamp when unchanged. No Git checkout or BUILD-INFO file is needed at
+runtime. The identity belongs to the server, independently of root/session/revision.
+apiVersion changes for incompatible Python contract changes; additive features
+can be checked individually. Missing server_info identifies an older server
+without this discovery contract. Do not use a newer checkout's docs as proof of
+its capabilities. For example: result = server_info.
+
 ## Selecting a project or worktree
 
 runPython accepts an optional root argument: an absolute directory path. Omission
