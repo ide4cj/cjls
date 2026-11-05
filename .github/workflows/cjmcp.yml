@@ -14,6 +14,9 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  CJMCP_BUILD_COMMIT: ${{ github.sha }}
+
 jobs:
   linux:
     name: Build and verify MCP (Linux x86_64)

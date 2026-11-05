@@ -24,8 +24,11 @@ result = {
 The helper returns whole excerpts with paths, line/range metadata and explicit
 omissions. Follow next_offset with the same ordered requests and revision;
 if it cannot advance, select a smaller member/range or increase max_bytes.
-See the [API contract](../../../python-api.md#source-excerpts) for field meanings,
-context lines and exact paging/budget semantics.
+The page includes revision, total, returned, omitted, next_offset and required_bytes.
+The budget counts compact UTF-8 JSON bytes; context_lines adds whole surrounding
+lines. total counts selected requests; omitted includes earlier pages.
+required_bytes reports the page size that blocked progress. The tool response
+budget applies independently to the complete reply.
 
 For a large class or test suite, traverse nested structure children and select
 individual methods/tests before asking for source. Do not send the entire class

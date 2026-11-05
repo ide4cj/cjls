@@ -94,8 +94,10 @@ cp -R skills/cangjie-mcp /absolute/path/to/project/.agents/skills/
 ```
 
 Check an existing destination before copying over a locally customized skill.
-The skill is portable and includes the Python recipes. It teaches the workflow;
-it does not configure the connection. For a client without skill support, keep
+The skill is self-contained: its local links stay inside the copied folder.
+The full API reference remains with the binary; compare the injected server_info
+identity before consulting a separate source checkout. The skill teaches the
+workflow; it does not configure the connection. For a client without skill support, keep
 the selection rule and give the agent the recipes path when a task needs details.
 Keep only the short selection rule persistent; do not paste the setup guide,
 API reference or every recipe into project instructions. The server instructions
@@ -110,6 +112,7 @@ macro status and at most five source paths." Its tool trace should contain a
 
 ```python
 result = {
+    "server": server_info,
     "root": workspace.root,
     "revision": workspace.revision,
     "load_diagnostics": workspace.loadDiagnostics,
