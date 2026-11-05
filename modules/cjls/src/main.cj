@@ -24,12 +24,7 @@ func runCommand(
     logger!: Logger = stderrLogger()
 ): Int64 {
     try {
-        CJLS_APP.run(
-            args,
-            context: CommandContext(logger, output: CommandOutput(out, err)),
-            stdout: out,
-            stderr: err
-        )
+        CJLS_APP.run(args, context: CommandContext(logger), stdout: out, stderr: err)
     } catch (e: Exception) {
         logger.fatal("stopped", [("cause", e)])
         1

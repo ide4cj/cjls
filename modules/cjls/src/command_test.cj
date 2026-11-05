@@ -32,6 +32,8 @@ class CommandTest {
         // assert
         @Expect(exitCode, 0)
         @Expect(help.contains(usage))
+        @Expect(!help.contains("--output"))
+        @Expect(!help.contains("OUTPUT"))
         @Expect(help.contains(option))
         if (usage == "Usage: cjls") {
             @Expect(help.contains("Serve LSP over stdio"))
@@ -52,6 +54,8 @@ class CommandTest {
             [
                 ["frob"],
                 ["--frob"],
+                ["--output", "file"],
+                ["fmt", "--output", "file"],
                 ["project", "sub"],
                 ["project", "--frob"],
                 ["project", "--dir"],
@@ -176,6 +180,39 @@ class CommandTest {
             // assert
             @Expect(rechecked, 0)
             @Expect(written(err), "")
+        } finally {
+            remove(dir, recursive: true)
+        }
+    }
+
+    @TestCase
+    func repeatedInvocationsKeepCallbackAndCommandStreamsSeparate() {
+        // arrange
+        let (schemaOut, schemaErr) = (ByteBuffer(), ByteBuffer())
+        let (commandOut, commandErr) = (ByteBuffer(), ByteBuffer())
+        let dir = Directory.createTemp(getWorkingDirectory())
+        try {
+            // act
+            let schemaCode = runCommand(
+                ["--config-schema"],
+                logger: NoopLogger(),
+                out: schemaOut,
+                err: schemaErr
+            )
+            let commandCode = runCommand(
+                ["fmt", dir.join("missing.cj").toString()],
+                logger: NoopLogger(),
+                out: commandOut,
+                err: commandErr
+            )
+
+            // assert
+            @Expect(schemaCode, 0)
+            @Expect(fromJsonBytes<JsonValue>(readToEnd(schemaOut)), settingsSchema())
+            @Expect(written(schemaErr), "")
+            @Expect(commandCode, 1)
+            @Expect(written(commandOut), "")
+            @Expect(written(commandErr).contains("missing.cj"))
         } finally {
             remove(dir, recursive: true)
         }

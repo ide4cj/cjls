@@ -158,8 +158,12 @@ standalone invocation. Usage errors return 2 and write to stderr.
 CLI entrypoints use `main(args) → runCommand(args, …) → *_APP.run(…)` with
 module-local wrappers and prefixed application names. Commands stay registered
 through Jian annotations; command tests call `runCommand` to exercise the same
-application and failure boundary as the executable. `CommandOutput(out, err)` in
-`CommandContext` holds the same streams passed as the application's stdout/stderr.
+application and failure boundary as the executable. Commands and callbacks receive
+the effective per-run streams through
+`output!: JianOutput = JianCurrentOutput()`; `runCommand` selects stdout/stderr
+once for help, usage errors and action output. Generators use `JianApp` without
+custom context; the server retains `JianContextApp<CommandContext>` for its logger.
+Direct calls to annotated functions supply `output: JianOutput(...)` explicitly.
 Generator actions let exceptions propagate to `runCommand`, which writes
 `error: <message>` to stderr, flushes it and returns 1; usage errors return 2.
 Generators let `Error` propagate. `cjls` retains its logger, catches both

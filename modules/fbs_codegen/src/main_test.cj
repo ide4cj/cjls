@@ -20,12 +20,14 @@ class FbsCodegenCommandTest {
         // assert
         @Expect(exitCode, 0)
         @Expect(help.contains("Usage: fbs_codegen [OPTIONS] CONFIG"))
+        @Expect(!help.contains("--output"))
+        @Expect(!help.contains("OUTPUT"))
         @Expect(help.contains("Generation config in TOML format."))
         @Expect(help.contains("--help"))
         @Expect(String.fromUtf8(err.bytes()), "")
     }
 
-    @TestCase[args in [[], ["a.toml", "b.toml"], [""], ["   "], ["--unknown"], ["-x", "a.toml"]]]
+    @TestCase[args in [[], ["a.toml", "b.toml"], [""], ["   "], ["--unknown"], ["--output", "file"], ["-x", "a.toml"]]]
     func invalidArgumentsAreUsageErrors(args: Array<String>) {
         // arrange
         let (out, err) = (ByteBuffer(), ByteBuffer())

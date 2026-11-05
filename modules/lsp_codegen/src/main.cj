@@ -6,22 +6,7 @@ import std.io.OutputStream
 import fjson.fromJsonBytes
 import jian.*
 
-/**
- * Supplies command output without retaining streams in the application.
- */
-@JianContext
-class CommandContext {
-    CommandContext(let output: CommandOutput) {}
-}
-
-/**
- * Jian resolves dependencies by type, so both output streams share one context value.
- */
-struct CommandOutput {
-    CommandOutput(let out: OutputStream, let err: OutputStream) {}
-}
-
-let LSP_CODEGEN_APP = JianContextApp<CommandContext>(name: "lsp_codegen")
+let LSP_CODEGEN_APP = JianApp(name: "lsp_codegen")
 
 main(args: Array<String>): Int64 {
     runCommand(args)
@@ -36,12 +21,7 @@ func runCommand(
     err!: OutputStream = getStdErr()
 ): Int64 {
     try {
-        LSP_CODEGEN_APP.run(
-            args,
-            context: CommandContext(CommandOutput(out, err)),
-            stdout: out,
-            stderr: err
-        )
+        LSP_CODEGEN_APP.run(args, stdout: out, stderr: err)
     } catch (e: Exception) {
         err.write("error: ${e.message}\n".toArray())
         err.flush()
@@ -60,7 +40,7 @@ func generateProtocol(
         help: "Generator configuration TOML file.",
         preprocess: nonblankPath
     ),
-    context!: CommandContext = JianFromContext<CommandContext>()
+    output!: JianOutput = JianCurrentOutput()
 ): Int64 {
     let cfg = Config.load(config)
     let model = fromJsonBytes<MetaModel>(File.readFrom(metaModel))
@@ -72,8 +52,8 @@ func generateProtocol(
     for (file in cjFiles) {
         File.writeTo(file.path, file.contents.toArray())
     }
-    context.output.out.write("info: generated ${cjFiles.size} Cangjie files\n".toArray())
-    context.output.out.flush()
+    output.stdout.write("info: generated ${cjFiles.size} Cangjie files\n".toArray())
+    output.stdout.flush()
     0
 }
 

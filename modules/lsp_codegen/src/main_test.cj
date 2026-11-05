@@ -27,6 +27,8 @@ class LspCodegenCommandTest {
         @Expect(exitCode, 0)
         let help = written(out)
         @Expect(help.contains("Usage: lsp_codegen"))
+        @Expect(!help.contains("--output"))
+        @Expect(!help.contains("OUTPUT"))
         @Expect(help.contains("META-MODEL"))
         @Expect(help.contains("--config"))
         @Expect(help.contains("-c"))
@@ -43,6 +45,7 @@ class LspCodegenCommandTest {
         ["   ", "-c", "lsp_codegen.toml"],
         ["metaModel.json", "-c", "lsp_codegen.toml", "extra.json"],
         ["metaModel.json", "-c", "lsp_codegen.toml", "--unknown"],
+        ["metaModel.json", "-c", "lsp_codegen.toml", "--output", "file"],
         ["help", "unknown"]
     ]]
     func invalidInputsAreUsageErrorsBeforeReadingFiles(args: Array<String>) {
