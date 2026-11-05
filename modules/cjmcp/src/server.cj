@@ -1,5 +1,6 @@
 package cjmcp
 
+import std.fs.Path
 import stdx.log.{Logger, NoopLogger}
 import fjson.{JsonValue, fromJsonBytes}
 import loupe.vfs.VfsPath
@@ -20,12 +21,12 @@ class McpException <: Exception {
 class McpServer {
     private var isInitialized = false
     private var isReady = false
-    private var python: ?PythonSession = None
+    private let sessions = WorkspaceSessions()
 
     McpServer(private let root: VfsPath, private let logger!: Logger = NoopLogger()) {}
 
     func close(): Unit {
-        python?.close()
+        sessions.close()
     }
 
     func handle(line: Array<Byte>): ?JsonValue {
@@ -122,6 +123,7 @@ class McpServer {
 
     private func callTool(params: JsonValue): JsonValue {
         var maxOutputBytes: Int64 = 24000
+        var selectedRoot = root.toString()
         let code =
             try {
                 if (params["name"].asString() != "runPython") {
@@ -129,9 +131,16 @@ class McpServer {
                 }
                 let args = params["arguments"]
                 for (
-                    (name, _) in args.asObject() where name != "code" && name != "maxOutputBytes"
+                    (name, _) in args.asObject() where name != "code" && name != "maxOutputBytes" &&
+                        name != "root"
                 ) {
                     throw McpException("Unexpected argument: ${name}", -32602)
+                }
+                if (let Some(directory) <- args.get("root")) {
+                    selectedRoot = directory.asString()
+                    if (!Path(selectedRoot).isAbsolute()) {
+                        throw McpException("root must be an absolute directory path", -32602)
+                    }
                 }
                 if (let Some(budget) <- args.get("maxOutputBytes")) {
                     maxOutputBytes = budget.asInteger()
@@ -143,16 +152,25 @@ class McpServer {
             } catch (e: IllegalArgumentException) {
                 throw McpException(e.message, -32602)
             }
+        var sessionId: JsonValue = JsonNull
         try {
-            if (python.isNone()) {
-                python = PythonSession(root, logger: logger)
-            }
-            let result = python
-                .getOrThrow { IllegalStateException("Python session was not initialized") }
-                .run(code, maxOutputBytes)
+            let entry = sessions.acquire(selectedRoot, logger)
+            selectedRoot = entry.root
+            sessionId = JsonString(entry.id)
+            let result = entry.python.run(code, maxOutputBytes)
             toolResult(result, error: !result["error"].isNull())
         } catch (e: Exception) {
-            toolResult(obj([("error", JsonString(e.message)), ("revision", JsonNull)]), error: true)
+            toolResult(
+                obj(
+                    [
+                        ("error", JsonString(e.message)),
+                        ("revision", JsonNull),
+                        ("root", JsonString(selectedRoot)),
+                        ("sessionId", sessionId)
+                    ]
+                ),
+                error: true
+            )
         }
     }
 }
@@ -219,6 +237,20 @@ func tools(): JsonValue {
                     [
                         ("code", code),
                         (
+                            "root",
+                            obj(
+                                [
+                                    ("type", JsonString("string")),
+                                    (
+                                        "description",
+                                        JsonString(
+                                            "Absolute project/worktree directory. Omit to use --dir; never follows the previous call. Each canonical root has an independent cached session."
+                                        )
+                                    )
+                                ]
+                            )
+                        ),
+                        (
                             "maxOutputBytes",
                             obj(
                                 [
@@ -228,7 +260,7 @@ func tools(): JsonValue {
                                     (
                                         "description",
                                         JsonString(
-                                            "Budget for the UTF-8 JSON response (result, stdout, stderr, error and revision). Default 24000; 0 explicitly allows unlimited output. Excess returns OutputBudgetExceeded after execution, with the full response available as last_output in the next script."
+                                            "Budget for the UTF-8 JSON response (result, stdout, stderr, error, root, sessionId and revision). Default 24000; 0 explicitly allows unlimited output. Excess returns OutputBudgetExceeded after execution, with the full response available as last_output in the next script."
                                         )
                                     )
                                 ]

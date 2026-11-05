@@ -175,12 +175,30 @@ class McpServerTest {
                         )
                     )
                 }
+        let invalidRoots =
+            [JsonNull, JsonInteger(7), JsonBool(true), JsonString(""), JsonString("relative")]
+        let rootResponses =
+            invalidRoots
+                .map {
+                    directory =>
+                    request(
+                        server,
+                        "tools/call",
+                        params: obj(
+                            [
+                                ("name", JsonString("runPython")),
+                                ("arguments", obj([("code", JsonString("")), ("root", directory)]))
+                            ]
+                        )
+                    )
+                }
         let responses = calls.map { params => request(server, "tools/call", params: params) }
         let unknown = request(server, "unknown")
 
         // assert
         @Expect(responses.iterator().all { response => response["error"]["code"].asInteger() == -32602 })
         @Expect(unknown["error"]["code"].asInteger(), -32601)
+        @Expect(rootResponses.iterator().all { response => response["error"]["code"].asInteger() == -32602 })
         @Expect(budgetResponses.iterator().all { response => response["error"]["code"].asInteger() == -32602 })
     }
 

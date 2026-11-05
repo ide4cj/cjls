@@ -184,12 +184,16 @@ remain distinct from JSON `null` (`@Serde[skipNone]`). The router and generated
 specifications are the maintained protocol inventory; [LSP extensions](lsp-extensions.md)
 document the additional client-facing contracts.
 
-The experimental MCP frontend keeps a session-owned incremental database and macro
-host too. It synchronizes disk inputs before each Python script and defers updates
+The experimental MCP frontend keeps an incremental database and macro host per
+selected canonical root, caching up to four workspace sessions by recency within
+one sequential connection. Explicit runPython root selection avoids a shared
+active-worktree setting; responses identify root, session and revision. It
+synchronizes disk inputs before each Python script and defers updates
 throughout execution and result serialization. The script and response identify
 the same workspace revision; retained analysis handles reject later revisions.
 See [MCP lifecycle and freshness](../modules/cjmcp/python-api.md#revisions-and-synchronization) and
-[D161](adr/0161-cjmcp-incremental-session.md).
+[D161](adr/0161-cjmcp-incremental-session.md), with multi-root selection in
+[D166](adr/0166-cjmcp-worktree-sessions.md).
 
 ## Source entry points
 
