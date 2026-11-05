@@ -112,10 +112,7 @@ class McpServer {
             [
                 ("protocolVersion", JsonString("2025-11-25")),
                 ("capabilities", obj([("tools", obj([]))])),
-                (
-                    "serverInfo",
-                    obj([("name", JsonString("cjmcp")), ("version", JsonString("0.1.0"))])
-                ),
+                ("serverInfo", serverInfo()),
                 ("instructions", JsonString(agentInstructions))
             ]
         )

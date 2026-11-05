@@ -13,6 +13,8 @@ Responses carry root and sessionId; revision numbers are meaningful only within
 that session. Four roots are cached by recency; eviction closes their workers and
 macro hosts. Reopening creates a new sessionId. Calls remain sequential.
 workspace and native types are injected; do not import loupe.
+For API/version mismatches return server_info: its _meta has apiVersion, build
+commit/dirty and features. Use documentation matching the running binary.
 
 Minimize total task token use without sacrificing correctness, evidence or
 verification. Account for query code, returned data and repeated context.

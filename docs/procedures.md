@@ -80,7 +80,7 @@ from timestamps.
 
 ## Agent semantic analysis with cjmcp
 
-The repository's [selection and batching rules](../AGENTS.md#efficient-cjmcp-queries)
+The repository's [source-tool selection rules](../AGENTS.md#before-changing-code)
 apply when cjmcp is connected. Follow its server instructions for core operations;
 load one recipe from the [`cangjie-mcp` skill](../modules/cjmcp/skills/cangjie-mcp/SKILL.md)
 only for an unfamiliar operation. Without a connection, use ordinary source tools,

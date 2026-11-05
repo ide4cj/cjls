@@ -1,5 +1,6 @@
 """Tests of scripts/docs.py: python3 -m unittest discover -s scripts -p '*_test.py'"""
 
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -150,6 +151,60 @@ class RulesTest(unittest.TestCase):
 
         # assert
         self.assertIsNone(result)
+
+
+class LinksTest(unittest.TestCase):
+    def test_removed_heading_is_rejected_with_source_and_line(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'AGENTS.md').write_text('# Before changing code\n')
+            source = root / 'README.md'
+            source.write_text('[rules](AGENTS.md#efficient-cjmcp-queries)\n')
+            with self.assertRaisesRegex(DocsError, 'README.md:1:.*missing heading'):
+                docs.check_links(root)
+            source.write_text('[rules](AGENTS.md#before-changing-code)\n')
+            docs.check_links(root)
+
+    def test_headings_duplicates_escapes_and_fenced_examples(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            text = ('# `API`: Café &amp; tests\n## Again\n## Again\n'
+                    '<a id="explicit"></a>\n'
+                    '[one](#api-café--tests) [two](#again-1) [three](#explicit)\n'
+                    '[encoded](#api-caf%C3%A9--tests)\n'
+                    '[remote](https://example.com/missing#heading)\n'
+                    '```markdown\n[example](absent.md)\n# Fake\n```\n'
+                    '`[inline](absent.md)`\n')
+            (root / 'README.md').write_text(text, encoding='utf-8')
+            docs.check_links(root)
+            self.assertNotIn('fake', docs.markdown_anchors(text))
+
+    def test_missing_file_and_escaping_skill_are_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'README.md').write_text('[missing](absent.md)\n')
+            with self.assertRaisesRegex(DocsError, 'missing local destination'):
+                docs.check_links(root)
+            (root / 'README.md').write_text('[outside](../README.md)\n')
+            with self.assertRaisesRegex(DocsError, 'escapes the installed skill'):
+                docs.check_links(root, contained=True)
+
+    def test_reference_destinations_and_angle_paths_are_checked(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'API guide.md').write_text('# API\n')
+            source = root / 'README.md'
+            source.write_text('[api]: <API guide.md#api>\n[guide](<API guide.md#api>)\n')
+            docs.check_links(root)
+            source.write_text('[api]: <API guide.md#removed>\n')
+            with self.assertRaisesRegex(DocsError, 'missing heading'):
+                docs.check_links(root)
+
+    def test_skill_links_survive_copying_only_the_skill(self):
+        with tempfile.TemporaryDirectory() as directory:
+            copied = Path(directory) / 'cangjie-mcp'
+            shutil.copytree(docs.ROOT / 'modules/cjmcp/skills/cangjie-mcp', copied)
+            docs.check_links(copied, list(copied.rglob('*.md')), contained=True)
 
 
 class OpenPrsTest(unittest.TestCase):

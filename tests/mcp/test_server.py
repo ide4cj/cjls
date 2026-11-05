@@ -178,6 +178,19 @@ result = i + 1
                 process.stdin.write(b'{"jsonrpc":"2.0","method":"notifications/initialized"}\n')
                 process.stdin.flush()
                 tools = rpc("tools/list")["tools"]
+                info = initialization['serverInfo']
+                self.assertEqual(info['name'], 'cjmcp')
+                self.assertEqual(info['_meta']['apiVersion'], 1)
+                self.assertIn('worktreeSessions', info['_meta']['features'])
+                if expected_commit := os.environ.get('CJMCP_BUILD_COMMIT'):
+                    self.assertEqual(info['_meta']['commit'], expected_commit)
+                if info['_meta']['commit'] is not None:
+                    self.assertRegex(info['_meta']['commit'], r'^[0-9a-f]{40}$')
+                    self.assertIsInstance(info['_meta']['dirty'], bool)
+                identity = run('result = server_info')['result']
+                self.assertEqual(identity, info)
+                run("server_info['_meta']['features'].clear(); server_info['name'] = 'changed'")
+                self.assertEqual(run('result = server_info')['result'], info)
                 if worktrees_only:
                     self._check_worktree_sessions(root, rpc, run)
                     return

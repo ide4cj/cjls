@@ -18,9 +18,22 @@ Arrays become lists, options become `None`, and immutable fields stay read-only.
 Enum variants support `isinstance` and pattern matching; payloads are `field0`,
 `field1`, etc., named in the variant's `__match_args__`.
 
-If runtime discovery is insufficient, a checkout contains type registration in
-[python_types.cj](../../../src/python_types.cj), workspace bindings in
-[python.cj](../../../src/python.cj), revision methods in
-[analysis.cj](../../../src/analysis.cj), and native declarations in
-`modules/loupe/src`. These source links require a checkout. The running executable
-may differ from a separate source checkout.
+For a contract question, first check the running binary's identity:
+
+```python
+a = workspace.analysis()
+result = globals().get("server_info")
+```
+
+server_info is a plain dictionary with name, version and _meta (apiVersion,
+commit, dirty and features). It is independent of the analyzed workspace. Missing
+server_info means the server predates identity reporting; do not infer its API
+from a newer checkout. Load the documentation shipped with the selected binary,
+or compare _meta.commit with a source checkout before consulting it.
+
+If matching source is available, paths relative to that checkout are
+`modules/cjmcp/src/python_types.cj` for type registration,
+`modules/cjmcp/src/python.cj` for workspace bindings,
+`modules/cjmcp/src/analysis.cj` for revision methods, and `modules/loupe/src`
+for native declarations. These paths are optional source pointers, not files
+installed with this skill. Use runPython for Cangjie source reads.
