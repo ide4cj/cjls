@@ -221,7 +221,9 @@ func declScope(
     let index = packageIndex(db)
     let owner = index.owners.get(ref) ?? return;
     for (
-        (pkg, module) in packages where (index.scopes.get(module)?.contains(owner) ?? false) &&
+        (pkg, _) in packages where index
+            .scopeOf(PackageRef.Source(pkg), ofTests: true)
+            .contains(owner) &&
             visibility.isSeen(by: relationOf(pkg.name(db), declaring))
     ) {
         scope.addPackage(pkg)
