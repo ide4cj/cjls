@@ -108,6 +108,7 @@ unselected = {path = "missing"}
     @TestCase[mode in [BuildMode.Debug, BuildMode.Release]]
     func scriptDependencyModulesUseTheirOwnModeWithoutLeakingToRuntime(mode: BuildMode): Unit {
         // arrange
+        let host = cjpmTriple(hostCfg()).getOrThrow()
         let chosen = if (mode == BuildMode.Debug) { "debug" } else { "release" }
         let dir = tree(
             [
@@ -127,9 +128,9 @@ tools = {path = "tools"}
                     """
 [package]
 name = "tools"
-[target.x86_64-unknown-linux-gnu.debug.dependencies]
+[target.${host}.debug.dependencies]
 helper = {path = "../debug"}
-[target.x86_64-unknown-linux-gnu.release.dependencies]
+[target.${host}.release.dependencies]
 helper = {path = "../release"}
 """
                 ),

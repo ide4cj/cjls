@@ -20,6 +20,7 @@ const BUILD_SCRIPT = "build.cj"
  * Git or registry dependency is read from cjpm's locked cache; missing or stale locks and
  * downloaded sources are reported in the problems. `buildMode` selects release by default,
  * or debug as `cjpm build -g`, independently of the target conditions in `cfg`.
+ * Script dependency source and binary tables use the host target throughout their graph.
  * `enabledFeatures` adds explicit CJMP features; `deduceFeatures` controls implicit target OS
  * features. Both correspond to cjpm's CLI inputs and affect the ordinary/test graph only.
  * `includeTestFeatures` selects the feature graph of `cjpm test` rather than `cjpm build`;
@@ -213,7 +214,7 @@ class CjpmLowering {
                     selected[key] = dir
                 }
             }
-            let deps = dependencies(manifest, dir)
+            let deps = dependencies(manifest, dir, forScript: script)
             let tests: Array<(String, Dependency, VfsPath)> =
                 if (script) { [] } else { dependencies(manifest, dir, tests: true) }
             for ((name, dep, base) in deps.concat(tests)) {
@@ -367,7 +368,7 @@ class CjpmLowering {
                 continue
             }
             let manifest = featureManifests.get(key) ?? continue
-            let ordinary = dependencies(manifest, key.dir)
+            let ordinary = dependencies(manifest, key.dir, forScript: key.isScript)
             let tests: Array<(String, Dependency, VfsPath)> =
                 if (includeTestFeatures && !key.isScript) {
                     dependencies(manifest, key.dir, tests: true)
@@ -425,7 +426,7 @@ class CjpmLowering {
                 }
         enabledFeatures(
             mappings,
-            if (key.isScript) { hostCfg() } else { loading.cfg },
+            graphCfg(forScript: key.isScript),
             always: (pkg.alwaysEnabledFeatures ?? []).concat(explicit).concat(incoming),
             deduce: key.isScript || deduceFeatures
         )
@@ -572,7 +573,7 @@ class CjpmLowering {
         reached.add(key, name)
         let deps = ArrayList<String>()
         let testDeps = ArrayList<String>()
-        let ordinary = dependencies(manifest, dir)
+        let ordinary = dependencies(manifest, dir, forScript: forScript)
         let tests: Array<(String, Dependency, VfsPath)> =
             if (forScript) { [] } else { dependencies(manifest, dir, tests: true) }
         let normalNames = ordinary.map { entry => entry[0] }
@@ -593,7 +594,7 @@ class CjpmLowering {
         if (member) {
             deps.add(all: workspaceBinaries)
         }
-        deps.add(all: binaryDeps(manifest, dir))
+        deps.add(all: binaryDeps(manifest, dir, forScript: forScript))
         let unique = ArrayList<String>()
         for (dep in deps where !unique.contains(dep)) {
             unique.add(dep)
@@ -723,12 +724,15 @@ class CjpmLowering {
      * Declarations retain their manifest directory: inherited paths belong to the workspace.
      * Keep duplicate names until source selection so conflicts are reported rather than hidden
      * by a target or member table. Source and script graphs share cjpm's source precedence.
+     * `script` selects declarations of a build script; `forScript` selects the host tables of
+     * a module compiled for that script, whose dependencies remain ordinary declarations.
      */
     private func dependencies(
         manifest: Manifest,
         dir: VfsPath,
         tests!: Bool = false,
-        script!: Bool = false
+        script!: Bool = false,
+        forScript!: Bool = false
     ): Array<(String, Dependency, VfsPath)> {
         let all = ArrayList<(String, Dependency, VfsPath)>()
         let declarations = ArrayList<(Manifest, VfsPath)>([(manifest, dir)])
@@ -736,7 +740,7 @@ class CjpmLowering {
             declarations.add((this.manifest, root))
         }
         for ((declared, base) in declarations) {
-            let target = targetOf(declared)
+            let target = targetOf(declared, forScript: forScript)
             let mode = target.flatMap { it => modeOf(it) }
             let tables =
                 if (script) {
@@ -770,17 +774,20 @@ class CjpmLowering {
      * first time: one per directory of `path-option`, named as the directory is, and one per
      * module of `package-option`.
      */
-    private func binaryDeps(manifest: Manifest, dir: VfsPath): Array<String> {
-        let target = targetOf(manifest) ?? return []
+    private func binaryDeps(
+        manifest: Manifest,
+        dir: VfsPath,
+        forScript!: Bool = false
+    ): Array<String> {
+        let target = targetOf(manifest, forScript: forScript) ?? return []
         if (let Some(mode) <- modeOf(target).flatMap { it => it.binDependencies }) {
-            return modeBinaryDeps(mode, target.binDependencies, dir)
+            return modeBinaryDeps(mode, target.binDependencies, dir, forScript: forScript)
         }
         let bin = target.binDependencies ?? return []
         let names = ArrayList<String>()
         for (option in bin.pathOption ?? []) {
             let path = loading.resolve(dir, option)
-            names.add(path.name)
-            addBinary(BinaryModel(path.name, [path]))
+            names.add(addBinary(BinaryModel(path.name, [path]), forScript: forScript))
         }
         let byModule = HashMap<String, ArrayList<BinaryPackage>>()
         for ((pkg, cjo) in bin.packageOption ?? HashMap<String, String>()) {
@@ -795,8 +802,7 @@ class CjpmLowering {
         for (module in modules) {
             let packages = byModule[module].toArray()
             sort(packages, by: { a, b => a.name.compare(b.name) })
-            names.add(module)
-            addBinary(BinaryModel(module, [], packages: packages))
+            names.add(addBinary(BinaryModel(module, [], packages: packages), forScript: forScript))
         }
         names.toArray()
     }
@@ -809,7 +815,8 @@ class CjpmLowering {
     private func modeBinaryDeps(
         mode: BinDependencies,
         common: ?BinDependencies,
-        dir: VfsPath
+        dir: VfsPath,
+        forScript!: Bool
     ): Array<String> {
         let selected = HashMap<String, BinaryPackage>()
         let paths = ArrayList<VfsPath>()
@@ -837,14 +844,18 @@ class CjpmLowering {
             if (names.isEmpty()) { paths.toArray().map { path => path.name } } else { names }
         let modules = HashSet<String>(moduleNames).toArray()
         sort(modules)
+        let owners = ArrayList<String>()
         for (name in modules) {
             let packages = selected.values().toArray().filter { pkg => moduleOf(pkg.name) == name }
             sort(packages, by: { a, b => a.name.compare(b.name) })
-            addBinary(
-                BinaryModel(name, paths.toArray(), packages: packages, discoverPackages: false)
+            owners.add(
+                addBinary(
+                    BinaryModel(name, paths.toArray(), packages: packages, discoverPackages: false),
+                    forScript: forScript
+                )
             )
         }
-        modules
+        owners.toArray()
     }
 
     private func modeOf(target: Target): ?TargetMode {
@@ -854,10 +865,24 @@ class CjpmLowering {
         }
     }
 
-    private func addBinary(binary: BinaryModel): Unit {
-        if (!binaries.iterator().any { kept => kept.name == binary.name }) {
-            binaries.add(binary)
+    /**
+     * Binary owners identify imports independently of package names. Keep host artifacts out of
+     * an ordinary owner's first-selection cache even when both graphs import the same package.
+     */
+    private func addBinary(binary: BinaryModel, forScript!: Bool): String {
+        let name = if (forScript) { "${scriptScope}:${binary.name}" } else { binary.name }
+        if (!binaries.iterator().any { kept => kept.name == name }) {
+            binaries.add(
+                BinaryModel(
+                    name,
+                    binary.paths,
+                    packages: binary.packages,
+                    discoverPackages: binary.discoverPackages,
+                    sources: binary.sources
+                )
+            )
         }
+        name
     }
 
     private prop scriptScope: String {
@@ -866,8 +891,12 @@ class CjpmLowering {
         }
     }
 
-    private func targetOf(manifest: Manifest): ?Target {
-        let triple = cjpmTriple(loading.cfg) ?? return None
+    private func graphCfg(forScript!: Bool): Cfg {
+        if (forScript) { hostCfg() } else { loading.cfg }
+    }
+
+    private func targetOf(manifest: Manifest, forScript!: Bool): ?Target {
+        let triple = cjpmTriple(graphCfg(forScript: forScript)) ?? return None
         manifest.target.flatMap { targets => targets.get(triple) }
     }
 }
