@@ -1,5 +1,11 @@
 # Revision and execution failures
 
+- Select the edited worktree with tool argument root on every call. Omission
+  selects --dir, not the previous root. Responses identify canonical root and
+  connection-local sessionId; compare sessionId with revision when recovering
+  evidence. The four-root cache evicts least recently used sessions, resetting
+  their revision and last_output on reopening. Native IDs cannot cross sessions.
+
 - Calls execute sequentially against a fixed revision through result serialization.
   Edits during execution become visible in a later call. `workspace.reload()` only
   requests preparation after the script; it cannot refresh the running script.
