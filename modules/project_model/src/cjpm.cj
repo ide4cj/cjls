@@ -1,13 +1,11 @@
 package project_model
 
 import std.collection.*
-import std.deriving.Derive
 import std.fs.*
 import std.sort.*
 import ftoml.*
 import loupe.db.*
 import loupe.vfs.{VfsPath, cjoFilesIn}
-import stdxx.deriving.*
 
 /**
  * The script cjpm runs around a build, beside its `cjpm.toml`.
@@ -22,6 +20,10 @@ const BUILD_SCRIPT = "build.cj"
  * Git or registry dependency is read from cjpm's locked cache; missing or stale locks and
  * downloaded sources are reported in the problems. `buildMode` selects release by default,
  * or debug as `cjpm build -g`, independently of the target conditions in `cfg`.
+ * `enabledFeatures` adds explicit CJMP features; `deduceFeatures` controls implicit target OS
+ * features. Both correspond to cjpm's CLI inputs and affect the ordinary/test graph only.
+ * `includeTestFeatures` selects the feature graph of `cjpm test` rather than `cjpm build`;
+ * discovered test modules remain available in either configuration.
  *
  * @throws ProjectException - if the file cannot be read
  */
@@ -29,7 +31,10 @@ public func loadCjpmProject(
     file: VfsPath,
     env!: (String) -> ?String,
     cfg!: Cfg = hostCfg(),
-    buildMode!: BuildMode = Release
+    buildMode!: BuildMode = Release,
+    enabledFeatures!: Array<String> = [],
+    deduceFeatures!: Bool = true,
+    includeTestFeatures!: Bool = false
 ): ?ProjectLoad {
     let path = file.filePath ?? return None
     if (!isFile(path)) {
@@ -38,7 +43,15 @@ public func loadCjpmProject(
     let loading = Loading(env, cfg)
     let manifest = readManifest(file)
     let dir = file.parent.getOrThrow()
-    let lowering = CjpmLowering(loading, dir, manifest, buildMode)
+    let lowering = CjpmLowering(
+        loading,
+        dir,
+        manifest,
+        buildMode,
+        enabledFeatures,
+        deduceFeatures,
+        includeTestFeatures
+    )
     for (member in lowering.members) {
         lowering.module(member)
     }
@@ -99,6 +112,8 @@ class CjpmLowering {
     private let registrySelected = HashSet<CjpmSelection>()
     private let discovered = HashSet<CjpmDirectory>()
     private let pending = ArrayList<(String, Dependency, VfsPath, Bool)>()
+    private let featureManifests = HashMap<CjpmDirectory, Manifest>()
+    private let propagatedFeatures = HashMap<CjpmDirectory, HashSet<String>>()
     private let scripts = HashSet<VfsPath>()
     private let invalidReplacements = HashSet<String>()
     private let git: CjpmGit
@@ -108,7 +123,10 @@ class CjpmLowering {
         private let loading: Loading,
         private let root: VfsPath,
         private let manifest: Manifest,
-        private let buildMode: BuildMode
+        private let buildMode: BuildMode,
+        private let configuredFeatures: Array<String>,
+        private let deduceFeatures: Bool,
+        private let includeTestFeatures: Bool
     ) {
         git = CjpmGit(loading, root)
         registry = CjpmRegistry(loading, root)
@@ -143,6 +161,7 @@ class CjpmLowering {
                 selectDependency(name, dep, base, script: script, registry: true)
             }
         }
+        propagateFeatures()
     }
 
     /**
@@ -177,6 +196,7 @@ class CjpmLowering {
         try {
             let manifest =
                 if (dir == root) { this.manifest } else { readManifest(dir.join("cjpm.toml")) }
+            featureManifests[CjpmDirectory(dir, isScript: script)] = manifest
             if (let Some(pkg) <- manifest.pkg) {
                 let name = packageName(pkg)
                 let key = CjpmSelection(name, isScript: script)
@@ -297,6 +317,218 @@ class CjpmLowering {
     }
 
     /**
+     * Resolve features after source selection and before lowering: later consumers can enable
+     * an already discovered dependency. Each user feature requests its named owner only.
+     */
+    private func propagateFeatures(): Unit {
+        let entries =
+            featureManifests
+                .toArray()
+                .filter {
+                    entry =>
+                    let (key, manifest) = entry
+                    let pkg = manifest.pkg ?? return false
+                    selected.get(CjpmSelection(packageName(pkg), isScript: key.isScript)) ==
+                        Some(key.dir)
+                }
+        sort(
+            entries,
+            by: { a, b => "${a[0].dir}:${a[0].isScript}".compare("${b[0].dir}:${b[0].isScript}") }
+        )
+        let active = activeFeatureModules()
+        let owners = HashMap<CjpmSelection, CjpmDirectory>()
+        for ((key, manifest) in entries) {
+            let pkg = manifest.pkg.getOrThrow()
+            if (active.contains(key)) {
+                owners[CjpmSelection(pkg.name, isScript: key.isScript)] = key
+            }
+            propagatedFeatures[key] = HashSet<String>(moduleFeatures(key, manifest, []))
+        }
+        let participating = entries.filter { entry => active.contains(entry[0]) }
+        validateFeatures(participating, owners)
+        closeFeatures(participating, owners, active)
+    }
+
+    /**
+     * Test modules stay discovered for editor imports, but only the selected command's roots
+     * contribute feature requests. Build-script dependencies use their independent graph.
+     */
+    private func activeFeatureModules(): HashSet<CjpmDirectory> {
+        let active = HashSet<CjpmDirectory>()
+        let pending = ArrayList<CjpmDirectory>(
+            members.map { dir => CjpmDirectory(dir, isScript: false) }
+        )
+        addScriptFeatureRoots(root, manifest, pending)
+        var index = 0
+        while (index < pending.size) {
+            let key = pending[index]
+            index++
+            if (!active.add(key)) {
+                continue
+            }
+            let manifest = featureManifests.get(key) ?? continue
+            let ordinary = dependencies(manifest, key.dir)
+            let tests: Array<(String, Dependency, VfsPath)> =
+                if (includeTestFeatures && !key.isScript) {
+                    dependencies(manifest, key.dir, tests: true)
+                } else {
+                    []
+                }
+            for ((name, _, _) in ordinary.concat(tests)) {
+                if (let Some(dir) <- selected.get(CjpmSelection(name, isScript: key.isScript))) {
+                    pending.add(CjpmDirectory(dir, isScript: key.isScript))
+                }
+            }
+            addScriptFeatureRoots(key.dir, manifest, pending)
+        }
+        active
+    }
+
+    private func addScriptFeatureRoots(
+        dir: VfsPath,
+        manifest: Manifest,
+        pending: ArrayList<CjpmDirectory>
+    ): Unit {
+        if (!(dir.join(BUILD_SCRIPT).filePath.map { path => isFile(path) } ?? false)) {
+            return
+        }
+        for ((name, _, _) in dependencies(manifest, dir, script: true)) {
+            if (let Some(path) <- selected.get(CjpmSelection(name, isScript: true))) {
+                pending.add(CjpmDirectory(path, isScript: true))
+            }
+        }
+    }
+
+    /**
+     * cjpm starts a fresh script configuration, without the entry CLI's flags or deduction
+     * switch. Invalid foreign-owner mapping declarations cannot enable other modules.
+     */
+    private func moduleFeatures(
+        key: CjpmDirectory,
+        manifest: Manifest,
+        incoming: Array<String>
+    ): Array<String> {
+        let explicit: Array<String> = if (key.isScript) { [] } else { configuredFeatures }
+        let pkg = manifest.pkg.getOrThrow()
+        let mappings =
+            (manifest.featureTables ?? [])
+                .filter {
+                    feature =>
+                    feature
+                        .name
+                        .flatMap { name => normalizedFeature(name) }
+                        .map {
+                            name =>
+                            featureOwner(name).map { owner => owner == pkg.name } ?? true
+                        } ??
+                        false
+                }
+        enabledFeatures(
+            mappings,
+            if (key.isScript) { hostCfg() } else { loading.cfg },
+            always: (pkg.alwaysEnabledFeatures ?? []).concat(explicit).concat(incoming),
+            deduce: key.isScript || deduceFeatures
+        )
+    }
+
+    private func closeFeatures(
+        entries: Array<(CjpmDirectory, Manifest)>,
+        owners: HashMap<CjpmSelection, CjpmDirectory>,
+        active: HashSet<CjpmDirectory>
+    ): Unit {
+        var changed = true
+        while (changed) {
+            changed = false
+            for ((key, manifest) in entries) {
+                let enabled = moduleFeatures(key, manifest, propagatedFeatures[key].toArray())
+                propagatedFeatures[key].add(all: enabled)
+                for (feature in enabled) {
+                    let owner =
+                        featureOwner(feature)
+                            .flatMap {
+                                name =>
+                                owners.get(CjpmSelection(name, isScript: key.isScript))
+                            } ??
+                            continue
+                    if (active.contains(owner) && propagatedFeatures[owner].add(feature)) {
+                        changed = true
+                    }
+                }
+            }
+        }
+    }
+
+    private func validateFeatures(
+        entries: Array<(CjpmDirectory, Manifest)>,
+        owners: HashMap<CjpmSelection, CjpmDirectory>
+    ): Unit {
+        let reported = HashSet<String>()
+        for (text in configuredFeatures) {
+            reportFeatureProblem(featureReferenceProblem(text, false, owners), reported)
+        }
+        for ((key, manifest) in entries) {
+            let references = ArrayList<String>(
+                manifest.pkg.getOrThrow().alwaysEnabledFeatures ?? []
+            )
+            for (feature in manifest.featureTables ?? []) {
+                for (name in feature.declaredNames) {
+                    reportFeatureProblem(featureDeclarationProblem(name, manifest), reported)
+                }
+                // `names` declares independent flags and ignores a sibling mapping in cjpm.
+                if (feature.name.isSome()) {
+                    references.add(all: feature.mapping ?? [])
+                }
+            }
+            for (set in manifest.sourceSets ?? []) {
+                references.add(all: set.featureNames ?? [])
+            }
+            for (text in references) {
+                reportFeatureProblem(featureReferenceProblem(text, key.isScript, owners), reported)
+            }
+        }
+    }
+
+    private func featureDeclarationProblem(text: String, manifest: Manifest): String {
+        let normalized = normalizedFeature(text) ?? return invalidFeatureProblem(text)
+        if (
+            let Some(owner) <- featureOwner(normalized) && owner != manifest.pkg.getOrThrow().name
+        ) {
+            return "Feature declaration `${normalized}` must belong to `user.${manifest.pkg.getOrThrow().name}.`."
+        }
+        ""
+    }
+
+    private func featureReferenceProblem(
+        text: String,
+        script: Bool,
+        owners: HashMap<CjpmSelection, CjpmDirectory>
+    ): String {
+        let value = normalizedFeature(text) ?? return invalidFeatureProblem(text)
+        let owner = featureOwner(value) ?? return ""
+        let directory = owners.get(CjpmSelection(owner, isScript: script)) ?? return ""
+        let declared = featureManifests[directory].featureTables ?? []
+        if (declared
+            .iterator()
+            .any {
+                feature =>
+                feature
+                    .declaredNames
+                    .iterator()
+                    .any { name => normalizedFeature(name) == Some(value) }
+            }) {
+            ""
+        } else {
+            "Feature `${value}` is not declared by dependency `${owner}`."
+        }
+    }
+
+    private func reportFeatureProblem(problem: String, reported: HashSet<String>): Unit {
+        if (!problem.isEmpty() && reported.add(problem)) {
+            loading.problems.add(problem)
+        }
+    }
+
+    /**
      * The name of the module in `dir`, lowered the first time; `None` if it has no manifest, or
      * no package.
      */
@@ -368,7 +600,13 @@ class CjpmLowering {
         }
         // under `src-dir = "."` the build script is beside the sources, and cjpm leaves it out of them
         let script = dir.join(BUILD_SCRIPT)
-        let (sources, found, inactive) = sourcesOf(name, dir, manifest, pkg)
+        let (sources, found, inactive) = sourcesOf(
+            name,
+            dir,
+            manifest,
+            pkg,
+            propagatedFeatures.get(key).map { all => all.toArray() } ?? []
+        )
         let packages = ArrayList<PackageModel>()
         for (pkg in found) {
             let files = pkg.files.filter { file => file != script }
@@ -411,7 +649,8 @@ class CjpmLowering {
         name: String,
         dir: VfsPath,
         manifest: Manifest,
-        pkg: ManifestPackage
+        pkg: ManifestPackage,
+        enabled: Array<String>
     ): (VfsPath, Array<PackageModel>, Array<InactiveFile>) {
         let sets = manifest.sourceSets ?? []
         if (sets.isEmpty()) {
@@ -423,12 +662,7 @@ class CjpmLowering {
             let sources = loading.resolve(dir, srcDir)
             return (sources, packagesUnder(name, sources), [])
         }
-        let picked = sourceSetChain(
-            sets,
-            manifest.featureTables ?? [],
-            loading.cfg,
-            always: pkg.alwaysEnabledFeatures ?? []
-        )
+        let picked = sourceSetChain(sets, [], loading.cfg, always: enabled, deduce: false)
         loading.problems.add(all: picked.problems)
         let merged = ArrayList<(String, VfsPath, ArrayList<VfsPath>)>()
         for (set in picked.chain) {
@@ -647,125 +881,6 @@ public func moduleOf(pkg: String): String {
         case Some(dot) => pkg[..dot]
         case None => pkg
     }
-}
-
-/**
- * What the project needs of a `cjpm.toml`; the rest is skipped.
- */
-@DeriveExt[FromToml]
-struct Manifest {
-    Manifest(
-        @Serde[rename: "package"]
-        let pkg!: ?ManifestPackage = None,
-        let workspace!: ?Workspace = None,
-        let dependencies!: ?HashMap<String, Dependency> = None,
-        let replace!: ?HashMap<String, Dependency> = None,
-        @Serde[rename: "test-dependencies"]
-        let testDependencies!: ?HashMap<String, Dependency> = None,
-        @Serde[rename: "script-dependencies"]
-        let scriptDependencies!: ?HashMap<String, Dependency> = None,
-        let target!: ?HashMap<String, Target> = None,
-        @Serde[rename: "source-set"]
-        let sourceSets!: ?Array<SourceSet> = None,
-        // not `features`: see `SourceSet.featureNames`
-        @Serde[rename: "feature"]
-        let featureTables!: ?Array<Feature> = None
-    ) {}
-}
-
-@DeriveExt[FromToml]
-struct ManifestPackage {
-    ManifestPackage(
-        let name!: String,
-        let organization!: ?String = None,
-        let version!: ?String = None,
-        @Serde[rename: "src-dir"]
-        let srcDir!: ?String = None,
-        @Serde[rename: "always-enabled-features"]
-        let alwaysEnabledFeatures!: ?Array<String> = None
-    ) {}
-}
-
-@DeriveExt[FromToml]
-struct Workspace {
-    Workspace(let members!: ?Array<String> = None) {}
-}
-
-/**
- * A dependency: a version, or a table saying where it is.
- */
-@DeriveExt[FromToml]
-@Serde[untagged]
-enum Dependency {
-    | Version(String)
-    | Table(DependencyTable)
-}
-
-@DeriveExt[FromToml]
-struct DependencyTable {
-    DependencyTable(
-        let path!: ?String = None,
-        let git!: ?String = None,
-        let branch!: ?String = None,
-        let tag!: ?String = None,
-        let commitId!: ?String = None,
-        let source!: ?String = None,
-        let version!: ?String = None,
-        let checksum!: ?String = None
-    ) {}
-}
-
-/**
- * `[target.<triple>]`.
- */
-@DeriveExt[FromToml]
-struct Target {
-    Target(
-        let debug!: ?TargetMode = None,
-        let release!: ?TargetMode = None,
-        let dependencies!: ?HashMap<String, Dependency> = None,
-        @Serde[rename: "test-dependencies"]
-        let testDependencies!: ?HashMap<String, Dependency> = None,
-        @Serde[rename: "bin-dependencies"]
-        let binDependencies!: ?BinDependencies = None
-    ) {}
-}
-
-@DeriveExt[FromToml]
-struct TargetMode {
-    TargetMode(
-        let dependencies!: ?HashMap<String, Dependency> = None,
-        @Serde[rename: "test-dependencies"]
-        let testDependencies!: ?HashMap<String, Dependency> = None,
-        @Serde[rename: "bin-dependencies"]
-        let binDependencies!: ?BinDependencies = None
-    ) {}
-}
-
-@DeriveExt[FromToml]
-struct BinDependencies {
-    BinDependencies(
-        @Serde[rename: "path-option"]
-        let pathOption!: ?Array<String> = None,
-        @Serde[rename: "package-option"]
-        let packageOption!: ?HashMap<String, String> = None
-    ) {}
-}
-
-/**
- * A physical manifest visited within one independent dependency graph.
- */
-@Derive[Hashable, Equatable]
-struct CjpmDirectory {
-    CjpmDirectory(let dir: VfsPath, let isScript!: Bool) {}
-}
-
-/**
- * A module name selected within the ordinary or build-script dependency graph.
- */
-@Derive[Hashable, Equatable]
-struct CjpmSelection {
-    CjpmSelection(let name: String, let isScript!: Bool) {}
 }
 
 /**

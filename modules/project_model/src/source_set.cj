@@ -1,6 +1,7 @@
 package project_model
 
 import std.collection.*
+import std.regex.Regex
 import std.sort.*
 import ftoml.*
 import loupe.db.Cfg
@@ -38,7 +39,20 @@ struct SourceSet {
  */
 @DeriveExt[FromToml]
 struct Feature {
-    Feature(let name!: ?String = None, let mapping!: ?Array<String> = None) {}
+    Feature(
+        let name!: ?String = None,
+        let names!: ?Array<String> = None,
+        let mapping!: ?Array<String> = None
+    ) {}
+
+    /**
+ * The flags declared by one table; cjpm tries `name` before the `names` shorthand.
+ */
+    prop declaredNames: Array<String> {
+        get() {
+            name.map { value => [value] } ?? (names ?? [])
+        }
+    }
 }
 
 /**
@@ -66,6 +80,32 @@ func hostFeature(cfg: Cfg): ?String {
     }
 }
 
+let FEATURE_QNAME = Regex("^[a-zA-Z_][a-zA-Z0-9_]*(?:[ ]*\\.[ ]*[a-zA-Z_][a-zA-Z0-9_]*)*$")
+
+/**
+ * Canonical QName syntax accepted by pinned cjpm: ASCII identifiers and spaces around dots.
+ */
+func normalizedFeature(text: String): ?String {
+    let value = text.trimAscii()
+    if (!FEATURE_QNAME.matches(value)) {
+        return None
+    }
+    let name = value.replace(" ", "")
+    if (["os.linux", "os.darwin", "os.windows", "os.android", "os.ohos", "os.ios"].contains(name) ||
+        (name.startsWith("user.") && name.split(".").size >= 3)) {
+        Some(name)
+    } else {
+        None
+    }
+}
+
+/**
+ * The module named by a normalized user feature; OS features have no module owner.
+ */
+func featureOwner(name: String): ?String {
+    if (name.startsWith("user.")) { name.split(".").get(1) } else { None }
+}
+
 /**
  * The features the target `cfg` builds for enables: its own (`hostFeature`) and the module's
  * `always` (`[package] always-enabled-features`), and those `features` maps each enabled one to,
@@ -74,20 +114,27 @@ func hostFeature(cfg: Cfg): ?String {
 func enabledFeatures(
     features: Array<Feature>,
     cfg: Cfg,
-    always!: Array<String> = []
+    always!: Array<String> = [],
+    deduce!: Bool = true
 ): Array<String> {
-    let enabled = HashSet<String>(always)
-    if (let Some(host) <- hostFeature(cfg)) {
+    let enabled = HashSet<String>(always.filterMap { value => normalizedFeature(value) })
+    if (deduce && let Some(host) <- hostFeature(cfg)) {
         enabled.add(host)
     }
     var grown = true
     while (grown) {
         grown = false
         for (
-            feature in features where feature.name.map { name => enabled.contains(name) } ?? false
+            feature in features where feature
+                .name
+                .flatMap { name => normalizedFeature(name) }
+                .map { name => enabled.contains(name) } ??
+                false
         ) {
-            for (mapped in feature.mapping ?? [] where enabled.add(mapped)) {
-                grown = true
+            for (text in feature.mapping ?? []) {
+                if (let Some(mapped) <- normalizedFeature(text) && enabled.add(mapped)) {
+                    grown = true
+                }
             }
         }
     }
@@ -106,13 +153,16 @@ func sourceSetChain(
     sets: Array<SourceSet>,
     features: Array<Feature>,
     cfg: Cfg,
-    always!: Array<String> = []
+    always!: Array<String> = [],
+    deduce!: Bool = true
 ): SourceSetChain {
-    let enabled = enabledFeatures(features, cfg, always: always)
+    let enabled = enabledFeatures(features, cfg, always: always, deduce: deduce)
     let taken = ArrayList<SourceSet>()
     let left = ArrayList<(SourceSet, String)>()
     for (set in sets) {
-        let missing = (set.featureNames ?? []).filter { feature => !enabled.contains(feature) }
+        let missing =
+            (set.featureNames ?? [])
+                .filter { feature => !enabled.contains(normalizedFeature(feature) ?? feature) }
         if (missing.isEmpty()) {
             taken.add(set)
         } else {
@@ -162,4 +212,11 @@ func sourceSetChain(
         }
     }
     SourceSetChain(chain.toArray(), left.toArray(), problems.toArray())
+}
+
+/**
+ * A recoverable problem for an invalid feature spelling or namespace.
+ */
+func invalidFeatureProblem(text: String): String {
+    "Invalid CJMP feature `${text}`: expected an OS feature or `user.packageName.name`."
 }
