@@ -165,6 +165,20 @@ analysis identities, and `AnalysisDatabase.setFileText` updates every context. P
 queries retain that context; the physical editor lookup prefers ordinary membership,
 otherwise the first active scoped membership. Queries never create contextual inputs.
 
+Snapshot project traversals preserve these identities through modules, packages,
+files, imports and semantic objects (#603). Dependency permissions and potential
+dependents are distinct from resolved written-import evidence; implicit prelude
+and test imports have no written site. Import/export queries retain their scope
+stage and available immediate import provenance. Binary written-import graphs
+are unavailable, even when compiled exports are known. Explicit package scopes
+for semantic usages retain contextual files and resolve re-export aliases; they
+never round-trip through physical editor lookup.
+
+Configuration traversal reports effective loaded conditions and inactive reasons,
+not an exact compiler invocation. Missing loader diagnostics, profile/selection
+provenance and source-set metadata remain unavailable when inputs do not retain
+them. A snapshot query never reconstructs these from live manifests or disk.
+
 Visibility (`protected`, `internal`) is computed from package names, not from `Module`: a module
 is a unit of the build, cjc's is the first segment of a name (D33).
 

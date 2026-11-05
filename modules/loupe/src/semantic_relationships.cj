@@ -127,8 +127,11 @@ extend SemanticObject {
      * the object is not a searchable named identity (packages included). Empty entries apply within the returned gaps.
      * Inactive code is excluded. Macro arguments retain written identity; generated usages are
      * currently unavailable, matching findReferences rather than pretending expansion completeness.
+     * Explicit inPackages searches those contextual files instead of the default reference scope.
+     * It also reads scope aliases, allowing reverse import traversal through renamed re-exports.
+     * Packages must originate from this same SemanticAnalysis; binaries have no written usages.
      */
-    public func usages(): ?SemanticUsages {
+    public func usages(inPackages!: ?Array<SemanticPackage> = None): ?SemanticUsages {
         let db = analysis.db
         db.unwindIfCancelled()
         let definition = relationshipDefinition() ?? return None
@@ -138,7 +141,22 @@ extend SemanticObject {
         }
         let from = relationshipFile(definition)
         let files =
-            if (let Some(file) <- from) {
+            if (let Some(packages) <- inPackages) {
+                let files = ArrayList<SourceFile>()
+                for (pkg in packages) {
+                    if (!refEq(pkg.analysis, analysis)) {
+                        throw IllegalArgumentException(
+                            "usage scope must belong to the same SemanticAnalysis"
+                        )
+                    }
+                    for (file in pkg.files()) {
+                        if (let Source(source) <- file.identity && !files.contains(source)) {
+                            files.add(source)
+                        }
+                    }
+                }
+                files.toArray()
+            } else if (let Some(file) <- from) {
                 searchScope(db, [definition], file)
             } else {
                 let scope = relationshipScope(db)
@@ -150,13 +168,22 @@ extend SemanticObject {
             if (inactiveReasonOf(db, file).isSome()) {
                 continue
             }
-            if (!hashes.any { hash => fileWords(db, file).has(hash) }) {
+            if (inPackages.isNone() && !hashes.any { hash => fileWords(db, file).has(hash) }) {
                 continue
             }
             let root = parse(db, file).syntaxNode()
             let active = ActiveFilter.of(db, file)
-            let aliases = aliasesIn(db, file, root, names, [definition])
-            for (token in namesMeaning(db, file, root, names.concat(aliases), [definition])) {
+            let scopeNames: Array<String> =
+                if (inPackages.isSome()) {
+                    (SemanticFile(analysis, ItemFile.Source(file)).visibleNames() ?? [])
+                        .filter { binding => binding.target.identity == identity }
+                        .map { binding => binding.name }
+                } else {
+                    []
+                }
+            let candidates = names.concat(scopeNames)
+            let aliases = aliasesIn(db, file, root, candidates, [definition])
+            for (token in namesMeaning(db, file, root, candidates.concat(aliases), [definition])) {
                 if (token.parent.ancestors().any { node => !active.isActive(node) }) {
                     continue
                 }
@@ -172,7 +199,22 @@ extend SemanticObject {
                 )
             }
         }
-        SemanticUsages(found.toArray(), ["macro-origin-usages"])
+        let gaps = ArrayList<String>(["macro-origin-usages"])
+        if (
+            let Some(packages) <- inPackages &&
+                packages
+                    .iterator()
+                    .any {
+                        pkg =>
+                        match (pkg.identity) {
+                            case Binary(_) => true;
+                            case _ => false
+                        }
+                    }
+        ) {
+            gaps.add("binary-source-usages")
+        }
+        SemanticUsages(found.toArray(), gaps.toArray())
     }
 
     func relationshipDefinition(): ?Definition {

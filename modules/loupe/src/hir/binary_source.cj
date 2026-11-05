@@ -203,7 +203,7 @@ protected func resolutionPackage(db: AnalysisDatabase, pkg: Package): PackageRef
 /**
  * Private binary declarations are visible from their attached source file alone.
  */
-func resolutionFile(db: AnalysisDatabase, file: SourceFile): ItemFile {
+protected func resolutionFile(db: AnalysisDatabase, file: SourceFile): ItemFile {
     for ((_, def) in binarySourceItems(db, file)) {
         return def.file(db)
     }
