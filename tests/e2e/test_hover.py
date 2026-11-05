@@ -65,3 +65,68 @@ async def test_a_name_shows_its_declaration_or_its_type(server: LanguageClient, 
     assert nothing is None
 
     await server.shutdown_session()
+
+
+@pytest.mark.parametrize("markup", [types.MarkupKind.Markdown, types.MarkupKind.PlainText])
+async def test_generic_call_hover_keeps_markup_docs_and_utf8_range(
+    server: LanguageClient, tmp_path, markup
+):
+    # arrange
+    source = """\
+/** Keeps `value`. */
+func identity<T>(value: T): T { value }
+func f() { /* 😀 */ identity(1) }
+"""
+    file = tmp_path / "generic.cj"
+    file.write_text(source, encoding="utf-8")
+    caps = types.ClientCapabilities(
+        window=types.WindowClientCapabilities(work_done_progress=True),
+        general=types.GeneralClientCapabilities(
+            position_encodings=[types.PositionEncodingKind.Utf8]
+        ),
+        text_document=types.TextDocumentClientCapabilities(
+            hover=types.HoverClientCapabilities(content_format=[markup])
+        ),
+    )
+
+    @server.feature(types.CLIENT_REGISTER_CAPABILITY)
+    def register(params: types.RegistrationParams):
+        pass
+
+    initialized = await server.initialize_session(
+        types.InitializeParams(
+            capabilities=caps,
+            workspace_folders=[types.WorkspaceFolder(uri=tmp_path.as_uri(), name="ws")],
+        )
+    )
+    await loaded(server)
+    call_line = source.splitlines()[2]
+    start = len(call_line.split("identity", 1)[0].encode("utf-8"))
+    document = types.TextDocumentIdentifier(uri=file.as_uri())
+
+    # act
+    call = await server.text_document_hover_async(
+        types.HoverParams(
+            text_document=document,
+            position=types.Position(line=2, character=start + 2),
+        )
+    )
+    declaration = await server.text_document_hover_async(
+        types.HoverParams(text_document=document, position=types.Position(line=1, character=7))
+    )
+
+    # assert
+    assert initialized.capabilities.position_encoding == types.PositionEncodingKind.Utf8
+    assert isinstance(call.contents, types.MarkupContent)
+    assert call.contents.kind == markup
+    assert "func identity<Int64>(value: Int64): Int64" in call.contents.value
+    assert "Keeps `value`." in call.contents.value
+    assert call.range == types.Range(
+        start=types.Position(line=2, character=start),
+        end=types.Position(line=2, character=start + len("identity")),
+    )
+    assert "func identity<T>(value: T): T" in declaration.contents.value
+    assert declaration.contents.kind == markup
+    assert "Keeps `value`." in declaration.contents.value
+
+    await server.shutdown_session()

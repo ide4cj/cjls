@@ -248,8 +248,8 @@ class Hovers {
         }
     }
 
-    func ofDecl(id: DefId): Array<HoverItem> {
-        listOf(declItem(id, None))
+    func ofDecl(id: DefId, call!: ?SemanticCallResolution = None): Array<HoverItem> {
+        listOf(declItem(id, None, call: call))
     }
 
     /**
@@ -320,6 +320,7 @@ class Hovers {
         let node = name.parent ?? return []
         let lowered = bodyWithSourceMap(db, def)
         let sourceMap = lowered.sourceMap
+        let call = callAtToken()
         if (isOperator(token)) {
             let expr =
                 sourceMap.exprAtSource(
@@ -327,7 +328,7 @@ class Hovers {
                 ) ??
                     return []
             return match (inferBody(db, def).calleeOf(expr)) {
-                case Some(decl) => ofDecl(decl)
+                case Some(decl) => ofDecl(decl, call: call)
                 case None => []
             }
         }
@@ -338,10 +339,11 @@ class Hovers {
                 ) ??
                     return []
             if (let Some(decl) <- inferBody(db, def).calleeOf(expr)) {
-                return ofDecl(decl)
+                return ofDecl(decl, call: call)
             }
             return ofResolution(
-                resolveBodyName(db, def, exprScopes(db, def).scopeOf(expr), token.text())
+                resolveBodyName(db, def, exprScopes(db, def).scopeOf(expr), token.text()),
+                call: call
             )
         }
         if (let Some(access) <- accessNodeOf(node)) {
@@ -356,7 +358,7 @@ class Hovers {
                     case _ => Option<Ty>.None
                 }
             if (let Some(decl) <- inferred.calleeOf(expr)) {
-                return listOf(declItem(decl, recv))
+                return listOf(declItem(decl, recv, call: call))
             }
             return match (resolveField(db, def, expr)) {
                 case PackageMembers(ids) =>
@@ -413,15 +415,31 @@ class Hovers {
     }
 
     /**
+     * Resolve in the exact source/expansion context. Only body hovers request this evidence;
+     * declaration and completion details continue to describe the declared generic signature.
+     */
+    private func callAtToken(): ?SemanticCallResolution {
+        let token = this.token ?? return None
+        let file = expansion.map { call => ItemFile.Expansion(call) } ?? def.file(db)
+        let occurrence = SemanticAnalysis(db).inFile(file, token.textRange.start) ?? return None
+        occurrence.resolution().call
+    }
+
+    /**
      * What a plain name of the body of `def` stands for, as `resolution`, what it resolved to, says.
      */
-    func ofResolution(resolution: BodyResolution): Array<HoverItem> {
+    func ofResolution(
+        resolution: BodyResolution,
+        call!: ?SemanticCallResolution = None
+    ): Array<HoverItem> {
         match (resolution) {
             case Values(targets) =>
-                targets |> filterMap { target: ValueTarget => valueItem(target, None) } |>
+                targets |>
+                    filterMap { target: ValueTarget => valueItem(target, None, call: call) } |>
                     collectArray
             case InFile(resolution) =>
-                fileDecls(resolution) |> filterMap { id: DefId => declItem(id, None) } |>
+                fileDecls(resolution) |>
+                    filterMap { id: DefId => declItem(id, None, call: call) } |>
                     collectArray
         }
     }
@@ -430,12 +448,16 @@ class Hovers {
      * What a name of a body stands for; a member as a member of a value of the type `recv`, if
      * one's.
      */
-    private func valueItem(target: ValueTarget, recv: ?Ty): ?HoverItem {
+    private func valueItem(
+        target: ValueTarget,
+        recv: ?Ty,
+        call!: ?SemanticCallResolution = None
+    ): ?HoverItem {
         match (target) {
-            case LocalOf(local) => localItem(def, local)
-            case MemberOf(MemberDecl(id)) => declItem(id, recv)
+            case LocalOf(local) => localItem(def, local, call: call)
+            case MemberOf(MemberDecl(id)) => declItem(id, recv, call: call)
             case MemberOf(MemberParam(ctor, local)) => memberParamItem(ctor, local, recv)
-            case DeclOf(id) => declItem(id, None)
+            case DeclOf(id) => declItem(id, None, call: call)
             case TypeParamOf(typeTarget) => typeItem(typeTarget)
         }
     }
@@ -486,7 +508,11 @@ class Hovers {
      * The local `local` of the body of `owner` and its type: `let x: Int64`, `x: Int64` for a
      * parameter or a binding of a pattern, a local function as a declaration.
      */
-    func localItem(owner: DefId, local: LocalId): ?HoverItem {
+    func localItem(
+        owner: DefId,
+        local: LocalId,
+        call!: ?SemanticCallResolution = None
+    ): ?HoverItem {
         let lowered = bodyWithSourceMap(db, owner)
         // a member parameter is the member it declares, at its declaration as at its uses
         if (
@@ -503,7 +529,7 @@ class Hovers {
         let code =
             match (declared.kind) {
                 case VarLocal => "${varKeyword(owner, local)}${declared.name}: ${ty.text(db)}"
-                case FuncLocal => localFuncCode(lowered.body, local, ty)
+                case FuncLocal => localFuncCode(owner, lowered.body, local, ty, call: call)
                 case _ => "${declared.name}: ${ty.text(db)}"
             }
         HoverItem(code)
@@ -543,11 +569,18 @@ class Hovers {
         source.node(db, owner.file(db))
     }
 
-    private func localFuncCode(body: Body, local: LocalId, ty: Ty): String {
+    private func localFuncCode(
+        owner: DefId,
+        body: Body,
+        local: LocalId,
+        ty: Ty,
+        call!: ?SemanticCallResolution = None
+    ): String {
         let name = body[local].name
-        let localFunc =
-            (body.funcs |> filter { one: LocalFunc => one.local == local } |> first) ??
+        let index =
+            (0..body.funcs.size |> filter { i: Int64 => body.funcs[i].local == local } |> first) ??
                 return "func ${name}"
+        let localFunc = body.funcs[index]
         let (params, ret) =
             match (ty.kind(db)) {
                 case FuncTy(params, ret, _) => (params, ret)
@@ -564,8 +597,27 @@ class Hovers {
                         .map { one => one.name } ??
                         "_"
                 }
-        let written = Array(params.size) { i => "${names.get(i) ?? "_"}: ${params[i].text(db)}" }
-        "func ${name}${genericList(localFunc.generics)}(${String.join(written, delimiter: ", ")}): ${ret.text(db)}"
+        let specialized =
+            call
+                .flatMap {
+                    chosen =>
+                    callHoverSignature(
+                        chosen,
+                        LocalIdentity(owner, local),
+                        Array(localFunc.generics.size) {
+                            i =>
+                            TypeTarget.LocalGenericOf(owner, index, i)
+                        }
+                    )
+                }
+                .filter { signature => signature.params.size == params.size }
+        let types =
+            specialized.map { signature => signature.params.map { one => one.display() } } ??
+                params.map { one => one.text(db) }
+        let result = specialized.map { signature => signature.ret.display() } ?? ret.text(db)
+        let generics = genericList(specialized?.generics ?? localFunc.generics)
+        let written = Array(types.size) { i => "${names.get(i) ?? "_"}: ${types[i]}" }
+        "func ${name}${generics}(${String.join(written, delimiter: ", ")}): ${result}"
     }
 
     /**
@@ -601,7 +653,7 @@ class Hovers {
      * The declaration `id`, a member as a member of a value of the type `recv` if one's: its
      * signature, its path, its doc comment.
      */
-    func declItem(id: DefId, recv: ?Ty): ?HoverItem {
+    func declItem(id: DefId, recv: ?Ty, call!: ?SemanticCallResolution = None): ?HoverItem {
         let item = itemOf(db, id) ?? return None
         let sig = signatureTypes(db, id)
         let ty = { one: Ty => seen(one, id, recv).text(db) }
@@ -611,9 +663,32 @@ class Hovers {
                 case Some(one) where names.contains(one.text()) => one.text()
                 case _ => names.get(0) ?? "_"
             }
-        let generics = genericList(sig.generics)
-        let params = { => "(${String.join(paramsOf(id, sig, ty), delimiter: ", ")})" }
-        let declared = { => ty(declaredTyOf(db, id)) }
+        let specialized =
+            if (item.kind == ItemKind.Func) {
+                call
+                    .flatMap {
+                        chosen =>
+                        callHoverSignature(
+                            chosen,
+                            NamedIdentity(Definition.DeclDef(id)),
+                            Array(sig.generics.size) { i => TypeTarget.GenericOf(id, i) }
+                        )
+                    }
+                    .filter { signature => signature.params.size == sig.params.size }
+            } else {
+                None<CallHoverSignature>
+            }
+        let generics = genericList(specialized?.generics ?? sig.generics)
+        let params =
+            {
+                =>
+                "(${String.join(paramsOf(id, sig, ty, types: specialized?.params), delimiter: ", ")})"
+            }
+        let declared =
+            {
+                =>
+                specialized.map { signature => signature.ret.display() } ?? ty(declaredTyOf(db, id))
+            }
         let head =
             match (item.kind) {
                 case Func => "func ${name}${generics}${params()}: ${declared()}"
@@ -640,7 +715,7 @@ class Hovers {
                 case Import | MacroCall => return None
             }
         let bounds =
-            if (sig.bounds.isEmpty()) {
+            if (specialized.isSome() || sig.bounds.isEmpty()) {
                 ""
             } else {
                 " where " +
@@ -672,7 +747,12 @@ class Hovers {
     /**
      * The parameters of `id`, each `name: T`, `name!: T` if passed by name.
      */
-    private func paramsOf(id: DefId, sig: SignatureTypes, ty: (Ty) -> String): Array<String> {
+    private func paramsOf(
+        id: DefId,
+        sig: SignatureTypes,
+        ty: (Ty) -> String,
+        types!: ?Array<SemanticType> = None
+    ): Array<String> {
         let names = paramNamesOf(id)
         Array(sig.params.size) {
             i =>
@@ -681,7 +761,10 @@ class Hovers {
                     case Some(_) => "!"
                     case _ => ""
                 }
-            "${names.get(i) ?? "_"}${byName}: ${ty(sig.params[i])}"
+            let shown =
+                types.flatMap { all => all.get(i) }.map { one => one.display() } ??
+                    ty(sig.params[i])
+            "${names.get(i) ?? "_"}${byName}: ${shown}"
         }
     }
 
