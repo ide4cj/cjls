@@ -1,7 +1,6 @@
 package loupe
 
 import std.collection.{ArrayList, HashSet}
-import std.deriving.Derive
 import cjsyntax.CjSyntaxNode
 import cjsyntax.ast.isIdent
 import py_interop.*

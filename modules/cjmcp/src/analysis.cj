@@ -134,6 +134,10 @@ class AnalysisRevision {
         }
     }
 
+    /**
+     * Snapshot views of this checked revision, cancelled by later input changes.
+     * @throws IllegalStateException - if this handle belongs to an older workspace revision.
+     */
     public func semantic(): SemanticAnalysis {
         SemanticAnalysis(state.db)
     }

@@ -1,7 +1,6 @@
 package loupe
 
 import std.collection.{ArrayList, enumerate, filter, first, map}
-import std.deriving.Derive
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{AnyHasName, TypeParam, TypeParamList}
 import ginkgo.{SyntaxNodePtr, TextRange}
@@ -131,7 +130,7 @@ public class SemanticAnalysis {
     let db: AnalysisDatabase
 
     @PyIgnore
-    public SemanticAnalysis(db: AnalysisDatabase) {
+    public init(db: AnalysisDatabase) {
         this.db = db.snapshot()
     }
 
@@ -485,17 +484,25 @@ public class SemanticLocation {
     }
 
     /**
-     * Immutable file/expansion text of this revision, also usable for adapter coordinate conversion.
+     * Immutable file/expansion text copied from this revision.
+     * @throws CancelledException - if inputs changed or analysis was cancelled.
      */
     public func sourceText(): ?String {
-        text().map { value => value.toString() }
+        text()?.toString()
     }
 
-    /** Zero-based line and UTF-8 byte column of the focus start. */
+    /**
+     * Zero-based line and UTF-8 byte column of the focus start.
+     * @throws CancelledException - if inputs changed or analysis was cancelled.
+     */
     public func coordinates(): ?(Int64, Int64) {
         position().map { value => (value.line, value.column) }
     }
 
+    /**
+     * Immutable file/expansion text for this revision.
+     * @throws CancelledException - if inputs changed or analysis was cancelled.
+     */
     @PyIgnore
     public func text(): ?Rope {
         analysis.text(file)

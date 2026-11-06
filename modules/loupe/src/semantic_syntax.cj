@@ -116,6 +116,10 @@ public class SemanticSyntaxElement {
         this.raw = raw
     }
 
+    /**
+     * Native syntax kind name without exposing the generic syntax representation.
+     * @throws CancelledException - if inputs changed or analysis was cancelled.
+     */
     public func kindName(): String {
         kind().toString()
     }

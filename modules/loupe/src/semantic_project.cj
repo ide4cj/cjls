@@ -1,7 +1,6 @@
 package loupe
 
 import std.collection.{ArrayList, collectArray, filterMap, map}
-import std.deriving.Derive
 import py_interop.*
 import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, BinaryModel, Cfg, InactiveSourceFile, Module}

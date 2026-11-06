@@ -228,6 +228,9 @@ func analysisTypes(): Array<(String, PyObj)> {
 private func sourceTypes(): Array<(String, PyObj)> {
     [
         ("BinaryItem", BinaryItem.pyClass()),
+        ("BinaryModel", BinaryModel.pyClass()),
+        ("BinaryPackage", BinaryPackage.pyClass()),
+        ("BinarySources", BinarySources.pyClass()),
         ("BodyMacroCall", BodyMacroCall.pyClass()),
         ("Cfg", Cfg.pyClass()),
         ("CfgOption", CfgOption.pyClass()),
@@ -245,6 +248,7 @@ private func sourceTypes(): Array<(String, PyObj)> {
         ("ImportTarget", ImportTarget.pyClass()),
         ("Imported", Imported.pyClass()),
         ("InactiveCode", InactiveCode.pyClass()),
+        ("InactiveSourceFile", InactiveSourceFile.pyClass()),
         ("IndexedPackage", IndexedPackage.pyClass()),
         ("Item", Item.pyClass()),
         ("ItemFile", ItemFile.pyClass()),
@@ -259,6 +263,7 @@ private func sourceTypes(): Array<(String, PyObj)> {
         ("MappedText", MappedText.pyClass()),
         ("NoSpecific", NoSpecific.pyClass()),
         ("PackageItem", PackageItem.pyClass()),
+        ("PackageModel", PackageModel.pyClass()),
         ("PackageRef", PackageRef.pyClass()),
         ("PackageRelation", PackageRelation.pyClass()),
         ("ScopeDiagnostic", ScopeDiagnostic.pyClass()),
@@ -329,6 +334,8 @@ private func resultTypes(): Array<(String, PyObj)> {
         ("DirectCalls", DirectCalls.pyClass()),
         ("BuiltinDoc", BuiltinDoc.pyClass()),
         ("CallHierarchyEntry", CallHierarchyEntry.pyClass()),
+        ("CallResolution", CallResolution.pyClass()),
+        ("CallResolutionOutcome", CallResolutionOutcome.pyClass()),
         ("HierarchyCalls", HierarchyCalls.pyClass()),
         ("CompletionItem", CompletionItem.pyClass()),
         ("CompletionKind", CompletionKind.pyClass()),
@@ -375,6 +382,7 @@ private func resolutionTypes(): Array<(String, PyObj)> {
         ("CfgExpr", CfgExpr.pyClass()),
         ("CompilerType", CompilerType.pyClass()),
         ("GenericOwner", GenericOwner.pyClass()),
+        ("GenericBinding", GenericBinding.pyClass()),
         ("Def", Def.pyClass()),
         ("DefId", DefId.pyClass()),
         ("ExtendedType", ExtendedType.pyClass()),
@@ -386,6 +394,7 @@ private func resolutionTypes(): Array<(String, PyObj)> {
         ("MacroCallId", MacroCallId.pyClass()),
         ("MemberTarget", MemberTarget.pyClass()),
         ("Modifier", Modifier.pyClass()),
+        ("Module", Module.pyClass()),
         ("NameTarget", NameTarget.pyClass()),
         ("Namespace", Namespace.pyClass()),
         ("Package", Package.pyClass()),
@@ -405,10 +414,14 @@ private func resolutionTypes(): Array<(String, PyObj)> {
         ("TypeTarget", TypeTarget.pyClass()),
         ("UnknownReason", UnknownReason.pyClass()),
         ("ValueTarget", ValueTarget.pyClass()),
+        ("VfsPath", VfsPath.pyClass()),
         ("Visibility", Visibility.pyClass())
     ]
 }
 
+/**
+ * Register composable snapshot views and their native result values.
+ */
 @When[os == "Linux"]
 private func semanticTypes(): Array<(String, PyObj)> {
     [
@@ -455,16 +468,6 @@ private func semanticTypes(): Array<(String, PyObj)> {
         ("SemanticType", SemanticType.pyClass()),
         ("SemanticTypeKind", SemanticTypeKind.pyClass()),
         ("SemanticUsage", SemanticUsage.pyClass()),
-        ("SemanticUsages", SemanticUsages.pyClass()),
-        ("GenericBinding", GenericBinding.pyClass()),
-        ("CallResolutionOutcome", CallResolutionOutcome.pyClass()),
-        ("CallResolution", CallResolution.pyClass()),
-        ("BinaryModel", BinaryModel.pyClass()),
-        ("BinaryPackage", BinaryPackage.pyClass()),
-        ("BinarySources", BinarySources.pyClass()),
-        ("PackageModel", PackageModel.pyClass()),
-        ("InactiveSourceFile", InactiveSourceFile.pyClass()),
-        ("Module", Module.pyClass()),
-        ("VfsPath", VfsPath.pyClass())
+        ("SemanticUsages", SemanticUsages.pyClass())
     ]
 }
