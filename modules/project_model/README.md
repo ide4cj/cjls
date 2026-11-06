@@ -105,7 +105,10 @@ selection to linked and subsequently discovered projects. The server exposes it
 as `cjls.buildMode` and reloads on changes. Source and test declarations add to
 the common/target declarations and preserve source conflict reporting, including
 workspace inheritance. Script dependencies stay separate; script dependency
-modules use the selected profile for their own ordinary dependencies.
+modules use the selected profile for their own ordinary dependencies. Their target tables
+follow the host platform throughout the transitive script graph; ordinary and test
+dependency tables follow the selected compilation target. Feature propagation
+uses the same graph configuration as dependency selection.
 
 For binaries the selected profile precedes the common target, and explicit
 `package-option` precedes `path-option` at the same priority, per package.
@@ -114,7 +117,11 @@ directory paths remain watched. `BinaryModel.discoverPackages = false` prevents
 re-discovering shadowed packages from those paths; optional `discoverPackages`
 in the JSON projection preserves this selection through a round trip. Absent or
 true retains ordinary directory discovery. Independent binary owners remain
-independent, including when they expose the same full package name. These rules follow
+independent, including when they expose the same full package name. Script binary
+owners have identities qualified by the script resolution scope, while package
+names stay unchanged. This prevents a host binary from replacing a target binary
+with the same package name; search paths and explicit packages retain this
+separation through the JSON projection. These rules follow
 cjpm `config/target.cj` and `implement/dep_model.cj` at
 `ab9ceee08d3e3f98e44d201c9c81b4471fcab7ae`; compiler probes use the repository's
 pinned SDK.
@@ -173,7 +180,10 @@ the keyword-named field from macro input.
 
 [host.cj](src/host.cj) supplies the default configuration and target naming, using
 `platform` for host differences. A caller can supply a target configuration;
-manifest selection must use it rather than an incidental host assumption.
+ordinary/test manifest selection must use it. Build-script dependency tables use
+`hostCfg()` even during cross-compilation, matching pinned SDK
+`1.3.0-alpha.20261102001050` (`cjpm 1.3.0-alpha.09`) source and binary probes.
+This platform distinction does not change build-mode selection.
 
 [sdk.cj](src/sdk.cj) owns SDK/source lookup and injectable environment functions.
 An editor's explicit option precedes environment, SDK-manager defaults and PATH
