@@ -359,20 +359,21 @@ public func targetOf(
 /**
  * What `path`, of an import `level` re-exports with, brings into `from`: its target (`targetOf`)
  * and, for names, those of the package's exports `from` sees (N2–N4), those of a visibility
- * narrower than `level` left out (N37).
+ * narrower than `level` left out (N37). Names are read at the requested scope stage.
  */
 public func resolveImport(
     db: AnalysisDatabase,
     from: PackageRef,
     path: ImportPath,
     level: Visibility,
-    ofTests!: Bool = false
+    ofTests!: Bool = false,
+    stage!: ScopeStage = ScopeStage.Expanded
 ): ImportResolution {
     match (targetOf(db, from, path, level, ofTests: ofTests)) {
         case PackageOf(name, target) => ImportResolution.ToPackage(name, target)
-        case GlobOf(target, full) => namesOf(db, from, target, full, level, None)
+        case GlobOf(target, full) => namesOf(db, from, target, full, level, None, stage: stage)
         case NameOf(target, pkgName, name, alias) =>
-            namesOf(db, from, target, pkgName, level, (name, alias))
+            namesOf(db, from, target, pkgName, level, (name, alias), stage: stage)
         case NoTarget(error) => ImportResolution.Unresolved(error)
     }
 }
