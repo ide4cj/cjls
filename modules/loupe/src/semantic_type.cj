@@ -1,5 +1,7 @@
 package loupe
 
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.hir.{CompilerType, Todo, Ty, TypeTarget, UnknownReason}
 
 /**
@@ -8,6 +10,7 @@ import loupe.hir.{CompilerType, Todo, Ty, TypeTarget, UnknownReason}
  * FunctionType carries parameter types, return type and whether it uses the C calling convention.
  * FixedArrayType carries its element type and length. TypeParameterType names the binder's parameter.
  */
+@DerivePython
 public enum SemanticTypeKind {
     | PrimitiveType(String)
     | DeclaredType(SemanticObject, Array<SemanticType>)
@@ -28,8 +31,18 @@ public enum SemanticTypeKind {
  * at a time; operations throw CancelledException after an input write or request cancellation.
  * Nested types retain this context without creating another snapshot or exposing interned ids.
  */
+@DerivePython
 public class SemanticType {
-    SemanticType(let analysis: SemanticAnalysis, let ty: Ty) {}
+    @PyIgnore
+    let analysis: SemanticAnalysis
+    @PyIgnore
+    let ty: Ty
+
+    @PyIgnore
+    init(analysis: SemanticAnalysis, ty: Ty) {
+        this.analysis = analysis
+        this.ty = ty
+    }
 
     /**
      * Structure with aliases resolved; related definitions and child types need no database argument.

@@ -14,6 +14,7 @@ import unittest
 from output_checks import OutputChecks
 from diagnostic_checks import DiagnosticChecks
 from worktree_checks import WorktreeChecks
+from semantic_checks import SemanticChecks
 
 ROOT = Path(__file__).resolve().parents[2]
 BINARY = os.environ.get("CJMCP_BIN", str(ROOT / "target/release/bin/cjmcp"))
@@ -28,7 +29,7 @@ def server_environment():
 
 
 @unittest.skipUnless(sys.platform.startswith("linux"), "embedded CPython experiment supports native Linux")
-class McpStdioTest(WorktreeChecks, DiagnosticChecks, OutputChecks, unittest.TestCase):
+class McpStdioTest(WorktreeChecks, DiagnosticChecks, OutputChecks, SemanticChecks, unittest.TestCase):
     def test_repeated_native_proxy_allocation(self):
         # Reentering through enum constructors and payload getters exposed invalid GC roots.
         # This needs the real process: an interpreter crash cannot become a tool error.
@@ -182,6 +183,7 @@ result = i + 1
                 self.assertEqual(info['name'], 'cjmcp')
                 self.assertEqual(info['_meta']['apiVersion'], 1)
                 self.assertIn('worktreeSessions', info['_meta']['features'])
+                self.assertIn('semanticViews', info['_meta']['features'])
                 if expected_commit := os.environ.get('CJMCP_BUILD_COMMIT'):
                     self.assertEqual(info['_meta']['commit'], expected_commit)
                 if info['_meta']['commit'] is not None:
@@ -256,6 +258,7 @@ result = i + 1
                 self.assertEqual(unchanged["revision"], native["revision"])
                 self.assertEqual(unchanged["result"], native["revision"])
 
+                self._check_semantic_exports(root, run)
                 self._check_structured_diagnostics(run)
                 self._check_output_budgets(root, run)
                 self._check_source_excerpts(run)

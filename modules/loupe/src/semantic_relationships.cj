@@ -4,6 +4,8 @@ import std.collection.{ArrayList, HashSet, collectArray, filterMap}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.Param
 import ginkgo.SyntaxNodePtr
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.hir.{
     ActiveFilter,
@@ -40,6 +42,7 @@ import loupe.syntax.parse
  * A callable owner, or a contextual file when the occurrence is outside a callable.
  * Local named functions and lambdas retain their own body identities.
  */
+@DerivePython
 public enum SemanticOwner {
     | ObjectOwner(SemanticObject)
     | FileOwner(ItemFile)
@@ -48,6 +51,7 @@ public enum SemanticOwner {
 /**
  * One semantic usage. Contextual locations are intentionally not deduplicated by physical path.
  */
+@DerivePython
 public struct SemanticUsage {
     SemanticUsage(
         public let target: SemanticObject,
@@ -62,6 +66,7 @@ public struct SemanticUsage {
  * Written-source usages and explicit coverage omissions. Gaps are stable reason strings;
  * macro-origin-usages means generated occurrences are outside the written reference model.
  */
+@DerivePython
 public struct SemanticUsages {
     SemanticUsages(public let entries: Array<SemanticUsage>, public let gaps: Array<String>) {}
 }
@@ -69,6 +74,7 @@ public struct SemanticUsages {
 /**
  * A possible immediate call; candidate resolution and conservative dispatch survive composition.
  */
+@DerivePython
 public struct SemanticCallEdge {
     SemanticCallEdge(
         public let caller: SemanticObject,
@@ -82,6 +88,7 @@ public struct SemanticCallEdge {
 /**
  * The original partial-call omission, retaining the caller's contextual source when available.
  */
+@DerivePython
 public struct SemanticCallGap {
     SemanticCallGap(public let reason: String, public let site: ?SemanticLocation) {}
 }
@@ -89,6 +96,7 @@ public struct SemanticCallGap {
 /**
  * Immediate possible calls and explicit omissions; absence never proves runtime purity (A39).
  */
+@DerivePython
 public struct SemanticCalls {
     SemanticCalls(
         public let edges: Array<SemanticCallEdge>,
@@ -100,6 +108,7 @@ public struct SemanticCalls {
  * A direct inheritance edge. Owner is the declaration writing the supertype; an extend also
  * records its provenance independently of the type it extends.
  */
+@DerivePython
 public struct SemanticHierarchyEdge {
     SemanticHierarchyEdge(
         public let subtype: SemanticObject,
@@ -112,6 +121,7 @@ public struct SemanticHierarchyEdge {
 /**
  * An immediate overridden/implemented member, with the implementing member's declaration owner.
  */
+@DerivePython
 public struct SemanticImplementationEdge {
     SemanticImplementationEdge(
         public let implementation: SemanticObject,
@@ -121,6 +131,7 @@ public struct SemanticImplementationEdge {
     ) {}
 }
 
+@DerivePython
 extend SemanticObject {
     /**
      * On-demand identity search, reusing reference scopes, aliases and word filtering. None means
@@ -242,6 +253,7 @@ extend SemanticObject {
         }
     }
 
+    @PyIgnore
     func relationshipDefinition(): ?Definition {
         match (identity) {
             case NamedIdentity(PackageDef(_)) => None
