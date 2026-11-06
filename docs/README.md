@@ -3,7 +3,7 @@
 | Where | What | Rule |
 |---|---|---|
 | [architecture.md](architecture.md) | architecture, request/edit flow and code entry points | overview and navigation; detailed constraints stay in the design rules |
-| [procedures.md](procedures.md) | verification skills, benchmark isolation, worktree lifecycle and agent LSP integration | explicit prerequisites and limits; check commands stay in Development |
+| [procedures.md](procedures.md) | verification skills, benchmark isolation, worktree lifecycle and agent semantic analysis | explicit prerequisites and limits; check commands stay in Development |
 | [design/](design/) | living rules | stable IDs, short rule indexes and readable explanations; changed in the same PR as the code they describe |
 | [adr/](adr/) | decisions taken | one decision per file, ≤ 1 page; never rewritten, superseded by a new one |
 | [issues](https://github.com/ide4cj/cjls/issues?q=is%3Aissue+label%3Aquestion) labeled `question` | open questions | a closed question becomes an ADR or a rule, which names the issue |
@@ -13,6 +13,22 @@
 
 How to set up, build, test and prepare a review: [Development](development.md).
 Agent working instructions: [AGENTS.md](../AGENTS.md). How to add a handler: [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+## Read for a task
+
+Use the task table in [AGENTS.md](../AGENTS.md#start-here) and the module guide
+below to choose a document, then read its relevant sections. For large guides,
+find headings, rule IDs or task terms before reading surrounding text. The design
+rule tables and SDK issue index route to individual constraints; open the cited
+ADR only when its rationale matters. Historical ADRs and prior-art comparisons
+are not routine prerequisites. Reuse guidance already read in this task.
+
+For verification, start at [check selection](development.md#choose-checks-for-a-change)
+and follow only the applicable commands and prerequisites. For cjmcp, the tool's
+instructions cover common queries; load one task recipe for unfamiliar operations,
+setup instructions for connection problems, or API details for an unresolved
+contract question. Keep summaries and routing in entry points, with detailed
+contracts in their owning document.
 
 ## Current rules and decision history
 
@@ -75,6 +91,7 @@ stay in `design/`.
 | Work | Notes |
 |---|---|
 | Incremental analysis and projects | [calca](../modules/calca/README.md), [loupe rules and fixtures](design/02-analysis.md), [project_model](../modules/project_model/README.md) |
+| Experimental MCP frontend | [cjmcp](../modules/cjmcp/README.md) |
 | Source changes and checked text edits | [source_change](../modules/source_change/README.md) |
 | Syntax and generation | [ginkgo](../modules/ginkgo/README.md), [cjsyntax](../modules/cjsyntax/README.md), [syntax_codegen](../modules/syntax_codegen/README.md) |
 | Protocol and serialization | [jsonrpc](../modules/jsonrpc/README.md), [stdxx](../modules/stdxx/README.md), [lsp_codegen](../modules/lsp_codegen/README.md), [cjls](../modules/cjls/README.md) |

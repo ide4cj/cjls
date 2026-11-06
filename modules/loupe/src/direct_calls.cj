@@ -6,6 +6,8 @@ import calca.macros.*
 import cjsyntax.{CjSyntaxNode, SyntaxKind}
 import cjsyntax.ast.{CallExpr, Param, TrailingLambdaExpr}
 import ginkgo.SyntaxNodePtr
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.hir.{
     ActiveFilter,
@@ -37,6 +39,7 @@ import loupe.vfs.FileId
  * operator overload, or `candidate` for an ambiguous or virtual target. A candidate has
  * `isConservative` set; any chain containing it must retain that qualification.
  */
+@DerivePython
 public struct DirectCall <: Equatable<DirectCall> {
     public DirectCall(
         public let target: DefId,
@@ -73,6 +76,7 @@ public struct DirectCall <: Equatable<DirectCall> {
  * - `iteration-protocol`, `resource-protocol`, `spawn-boundary`: implicit protocol/execution effects.
  * - `declaration-macro`, `body-macro`: macro behavior outside the transparent CalcaTracked policy.
  */
+@DerivePython
 public struct CallGap <: Equatable<CallGap> {
     public CallGap(public let reason: String, public let site: ?NavigationTarget) {}
     public operator func ==(other: CallGap): Bool {
@@ -90,6 +94,7 @@ public struct CallGap <: Equatable<CallGap> {
  * effects such as allocation, finalization and implicit string conversion may remain unmodeled.
  * This result cannot certify general language-level purity.
  */
+@DerivePython
 public struct DirectCalls <: Equatable<DirectCalls> {
     public DirectCalls(public let edges: Array<DirectCall>, public let gaps: Array<CallGap>) {}
     public operator func ==(other: DirectCalls): Bool {
@@ -105,6 +110,7 @@ public struct DirectCalls <: Equatable<DirectCalls> {
  * and ownership rather than source spelling: package ownership is independent of import aliases.
  * Declaration identities belong to their producing analysis database and revision.
  */
+@DerivePython
 public struct CallDeclaration {
     public CallDeclaration(
         public let definition: DefId,

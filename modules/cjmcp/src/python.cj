@@ -1,0 +1,403 @@
+package cjmcp
+
+import std.fs.Path
+import std.runtime.blackBox
+import stdx.log.{Logger, NoopLogger}
+import fjson.{JsonValue, fromJsonBytes, toJsonBytes}
+import ginkgo.TextRange
+import loupe.{
+    Diagnostic,
+    HoverItem,
+    HoverResult,
+    Severity,
+    StructureKind,
+    StructureNode,
+    definitionAt,
+    diagnostics as fileDiagnostics,
+    fileStructure,
+    hoverAt
+}
+import loupe.vfs.{FileId, VfsPath}
+@When[os == "Linux"]
+import py_interop.*
+@When[os == "Linux"]
+import py_interop.internal_macros.DerivePython
+import source_change.SourceChange
+
+/**
+ * Redirect file descriptors as well as Python streams so native output stays off the MCP wire.
+ * The protocol loop writes only after the descriptors are restored.
+ */
+@When[os == "Linux"]
+const PYTHON_RUNNER =
+    #"
+import contextlib as _cjmcp_contextlib
+import ctypes as _cjmcp_ctypes
+import json as _cjmcp_json
+import os as _cjmcp_os
+import sys as _cjmcp_sys
+import tempfile as _cjmcp_tempfile
+import traceback as _cjmcp_traceback
+
+def __cjmcp_run(code, workspace, classes, max_output_bytes, state, session_id, server_info_json):
+    scope = dict(classes, workspace=workspace, source_excerpts=source_excerpts,
+                 server_info=_cjmcp_json.loads(server_info_json),
+                 last_output=state.get("last_output"), __name__='__cjmcp_script__')
+    def encode_native(value):
+        if isinstance(value, classes['WorkspaceDiagnostic']):
+            return {key: getattr(value, key) for key in
+                    ('source', 'code', 'severity', 'message', 'path', 'range',
+                     'line', 'column', 'unnecessary')}
+        if isinstance(value, classes['MacroStatus']):
+            return dict(state=value.state, diagnostics=value.diagnostics)
+        if isinstance(value, classes['MacroState']):
+            for name in ('Pending', 'Settled'):
+                if isinstance(value, getattr(classes['MacroState'], name)):
+                    return name.lower()
+        if isinstance(value, classes['TextRange']):
+            return dict(start=value.start, end=value.end)
+        if isinstance(value, classes['Severity']):
+            for name in ('Error', 'Warning', 'Hint'):
+                if isinstance(value, getattr(classes['Severity'], name)):
+                    return name.lower()
+        raise TypeError(f'Object of type {type(value).__name__} is not JSON serializable')
+    result = None
+    error = None
+    saved_out = _cjmcp_os.dup(1)
+    saved_err = _cjmcp_os.dup(2)
+    with _cjmcp_tempfile.TemporaryFile() as out, _cjmcp_tempfile.TemporaryFile() as err:
+        try:
+            _cjmcp_sys.stdout.flush()
+            _cjmcp_sys.stderr.flush()
+            _cjmcp_os.dup2(out.fileno(), 1)
+            _cjmcp_os.dup2(err.fileno(), 2)
+            with _cjmcp_os.fdopen(_cjmcp_os.dup(out.fileno()), 'w', encoding='utf-8', buffering=1) as stdout:
+                with _cjmcp_os.fdopen(_cjmcp_os.dup(err.fileno()), 'w', encoding='utf-8', buffering=1) as stderr:
+                    with _cjmcp_contextlib.redirect_stdout(stdout), _cjmcp_contextlib.redirect_stderr(stderr):
+                        try:
+                            exec(compile(code, '<runPython>', 'exec'), scope, scope)
+                            result = scope.get('result')
+                            _cjmcp_json.dumps(result, allow_nan=False, default=encode_native)
+                        except BaseException:
+                            result = None
+                            error = _cjmcp_traceback.format_exc()
+            _cjmcp_sys.stdout.flush()
+            _cjmcp_sys.stderr.flush()
+            _cjmcp_ctypes.CDLL(None).fflush(None)
+        finally:
+            _cjmcp_os.dup2(saved_out, 1)
+            _cjmcp_os.dup2(saved_err, 2)
+            _cjmcp_os.close(saved_out)
+            _cjmcp_os.close(saved_err)
+        out.seek(0)
+        err.seek(0)
+        payload = dict(
+            stdout=out.read().decode('utf-8', errors='replace'),
+            stderr=err.read().decode('utf-8', errors='replace'),
+            result=result, error=error, revision=workspace.revision,
+            root=workspace.root, sessionId=session_id)
+        serialized = _cjmcp_json.dumps(payload, ensure_ascii=False, allow_nan=False, separators=(',', ':'), default=encode_native)
+        size = len(serialized.encode('utf-8'))
+        if max_output_bytes and size > max_output_bytes:
+            # Retain one rejected response so callers never need to replay effects.
+            # Round-trip freezes mutable script values and verifies serialization.
+            state["last_output"] = _cjmcp_json.loads(serialized)
+            return _cjmcp_json.dumps(dict(
+                stdout='', stderr='', result=None, revision=workspace.revision,
+                root=workspace.root, sessionId=session_id,
+                error='OutputBudgetExceeded: script executed; full response retained in last_output. '
+                      'In the next call select last_output["result"] or stdout/stderr/error in Python. '
+                      'Use source_excerpts for bounded source pages; narrow ranges or use next_offset. '
+                      'For the complete retained response use code="result = last_output" with '
+                      'maxOutputBytes=0 (unlimited), or raise maxOutputBytes. Do not replay edits.',
+                outputBudget=dict(limit_bytes=max_output_bytes, actual_bytes=size,
+                                  retained=True)), ensure_ascii=False)
+        return serialized
+"#
+
+/**
+ * A script-scoped view of the session workspace; reload queues preparation after the script.
+ */
+@When[os == "Linux"]
+@DerivePython
+class Workspace {
+    private var current: ?WorkspaceState = None
+
+    Workspace(private let directory: String) {}
+
+    @PyIgnore
+    func bind(state: WorkspaceState): Unit {
+        current = state
+    }
+
+    public prop revision: Int64 {
+        get() {
+            loaded().revision
+        }
+    }
+
+    public prop root: String {
+        get() {
+            directory
+        }
+    }
+    public prop loadDiagnostics: Array<WorkspaceDiagnostic> {
+        get() {
+            loaded().loadDiagnostics
+        }
+    }
+
+    public prop macros: MacroStatus {
+        get() {
+            loaded().macroStatus
+        }
+    }
+
+    public func files(): Array<String> {
+        loaded().files.map { path => path.toString() }
+    }
+
+    /**
+     * Apply a source change to disk, checking this script's revision and all expected contents.
+     * The running analysis remains unchanged; acquire fresh analysis in the next call.
+     *
+     * @throws IllegalStateException - if revision does not match the running script
+     */
+    public func applyChange(change: SourceChange, revision: Int64): ApplyChangeResult {
+        applySourceChange(loaded(), change, revision)
+    }
+
+    public func reload(): Unit {
+        // Never mutate the database while Python holds native analysis objects.
+        loaded().reloadRequested = true
+    }
+
+    public func structure(path: String): Array<StructureNode> {
+        let (view, file) = resolve(path)
+        fileStructure(view.db, file)
+    }
+
+    public func diagnostics(path: String): Array<WorkspaceDiagnostic> {
+        let (view, file) = resolve(path)
+        let text = view.vfs.fileContents(file).getOrThrow()
+        let resolved = view.vfs.paths.path(file).toString()
+        fileDiagnostics(view.db, file)
+            .map {
+                diagnostic =>
+                let line = text.lineOf(diagnostic.range.start)
+                let column = diagnostic.range.start - text.lineStart(line)
+                WorkspaceDiagnostic(
+                    "analysis",
+                    diagnostic.severity,
+                    diagnostic.message,
+                    path: Some(resolved),
+                    range: Some(diagnostic.range),
+                    line: Some(line + 1),
+                    column: Some(column + 1),
+                    unnecessary: diagnostic.unnecessary
+                )
+            }
+    }
+
+    public func hover(path: String, offset: Int64): ?HoverResult {
+        let (view, file) = position(path, offset)
+        hoverAt(view.db, file, offset)
+    }
+
+    public func definition(path: String, offset: Int64): Array<PythonLocation> {
+        let (view, file) = position(path, offset)
+        definitionAt(view.db, file, offset)
+            .map {
+                target =>
+                PythonLocation(
+                    view.vfs.paths.path(target.fileId).toString(),
+                    target.fullRange,
+                    target.focusRange
+                )
+            }
+    }
+
+    /**
+     * Capture this script's revision. Reacquire after a later workspace update.
+     */
+    public func analysis(): AnalysisRevision {
+        AnalysisRevision(loaded())
+    }
+
+    private func loaded(): WorkspaceState {
+        current.getOrThrow { IllegalStateException("workspace is only available during runPython") }
+    }
+
+    private func resolve(written: String): (WorkspaceState, FileId) {
+        let view = loaded()
+        let path =
+            if (Path(written).isAbsolute()) {
+                VfsPath.file(written)
+            } else {
+                view.root.join(written)
+            }
+        let id =
+            view.vfs.fileId(path) ?? throw IllegalArgumentException("file is not loaded: ${path}")
+        (view, id)
+    }
+
+    private func position(path: String, offset: Int64): (WorkspaceState, FileId) {
+        let (view, file) = resolve(path)
+        let text = view
+            .vfs
+            .fileContents(file)
+            .getOrThrow { IllegalStateException("loaded file has no contents") }
+            .toString()
+            .toArray()
+        if (
+            offset < 0 || offset > text.size ||
+                (offset < text.size && (text[offset] & 0xC0) == 0x80)
+        ) {
+            throw IllegalArgumentException("offset must be a UTF-8 byte boundary within the file")
+        }
+        (view, file)
+    }
+}
+
+@When[os == "Linux"]
+@DerivePython
+struct PythonLocation {
+    PythonLocation(
+        public let path: String,
+        public let range: TextRange,
+        public let selectionRange: TextRange
+    ) {}
+}
+
+@When[os == "Linux"]
+class PythonSession {
+    private let workspace: Workspace
+    private let session: WorkspaceSession
+    private var runner: ?PyObj = None
+    private var workspaceProxy: ?PyObj = None
+    private var types: ?PyObj = None
+    private var outputState: ?PyObj = None
+
+    PythonSession(
+        root: VfsPath,
+        logger!: Logger = NoopLogger(),
+        private let sessionId!: String = "standalone"
+    ) {
+        workspace = Workspace(root.toString())
+        session = WorkspaceSession(root, logger: logger)
+        session.start()
+    }
+
+    func close(): Unit {
+        session.close()
+    }
+
+    func run(code: String): JsonValue {
+        run(code, 24000)
+    }
+
+    func run(code: String, maxOutputBytes: Int64): JsonValue {
+        session
+            .withWorkspace {
+                state =>
+                workspace.bind(state)
+                execute(code, maxOutputBytes)
+            }
+    }
+
+    private func execute(code: String, maxOutputBytes: Int64): JsonValue {
+        if (runner.isNone()) {
+            Python.load(loglevel: LogLevel.ERROR)
+            Python.exec(PYTHON_RUNNER)
+            Python.exec(PYTHON_EVIDENCE)
+            workspaceProxy = workspace.toPyObj()
+            types =
+                PyDict<String, PyObj>(
+                    [
+                        ("TextRange", TextRange.pyClass()),
+                        ("StructureNode", StructureNode.pyClass()),
+                        ("StructureKind", StructureKind.pyClass()),
+                        ("Diagnostic", Diagnostic.pyClass()),
+                        ("WorkspaceDiagnostic", WorkspaceDiagnostic.pyClass()),
+                        ("MacroState", MacroState.pyClass()),
+                        ("MacroStatus", MacroStatus.pyClass()),
+                        ("Severity", Severity.pyClass()),
+                        ("HoverResult", HoverResult.pyClass()),
+                        ("HoverItem", HoverItem.pyClass()),
+                        ("Location", PythonLocation.pyClass()),
+                        ("AnalysisRevision", AnalysisRevision.pyClass()),
+                        ("ApplyChangeResult", ApplyChangeResult.pyClass())
+                    ].concat(analysisTypes())
+                )
+            outputState = Python.eval("{}")
+            runner = Python.eval("__cjmcp_run")
+        }
+        let callable =
+            runner.getOrThrow { IllegalStateException("Python runner was not initialized") }
+        let arguments = PyTuple(
+            [
+                PyString(code),
+                workspaceProxy
+                    .getOrThrow {
+                        IllegalStateException("Python workspace proxy was not initialized")
+                    },
+                types.getOrThrow { IllegalStateException("Python types were not initialized") },
+                maxOutputBytes.toPyObj(),
+                outputState
+                    .getOrThrow {
+                        IllegalStateException("Python output state was not initialized")
+                    },
+                PyString(sessionId),
+                PyString(String.fromUtf8(toJsonBytes(serverInfo())))
+            ]
+        )
+        let gil =
+            unsafe {
+                PyGILState_Ensure()
+            }
+        try {
+            // Keep the argument tuple alive while CPython borrows it: a macro build can trigger Cangjie GC
+            // inside a callback. The interop call operator hides its temporary tuple from this lifetime boundary.
+            let returned =
+                unsafe {
+                    PyObject_Call(
+                        callable.getRef().getPtr(),
+                        arguments.getRef().getPtr(),
+                        CPointer<Unit>()
+                    )
+                }
+            if (returned.isNull()) {
+                throw IllegalStateException(PYLOG.getPythonErr())
+            }
+            let output = PyObj(PyInteropReference(returned))
+            let text = output.toString()
+            blackBox(output)
+            fromJsonBytes<JsonValue>(text.toArray())
+        } finally {
+            blackBox(arguments)
+            blackBox(callable)
+            unsafe {
+                PyGILState_Release(gil)
+            }
+        }
+    }
+}
+
+@When[os != "Linux"]
+class PythonSession {
+    PythonSession(
+        root: VfsPath,
+        logger!: Logger = NoopLogger(),
+        private let sessionId!: String = "standalone"
+    ) {}
+    func close(): Unit {}
+    func run(code: String): JsonValue {
+        run(code, 24000)
+    }
+
+    func run(code: String, maxOutputBytes: Int64): JsonValue {
+        throw IllegalStateException(
+            "Embedded Python is currently supported by this experiment on native Linux only"
+        )
+    }
+}

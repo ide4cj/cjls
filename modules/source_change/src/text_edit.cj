@@ -1,15 +1,28 @@
 package source_change
 
-import std.deriving.Derive
 import std.sort.sort
 import ginkgo.TextRange
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A replacement in UTF-8 byte offsets into the original text, with an exclusive end.
  */
-@Derive[Equatable, ToString]
-public struct TextEdit {
+@DerivePython
+public struct TextEdit <: Equatable<TextEdit> & ToString {
     public TextEdit(public let range: TextRange, public let text: String) {}
+
+    public operator func ==(other: TextEdit): Bool {
+        range == other.range && text == other.text
+    }
+
+    public operator func !=(other: TextEdit): Bool {
+        !(this == other)
+    }
+
+    public func toString(): String {
+        "TextEdit(range: ${range}, text: ${text})"
+    }
 }
 
 /**

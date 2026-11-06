@@ -5,6 +5,8 @@ import cjsyntax.{CjParse, CjSyntaxElement, CjSyntaxNode, SyntaxKind, message as 
 import cjsyntax.ast.{Decl, TypeParam}
 import ginkgo.{SyntaxElement, SyntaxNodePtr, TextRange}
 import ginkgo.parsing.{ParseError, SyntaxError}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.hir.{
     BodyOrigin,
     BodySource,
@@ -28,8 +30,21 @@ import loupe.vfs.FileId
  * A request-owned lossless tree. Every view operation checks the originating analysis revision.
  * Never store this tree or its elements in tracked results (A13); retain pointer() instead.
  */
+@DerivePython
 public class SemanticSyntaxTree {
-    SemanticSyntaxTree(let analysis: SemanticAnalysis, let file: ItemFile, let parsed: CjParse) {}
+    @PyIgnore
+    let analysis: SemanticAnalysis
+    @PyIgnore
+    let file: ItemFile
+    @PyIgnore
+    let parsed: CjParse
+
+    @PyIgnore
+    init(analysis: SemanticAnalysis, file: ItemFile, parsed: CjParse) {
+        this.analysis = analysis
+        this.file = file
+        this.parsed = parsed
+    }
 
     public func root(): SemanticSyntaxElement {
         analysis.db.unwindIfCancelled()
@@ -57,6 +72,7 @@ public class SemanticSyntaxTree {
         pointer.ptr.tryToNode(parsed.syntaxNode()).map { node => element(SyntaxElement.Node(node)) }
     }
 
+    @PyIgnore
     func element(raw: CjSyntaxElement): SemanticSyntaxElement {
         SemanticSyntaxElement(this, raw)
     }
@@ -66,21 +82,49 @@ public class SemanticSyntaxTree {
  * A tree-free node handle qualified by its analysis and contextual file/expansion.
  * Construction is confined to checked views; raw kind/range pairs cannot forge provenance.
  */
+@DerivePython
 public class SemanticSyntaxPointer {
-    SemanticSyntaxPointer(
-        let analysis: SemanticAnalysis,
-        let file: ItemFile,
-        let ptr: SyntaxNodePtr<SyntaxKind>
-    ) {}
+    @PyIgnore
+    let analysis: SemanticAnalysis
+    @PyIgnore
+    let file: ItemFile
+    @PyIgnore
+    let ptr: SyntaxNodePtr<SyntaxKind>
+
+    @PyIgnore
+    init(analysis: SemanticAnalysis, file: ItemFile, ptr: SyntaxNodePtr<SyntaxKind>) {
+        this.analysis = analysis
+        this.file = file
+        this.ptr = ptr
+    }
 }
 
 /**
  * A node or token, including trivia and recovery nodes. Copied text/ranges describe this revision;
  * retained elements reject operations after a write. Children/descendants preserve source order.
  */
+@DerivePython
 public class SemanticSyntaxElement {
-    SemanticSyntaxElement(let tree: SemanticSyntaxTree, let raw: CjSyntaxElement) {}
+    @PyIgnore
+    let tree: SemanticSyntaxTree
+    @PyIgnore
+    let raw: CjSyntaxElement
 
+    @PyIgnore
+    init(tree: SemanticSyntaxTree, raw: CjSyntaxElement) {
+        this.tree = tree
+        this.raw = raw
+    }
+
+    /**
+     * Native syntax kind name without exposing the generic syntax representation.
+     * @throws CancelledException - if inputs changed or analysis was cancelled.
+     */
+    public func kindName(): String {
+        kind().toString()
+    }
+
+    @PyIgnore
     public func kind(): SyntaxKind {
         tree.analysis.db.unwindIfCancelled()
         raw.kind
@@ -152,14 +196,25 @@ public class SemanticSyntaxElement {
 /**
  * Parser recovery evidence bound to the tree's revision, including zero-width ranges.
  */
+@DerivePython
 public class SemanticSyntaxError {
-    SemanticSyntaxError(let analysis: SemanticAnalysis, let raw: SyntaxError<SyntaxKind>) {}
+    @PyIgnore
+    let analysis: SemanticAnalysis
+    @PyIgnore
+    let raw: SyntaxError<SyntaxKind>
+
+    @PyIgnore
+    init(analysis: SemanticAnalysis, raw: SyntaxError<SyntaxKind>) {
+        this.analysis = analysis
+        this.raw = raw
+    }
 
     public func range(): TextRange {
         analysis.db.unwindIfCancelled()
         raw.range
     }
 
+    @PyIgnore
     public func error(): ParseError<SyntaxKind> {
         analysis.db.unwindIfCancelled()
         raw.error
@@ -176,6 +231,7 @@ public class SemanticSyntaxError {
  * Later expressions of the same syntax are desugared values; aliases link call sites to
  * expansion objects whose canonical syntax remains inside the expansion.
  */
+@DerivePython
 public enum SemanticSyntaxRole {
     | DirectSyntaxMapping
     | DesugaredSyntaxMapping
@@ -185,6 +241,7 @@ public enum SemanticSyntaxRole {
 /**
  * One exact syntax-to-HIR relationship. Several relationships may share either endpoint.
  */
+@DerivePython
 public class SemanticSyntaxMapping {
     SemanticSyntaxMapping(public let object: SemanticObject, public let role: SemanticSyntaxRole) {}
 }
@@ -192,12 +249,14 @@ public class SemanticSyntaxMapping {
 /**
  * Exact syntax, synthetic HIR and unavailable source remain distinct when traversing back.
  */
+@DerivePython
 public enum SemanticSyntaxOrigin {
     | SourceSyntax(SemanticSyntaxElement)
     | SyntheticSyntax
     | UnavailableSyntax
 }
 
+@DerivePython
 extend SemanticAnalysis {
     /**
      * Lossless source in the editor's preferred context; none for an unavailable file.
@@ -227,6 +286,7 @@ extend SemanticAnalysis {
         SemanticSyntaxTree(this, file, parsed)
     }
 
+    @PyIgnore
     func syntaxSource(file: ItemFile, ptr: SyntaxNodePtr<SyntaxKind>): SemanticSyntaxOrigin {
         let tree = syntax(file) ?? return UnavailableSyntax
         let node = ptr.tryToNode(tree.parsed.syntaxNode()) ?? return UnavailableSyntax
@@ -234,6 +294,7 @@ extend SemanticAnalysis {
     }
 }
 
+@DerivePython
 extend SemanticObject {
     /**
      * Written syntax followed by distinct expansion call-site aliases in lowering order.

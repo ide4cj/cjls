@@ -1,12 +1,15 @@
 package cjformat
 
 import ftoml.*
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import stdxx.deriving.*
 
 /**
  * Layout of an if expression with one expression in each branch and no comments.
  */
 @DeriveExt[FromToml]
+@DerivePython
 public enum SimpleIf {
     | @Serde[rename: "compact"]
     Compact
@@ -19,6 +22,7 @@ public enum SimpleIf {
  */
 @DeriveExt[FromToml]
 @Serde[denyUnknownFields]
+@DerivePython
 public struct FormatOptions {
     /**
      * Creates validated formatter policy.

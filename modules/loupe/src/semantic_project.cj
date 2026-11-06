@@ -1,7 +1,8 @@
 package loupe
 
 import std.collection.{ArrayList, collectArray, filterMap, map}
-import std.deriving.Derive
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, BinaryModel, Cfg, InactiveSourceFile, Module}
 import loupe.hir.{
     DefId,
@@ -18,6 +19,7 @@ import loupe.hir.{
 }
 import loupe.vfs.{FileId, VfsPath}
 
+@DerivePython
 extend SemanticAnalysis {
     /**
      * The single merged loaded project, or none before project inputs are installed.
@@ -33,8 +35,14 @@ extend SemanticAnalysis {
  * Traversal of loaded inputs only. Collections preserve input order and support ordinary
  * Array filtering. All methods use the originating snapshot and cancel after input changes.
  */
+@DerivePython
 public class SemanticProject {
-    SemanticProject(private let analysis: SemanticAnalysis) {}
+    private let analysis: SemanticAnalysis
+
+    @PyIgnore
+    init(analysis: SemanticAnalysis) {
+        this.analysis = analysis
+    }
 
     public func modules(): Array<SemanticModule> {
         let db = analysis.db
@@ -110,6 +118,7 @@ public class SemanticProject {
  * Missing @When comparison keys remain unknown/active; absent debug/test flags currently
  * follow CfgExpr's false default, not proof that the compiler was invoked without them.
  */
+@DerivePython
 public struct SemanticConfiguration {
     SemanticConfiguration(public let cfg: Cfg) {}
 
@@ -138,6 +147,7 @@ public struct SemanticConfiguration {
 /**
  * A dependency permission, not evidence of an import statement.
  */
+@DerivePython
 public struct SemanticDependency {
     SemanticDependency(
         public let source: SemanticModule,
@@ -161,8 +171,16 @@ public struct SemanticDependency {
 /**
  * Module identity includes its independent resolution scope, including script selections.
  */
+@DerivePython
 public class SemanticModule {
-    SemanticModule(private let analysis: SemanticAnalysis, public let identity: Module) {}
+    private let analysis: SemanticAnalysis
+    public let identity: Module
+
+    @PyIgnore
+    init(analysis: SemanticAnalysis, identity: Module) {
+        this.analysis = analysis
+        this.identity = identity
+    }
 
     public func name(): String {
         analysis.db.unwindIfCancelled()
@@ -259,19 +277,50 @@ public class SemanticModule {
 /**
  * Loaded origin, independent of a declaration's navigation source.
  */
-@Derive[Equatable]
-public enum SemanticPackageOrigin {
+@DerivePython
+public enum SemanticPackageOrigin <: Equatable<SemanticPackageOrigin> {
     | WorkspacePackage
     | DependencyPackage
     | BinaryPackageOrigin
     | AttachedPackage
+
+    public operator func ==(other: SemanticPackageOrigin): Bool {
+        match ((this, other)) {
+            case (SemanticPackageOrigin.WorkspacePackage, SemanticPackageOrigin.WorkspacePackage) =>
+                true
+            case (
+                    SemanticPackageOrigin.DependencyPackage,
+                    SemanticPackageOrigin.DependencyPackage
+                ) => true
+            case (
+                    SemanticPackageOrigin.BinaryPackageOrigin,
+                    SemanticPackageOrigin.BinaryPackageOrigin
+                ) => true
+            case (SemanticPackageOrigin.AttachedPackage, SemanticPackageOrigin.AttachedPackage) =>
+                true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: SemanticPackageOrigin): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * A contextual package. Attached source retains its detached identity, not its binary's.
  */
+@DerivePython
 public class SemanticPackage {
-    SemanticPackage(let analysis: SemanticAnalysis, public let identity: PackageRef) {}
+    @PyIgnore
+    let analysis: SemanticAnalysis
+    public let identity: PackageRef
+
+    @PyIgnore
+    init(analysis: SemanticAnalysis, identity: PackageRef) {
+        this.analysis = analysis
+        this.identity = identity
+    }
 
     public func name(): String {
         analysis.db.unwindIfCancelled()
@@ -541,6 +590,7 @@ public class SemanticPackage {
 /**
  * Reverse written-import evidence with explicit missing-source and binary graph gaps.
  */
+@DerivePython
 public struct SemanticImporters {
     SemanticImporters(
         public let entries: Array<SemanticImport>,
@@ -548,6 +598,7 @@ public struct SemanticImporters {
     ) {}
 }
 
+@DerivePython
 extend SemanticObject {
     /**
      * Context of the identity itself; never reconstructed through its navigation location.
@@ -563,6 +614,7 @@ extend SemanticObject {
     }
 }
 
+@DerivePython
 extend SemanticOccurrence {
     public func contextualFile(): SemanticFile {
         analysis.db.unwindIfCancelled()
@@ -570,6 +622,7 @@ extend SemanticOccurrence {
     }
 }
 
+@DerivePython
 extend SemanticLocation {
     public func contextualFile(): SemanticFile {
         analysis.db.unwindIfCancelled()

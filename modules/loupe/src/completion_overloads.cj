@@ -2,14 +2,24 @@ package loupe
 
 import std.collection.{ArrayList, HashMap, HashSet}
 import std.deriving.Derive
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.hir.{DefId, Ty}
 
 /**
  * A declaration in a completion group, seen through its receiver type when it is a member.
  */
-@Derive[Equatable]
-public struct CompletionOverload {
+@DerivePython
+public struct CompletionOverload <: Equatable<CompletionOverload> {
     public CompletionOverload(public let id: DefId, public let receiver: ?Ty) {}
+
+    public operator func ==(other: CompletionOverload): Bool {
+        id == other.id && receiver == other.receiver
+    }
+
+    public operator func !=(other: CompletionOverload): Bool {
+        !(this == other)
+    }
 }
 
 /**

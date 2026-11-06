@@ -5,11 +5,24 @@ cjls is a Cangjie language server, written in Cangjie. `cjls` handles LSP;
 current features in the router and source, rather than assuming an old overview
 is a complete feature list.
 
+## Experiment branch history
+
+Keep `experiment/cjmcp` linear on top of current `master`. Update it by rebasing
+its experiment commits, never by merging `master` into it. Preserve the previous
+tip before rewriting and publish with an explicit `--force-with-lease` expectation.
+
 ## Before changing code
 
 - Read the task-relevant documents below and the affected module's notes.
 - Preserve the architectural boundaries and toolchain constraints they describe.
 - Check unfamiliar Cangjie/compiler behavior in source or a small probe.
+- cjmcp is optional. When connected, use `runPython` for all Cangjie source
+  analysis, reading and editing; do not substitute shell commands or subprocesses.
+  Trust its analysis and report unavailable or partial results without a shell
+  fallback. Shell remains available for Git, builds, tests and non-Cangjie files.
+  Without a connection, use ordinary source tools. Follow server instructions;
+  see [integration](docs/procedures.md#agent-semantic-analysis-with-cjmcp) only
+  for setup or freshness questions.
 - Prefer string interpolation when it simplifies fixture sources or expected
   text; preserve literal code, markers and offsets as described in
   [Contributing](CONTRIBUTING.md#test-fixtures). Compute conditional markers and
@@ -31,8 +44,9 @@ is a complete feature list.
 
 Read the affected module's `AGENTS.md`, where present, and its technical notes
 linked from the [module guide](docs/README.md#module-notes) before editing it.
-Follow links relevant to the task; do not load all module notes or ADRs for every
-change.
+Read the relevant sections, using headings and rule IDs to locate them; do not
+load every module note or the ADR index for each change. Reuse already-read
+guidance unless it changed. See [documentation navigation](docs/README.md#read-for-a-task).
 
 ## Issues and board
 

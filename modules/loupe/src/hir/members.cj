@@ -1,17 +1,18 @@
 package loupe.hir
 
 import std.collection.*
-import std.deriving.*
 import calca.*
 import calca.macros.*
 import index_map.IndexMap
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 
 /**
  * A type an `extend` extends: one declared, or a type of the language by its keyword (`Int64`).
  */
-@Derive[Equatable, Hashable]
-public enum ExtendedType <: ToString {
+@DerivePython
+public enum ExtendedType <: ToString & Equatable<ExtendedType> & Hashable {
     | DeclType(DefId)
     | PrimType(String)
     | BuiltInHead(CompilerType)
@@ -22,6 +23,36 @@ public enum ExtendedType <: ToString {
             case PrimType(name) => name
             case BuiltInHead(kind) => kind.toString()
         }
+    }
+
+    public operator func ==(other: ExtendedType): Bool {
+        match ((this, other)) {
+            case (ExtendedType.DeclType(left0), ExtendedType.DeclType(right0)) => left0 == right0
+            case (ExtendedType.PrimType(left0), ExtendedType.PrimType(right0)) => left0 == right0
+            case (ExtendedType.BuiltInHead(left0), ExtendedType.BuiltInHead(right0)) =>
+                left0 == right0
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: ExtendedType): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        match (this) {
+            case ExtendedType.DeclType(value0) =>
+                hasher.write(0)
+                hasher.write(value0.hashCode())
+            case ExtendedType.PrimType(value0) =>
+                hasher.write(1)
+                hasher.write(value0)
+            case ExtendedType.BuiltInHead(value0) =>
+                hasher.write(2)
+                hasher.write(value0.hashCode())
+        }
+        hasher.finish()
     }
 }
 
@@ -130,8 +161,8 @@ public func enclosingTypeOf(db: AnalysisDatabase, def: DefId): ?ExtendedType {
  * What a name of the type a body is in stands for: a declaration among its members, or a member
  * parameter of its primary constructor (N69).
  */
-@Derive[Equatable, Hashable]
-public enum MemberTarget <: ToString {
+@DerivePython
+public enum MemberTarget <: ToString & Equatable<MemberTarget> & Hashable {
     | MemberDecl(DefId)
     /**
      * A `let` or `var` parameter of a primary constructor: the constructor, and the parameter's
@@ -145,6 +176,36 @@ public enum MemberTarget <: ToString {
             case MemberParam(id, local) => "${id} ${local}"
         }
     }
+
+    public operator func ==(other: MemberTarget): Bool {
+        match ((this, other)) {
+            case (MemberTarget.MemberDecl(left0), MemberTarget.MemberDecl(right0)) =>
+                left0 == right0
+            case (
+                    MemberTarget.MemberParam(left0, left1),
+                    MemberTarget.MemberParam(right0, right1)
+                ) => left0 == right0 && left1 == right1
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: MemberTarget): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        match (this) {
+            case MemberTarget.MemberDecl(value0) =>
+                hasher.write(0)
+                hasher.write(value0.hashCode())
+            case MemberTarget.MemberParam(value0, value1) =>
+                hasher.write(1)
+                hasher.write(value0.hashCode())
+                hasher.write(value1.hashCode())
+        }
+        hasher.finish()
+    }
 }
 
 /**
@@ -155,6 +216,21 @@ public func membersNamed(db: AnalysisDatabase, def: DefId, name: String): Array<
     // in a `common` type, the type a build has: its `specific` one (#318)
     let start = completedType(db, enclosingTypeOf(db, def) ?? return [])
     lookUpMembers(db, [start], name, sourceFileOf(db, def), LookupTy({ => selfTyAround(db, def) }))
+}
+
+/**
+ * Every member of a type or extend, or visible around a member as membersNamed sees it.
+ * Includes inherited and visible extension members, preserving overloads and lookup shadowing.
+ */
+public func allMembers(db: AnalysisDatabase, def: DefId): Array<MemberTarget> {
+    let (start, on) =
+        match (def.item(db).kind) {
+            case Class | Interface | Struct | Enum =>
+                (ExtendedType.DeclType(canonicalDef(db, def)), Some(selfTyOf(db, def)))
+            case Extend => (extendedTypeOf(db, def) ?? return [], signatureTypes(db, def).ty)
+            case _ => (enclosingTypeOf(db, def) ?? return [], selfTyAround(db, def))
+        }
+    allMembers(db, [completedType(db, start)], from: sourceFileOf(db, def), on: on)
 }
 
 /**

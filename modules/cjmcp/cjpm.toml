@@ -1,0 +1,53 @@
+[package]
+cjc-version = "1.3.0"
+name = "cjmcp"
+organization = ""
+description = "Experimental MCP tools over loupe"
+version = "0.1.0"
+target-dir = ""
+script-dir = ""
+output-type = "executable"
+compile-option = "--static-std -Woff unused"
+override-compile-option = ""
+link-option = ""
+# `--static` links the runtime into the binary, but `cjpm test` builds this package as a staticlib, where cjc
+# warns that the option does nothing: no manifest key reaches the executable's build alone.
+package-configuration = { cjmcp = { compile-option = "--static -Woff driver-arg" } }
+
+[dependencies]
+py_interop = { git = "https://gitcode.com/filaco/cangjie_python_reverse_interop.git", commitId = "c0c91cf8a89889f65bca96b962e530001e8433b2", output-type = "static" }
+source_change = { path = "../source_change" }
+cjformat = { path = "../cjformat" }
+ginkgo = { path = "../ginkgo" }
+fjson = { path = "../fjson" }
+stdxx = { path = "../stdxx" }
+loupe = { path = "../loupe" }
+macro_host = { path = "../macro_host" }
+platform = { path = "../platform" }
+project_model = { path = "../project_model" }
+
+# `-O2` on a release build alone: `-g` (the coverage's) builds unoptimized, D51
+[target.aarch64-apple-darwin.release]
+compile-option = "-O2"
+
+[target.x86_64-unknown-linux-gnu.release]
+compile-option = "-O2"
+
+[target.x86_64-w64-mingw32.release]
+compile-option = "-O2"
+
+# CANGJIE_STDX_PATH must name the matching static stdx directory.
+[target.aarch64-apple-darwin.bin-dependencies]
+path-option = [
+    "${CANGJIE_STDX_PATH}",
+]
+
+[target.x86_64-unknown-linux-gnu.bin-dependencies]
+path-option = [
+    "${CANGJIE_STDX_PATH}",
+]
+
+[target.x86_64-w64-mingw32.bin-dependencies]
+path-option = [
+    "${CANGJIE_STDX_PATH}",
+]
