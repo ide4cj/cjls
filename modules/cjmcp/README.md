@@ -86,6 +86,12 @@ workspace sessions are cached by recency; calls remain sequential. See
 [workspace selection](python-api.md#selecting-a-project-or-worktree) for isolation,
 eviction and response identity.
 
+Fixed JSON-RPC/MCP responses and the tool schema use wire types with
+`@DeriveExt[ToJson]`. Keep arbitrary Python results dynamic; the Python encoder
+handles native values and enforces the output budget before the Cangjie response
+wrapper is serialized. Wire types use `@Serde[skipNone]`; use `Nullable` for fields
+that must remain explicit JSON `null`.
+
 Other offered versions receive `2025-11-25`; clients must accept it or disconnect.
 Newer stateless MCP revisions are not implemented. Closing stdin ends the
 process. Incoming messages must end in a newline and are limited to 8 MiB.
