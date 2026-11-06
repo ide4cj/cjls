@@ -24,6 +24,7 @@ import loupe.{
     NavigationTarget,
     Reference as AnalysisReference,
     RelatedHighlight,
+    SemanticAnalysis,
     builtinAnnotationDoc as nativeBuiltinAnnotationDoc,
     builtinMacroDoc as nativeBuiltinMacroDoc,
     builtinTypeDoc as nativeBuiltinTypeDoc,
@@ -131,6 +132,10 @@ class AnalysisRevision {
             }
             owner
         }
+    }
+
+    public func semantic(): SemanticAnalysis {
+        SemanticAnalysis(state.db)
     }
 
     public func declarations(path: String): Array<DefId> {

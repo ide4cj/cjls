@@ -34,19 +34,69 @@ import loupe.{
     Reference as AnalysisReference,
     ReferenceAccess,
     RelatedHighlight,
+    SemanticAnalysis,
+    SemanticBinding,
+    SemanticBodyResolutions,
+    SemanticCallEdge,
+    SemanticCallGap,
+    SemanticCallResolution,
+    SemanticCalls,
+    SemanticCondition,
+    SemanticConfiguration,
+    SemanticDependency,
+    SemanticExports,
+    SemanticFile,
+    SemanticGenericBinding,
+    SemanticHierarchyEdge,
+    SemanticIdentity,
+    SemanticImplementationEdge,
+    SemanticImplicitImport,
+    SemanticImport,
+    SemanticImporters,
+    SemanticLocation,
+    SemanticModule,
+    SemanticObject,
+    SemanticOccurrence,
+    SemanticOrigin,
+    SemanticOwner,
+    SemanticPackage,
+    SemanticPackageOrigin,
+    SemanticProject,
+    SemanticResolution,
+    SemanticResolutionDiagnostic,
+    SemanticResolutionReason,
+    SemanticResolutionStatus,
+    SemanticSourceKind,
+    SemanticSyntaxElement,
+    SemanticSyntaxError,
+    SemanticSyntaxMapping,
+    SemanticSyntaxOrigin,
+    SemanticSyntaxPointer,
+    SemanticSyntaxRole,
+    SemanticSyntaxTree,
+    SemanticType,
+    SemanticTypeKind,
+    SemanticUsage,
+    SemanticUsages,
     ShownExpansion
 }
 import loupe.db.{
+    BinaryModel,
+    BinaryPackage,
     BinaryPackageFile,
+    BinarySources,
     Cfg,
     CfgOption,
+    InactiveSourceFile,
     MacroDiagnostic,
     MacroItem,
     MacroItemValue,
     MacroSeverity,
     MappedSpan,
     MappedText,
+    Module,
     Package,
+    PackageModel,
     SourceFile,
     SpanOrigin
 }
@@ -63,6 +113,8 @@ import loupe.hir.{
     BodyResolution,
     BodySourceMap,
     CallArg,
+    CallResolution,
+    CallResolutionOutcome,
     CalleeTarget,
     CatchArm,
     CfgExpr,
@@ -79,6 +131,7 @@ import loupe.hir.{
     ExtendedType,
     FieldResolution,
     FieldTargets,
+    GenericBinding,
     GenericOwner,
     Generics,
     Glob,
@@ -151,7 +204,7 @@ import loupe.hir.{
     WhenDiagnostics,
     WhenError
 }
-import loupe.vfs.FileId
+import loupe.vfs.{FileId, VfsPath}
 @When[os == "Linux"]
 import py_interop.PyObj
 import source_change.{FileChange, SourceChange, TextEdit}
@@ -161,7 +214,11 @@ import source_change.{FileChange, SourceChange, TextEdit}
  */
 @When[os == "Linux"]
 func analysisTypes(): Array<(String, PyObj)> {
-    sourceTypes().concat(bodyTypes()).concat(resultTypes()).concat(resolutionTypes())
+    sourceTypes()
+        .concat(bodyTypes())
+        .concat(resultTypes())
+        .concat(resolutionTypes())
+        .concat(semanticTypes())
 }
 
 /**
@@ -349,5 +406,65 @@ private func resolutionTypes(): Array<(String, PyObj)> {
         ("UnknownReason", UnknownReason.pyClass()),
         ("ValueTarget", ValueTarget.pyClass()),
         ("Visibility", Visibility.pyClass())
+    ]
+}
+
+@When[os == "Linux"]
+private func semanticTypes(): Array<(String, PyObj)> {
+    [
+        ("SemanticAnalysis", SemanticAnalysis.pyClass()),
+        ("SemanticBinding", SemanticBinding.pyClass()),
+        ("SemanticBodyResolutions", SemanticBodyResolutions.pyClass()),
+        ("SemanticCallEdge", SemanticCallEdge.pyClass()),
+        ("SemanticCallGap", SemanticCallGap.pyClass()),
+        ("SemanticCallResolution", SemanticCallResolution.pyClass()),
+        ("SemanticCalls", SemanticCalls.pyClass()),
+        ("SemanticCondition", SemanticCondition.pyClass()),
+        ("SemanticConfiguration", SemanticConfiguration.pyClass()),
+        ("SemanticDependency", SemanticDependency.pyClass()),
+        ("SemanticExports", SemanticExports.pyClass()),
+        ("SemanticFile", SemanticFile.pyClass()),
+        ("SemanticGenericBinding", SemanticGenericBinding.pyClass()),
+        ("SemanticHierarchyEdge", SemanticHierarchyEdge.pyClass()),
+        ("SemanticIdentity", SemanticIdentity.pyClass()),
+        ("SemanticImplementationEdge", SemanticImplementationEdge.pyClass()),
+        ("SemanticImplicitImport", SemanticImplicitImport.pyClass()),
+        ("SemanticImport", SemanticImport.pyClass()),
+        ("SemanticImporters", SemanticImporters.pyClass()),
+        ("SemanticLocation", SemanticLocation.pyClass()),
+        ("SemanticModule", SemanticModule.pyClass()),
+        ("SemanticObject", SemanticObject.pyClass()),
+        ("SemanticOccurrence", SemanticOccurrence.pyClass()),
+        ("SemanticOrigin", SemanticOrigin.pyClass()),
+        ("SemanticOwner", SemanticOwner.pyClass()),
+        ("SemanticPackage", SemanticPackage.pyClass()),
+        ("SemanticPackageOrigin", SemanticPackageOrigin.pyClass()),
+        ("SemanticProject", SemanticProject.pyClass()),
+        ("SemanticResolution", SemanticResolution.pyClass()),
+        ("SemanticResolutionDiagnostic", SemanticResolutionDiagnostic.pyClass()),
+        ("SemanticResolutionReason", SemanticResolutionReason.pyClass()),
+        ("SemanticResolutionStatus", SemanticResolutionStatus.pyClass()),
+        ("SemanticSourceKind", SemanticSourceKind.pyClass()),
+        ("SemanticSyntaxElement", SemanticSyntaxElement.pyClass()),
+        ("SemanticSyntaxError", SemanticSyntaxError.pyClass()),
+        ("SemanticSyntaxMapping", SemanticSyntaxMapping.pyClass()),
+        ("SemanticSyntaxOrigin", SemanticSyntaxOrigin.pyClass()),
+        ("SemanticSyntaxPointer", SemanticSyntaxPointer.pyClass()),
+        ("SemanticSyntaxRole", SemanticSyntaxRole.pyClass()),
+        ("SemanticSyntaxTree", SemanticSyntaxTree.pyClass()),
+        ("SemanticType", SemanticType.pyClass()),
+        ("SemanticTypeKind", SemanticTypeKind.pyClass()),
+        ("SemanticUsage", SemanticUsage.pyClass()),
+        ("SemanticUsages", SemanticUsages.pyClass()),
+        ("GenericBinding", GenericBinding.pyClass()),
+        ("CallResolutionOutcome", CallResolutionOutcome.pyClass()),
+        ("CallResolution", CallResolution.pyClass()),
+        ("BinaryModel", BinaryModel.pyClass()),
+        ("BinaryPackage", BinaryPackage.pyClass()),
+        ("BinarySources", BinarySources.pyClass()),
+        ("PackageModel", PackageModel.pyClass()),
+        ("InactiveSourceFile", InactiveSourceFile.pyClass()),
+        ("Module", Module.pyClass()),
+        ("VfsPath", VfsPath.pyClass())
     ]
 }

@@ -1,6 +1,8 @@
 package loupe
 
 import std.collection.{ArrayList, collectArray, filterMap}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{Package, SourceFile}
 import loupe.hir.{
     CfgExpr,
@@ -45,6 +47,7 @@ import loupe.hir.{
 /**
  * A name and its semantic target; site retains the available immediate import provenance.
  */
+@DerivePython
 public struct SemanticBinding {
     SemanticBinding(
         public let name: String,
@@ -59,6 +62,7 @@ public struct SemanticBinding {
 /**
  * Export cycles are distinct from a known empty exported-name collection.
  */
+@DerivePython
 public struct SemanticExports {
     SemanticExports(
         public let names: Array<SemanticBinding>,
@@ -73,6 +77,7 @@ public struct SemanticExports {
 /**
  * One active import path, its alias/glob, visibility, stage and contextual syntax site.
  */
+@DerivePython
 public struct SemanticImport {
     SemanticImport(
         public let file: SemanticFile,
@@ -105,6 +110,7 @@ public struct SemanticImport {
 /**
  * An implicit glob kept separate from written imports and dependency permissions.
  */
+@DerivePython
 public struct SemanticImplicitImport {
     SemanticImplicitImport(public let target: SemanticPackage, public let isTestImport!: Bool) {}
 }
@@ -112,6 +118,7 @@ public struct SemanticImplicitImport {
 /**
  * Condition evidence includes unknown evaluations independently of loaded-active filtering.
  */
+@DerivePython
 public struct SemanticCondition {
     SemanticCondition(
         public let location: SemanticLocation,
@@ -124,8 +131,17 @@ public struct SemanticCondition {
 /**
  * File identity retains ordinary/test/script, attachment and expansion context.
  */
+@DerivePython
 public class SemanticFile {
-    SemanticFile(let analysis: SemanticAnalysis, public let identity: ItemFile) {}
+    @PyIgnore
+    let analysis: SemanticAnalysis
+    public let identity: ItemFile
+
+    @PyIgnore
+    init(analysis: SemanticAnalysis, identity: ItemFile) {
+        this.analysis = analysis
+        this.identity = identity
+    }
 
     public func contextualPackage(): ?SemanticPackage {
         let db = analysis.db

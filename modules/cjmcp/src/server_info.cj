@@ -33,7 +33,8 @@ func serverInfo(): JsonValue {
                                     JsonString("worktreeSessions"),
                                     JsonString("checkedSourceChanges"),
                                     JsonString("sourceExcerpts"),
-                                    JsonString("outputBudget")
+                                    JsonString("outputBudget"),
+                                    JsonString("semanticViews")
                                 ]
                             )
                         )

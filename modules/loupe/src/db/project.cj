@@ -85,8 +85,8 @@ public struct Cfg <: Equatable<Cfg> {
 /**
  * A package of a project: the files cjc compiles as one, and how.
  */
-@Derive[Equatable]
-public struct PackageModel {
+@DerivePython
+public struct PackageModel <: Equatable<PackageModel> {
     public PackageModel(
         /**
          * As the files name it: `std.collection`, `org::a.b`.
@@ -111,6 +111,17 @@ public struct PackageModel {
          */
         public let cfg!: ?Cfg = None
     ) {}
+
+    public operator func ==(other: PackageModel): Bool {
+        name == other.name && dir == other.dir && files == other.files &&
+            noPrelude == other.noPrelude &&
+            isMacro == other.isMacro &&
+            cfg == other.cfg
+    }
+
+    public operator func !=(other: PackageModel): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -181,17 +192,25 @@ public struct ModuleModel {
 /**
  * A package compiled already, a `.cjo` and its library.
  */
-@Derive[Equatable]
-public struct BinaryPackage {
+@DerivePython
+public struct BinaryPackage <: Equatable<BinaryPackage> {
     public BinaryPackage(public let name: String, public let path: VfsPath) {}
+
+    public operator func ==(other: BinaryPackage): Bool {
+        name == other.name && path == other.path
+    }
+
+    public operator func !=(other: BinaryPackage): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * The sources a binary was compiled from, of its version: what its `.cjo` keeps nothing of, the
  * declarations to go to. Never resolved against: a name resolves in the `.cjo` alone (D38).
  */
-@Derive[Equatable]
-public struct BinarySources {
+@DerivePython
+public struct BinarySources <: Equatable<BinarySources> {
     public BinarySources(
         /**
          * The directory of its root package, each package in the directory its name gives under it
@@ -200,14 +219,22 @@ public struct BinarySources {
         public let dir: VfsPath,
         public let packages: Array<PackageModel>
     ) {}
+
+    public operator func ==(other: BinarySources): Bool {
+        dir == other.dir && packages == other.packages
+    }
+
+    public operator func !=(other: BinarySources): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * Modules compiled already, as cjpm's `bin-dependencies` give them: directories every `.cjo` of
  * which is a package (`path-option`), and packages one by one (`package-option`).
  */
-@Derive[Equatable]
-public struct BinaryModel {
+@DerivePython
+public struct BinaryModel <: Equatable<BinaryModel> {
     public BinaryModel(
         public let name: String,
         public let paths: Array<VfsPath>,
@@ -222,6 +249,16 @@ public struct BinaryModel {
          */
         public let sources!: ?BinarySources = None
     ) {}
+
+    public operator func ==(other: BinaryModel): Bool {
+        name == other.name && paths == other.paths && packages == other.packages &&
+            discoverPackages == other.discoverPackages &&
+            sources == other.sources
+    }
+
+    public operator func !=(other: BinaryModel): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -481,6 +518,7 @@ public struct BinarySourceFile {
  * A module of the project, one per root, name and resolution scope, never dropped: a module
  * gone is no longer in `Project`. Independent scopes may share a physical root and name.
  */
+@DerivePython[opaque]
 @CalcaInput
 public struct Module {
     public let root: VfsPath
@@ -500,9 +538,17 @@ public struct Module {
 /**
  * A file of a module the build leaves out, by its id, and why.
  */
-@Derive[Equatable]
-public struct InactiveSourceFile {
+@DerivePython
+public struct InactiveSourceFile <: Equatable<InactiveSourceFile> {
     public InactiveSourceFile(public let fileId: FileId, public let reason: String) {}
+
+    public operator func ==(other: InactiveSourceFile): Bool {
+        fileId == other.fileId && reason == other.reason
+    }
+
+    public operator func !=(other: InactiveSourceFile): Bool {
+        !(this == other)
+    }
 }
 
 /**

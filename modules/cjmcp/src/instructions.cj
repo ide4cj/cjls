@@ -33,6 +33,8 @@ Capture a = workspace.analysis() in each call. Core queries:
 - a.text(path) -> revision text; ranges are UTF-8 bytes, end-exclusive.
 - workspace.definition(path, offset), hover(path, offset), diagnostics(path).
 - a.declarations(path) -> DefIds; a.item(defId), a.infer(defId), a.typeText(ty).
+- s = a.semantic() -> snapshot views; s.at(fileId, offset), s.project(), s.syntaxAt(fileId).
+  Compose occurrence.resolution(), contextualFile() and object relationships; retain gaps.
 
 Select declarations/members before returning source:
 result = source_excerpts(a, [(path, symbol.range)], max_bytes=12000)
