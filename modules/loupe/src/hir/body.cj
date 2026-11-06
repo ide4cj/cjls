@@ -710,19 +710,36 @@ enum AnnotationOwner {
 @DerivePython
 public struct LocalAnnotation <: Equatable<LocalAnnotation> {
     @PyIgnore
-    LocalAnnotation(
-        let path: Array<String>,
-        let args: Array<CallArg>,
-        /**
-         * Synthetic constructor callee; the declaration range lives in BodySourceMap.annotations.
-         */
-        let target: ExprId,
-        let owner: AnnotationOwner,
-        /**
-         * Enclosing declaration wrappers, outermost first, to keep real macro input opaque.
-         */
-        let wrappers: Array<Array<String>>
-    ) {}
+    let path: Array<String>
+    @PyIgnore
+    let args: Array<CallArg>
+    /**
+     * Synthetic constructor callee; the declaration range lives in BodySourceMap.annotations.
+     */
+    @PyIgnore
+    let target: ExprId
+    @PyIgnore
+    let owner: AnnotationOwner
+    /**
+     * Enclosing declaration wrappers, outermost first, to keep real macro input opaque.
+     */
+    @PyIgnore
+    let wrappers: Array<Array<String>>
+
+    @PyIgnore
+    init(
+        path: Array<String>,
+        args: Array<CallArg>,
+        target: ExprId,
+        owner: AnnotationOwner,
+        wrappers: Array<Array<String>>
+    ) {
+        this.path = path
+        this.args = args
+        this.target = target
+        this.owner = owner
+        this.wrappers = wrappers
+    }
 
     public operator func ==(other: LocalAnnotation): Bool {
         path == other.path && args == other.args && target == other.target &&
