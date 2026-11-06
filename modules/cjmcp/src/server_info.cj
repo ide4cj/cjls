@@ -2,7 +2,9 @@ package cjmcp
 
 import fjson.JsonValue
 
-/** Build identity and Python API features, independent of the analyzed workspace. */
+/**
+ * Build identity and Python API features, independent of the analyzed workspace.
+ */
 func serverInfo(): JsonValue {
     obj(
         [
@@ -33,7 +35,8 @@ func serverInfo(): JsonValue {
                                     JsonString("worktreeSessions"),
                                     JsonString("checkedSourceChanges"),
                                     JsonString("sourceExcerpts"),
-                                    JsonString("outputBudget")
+                                    JsonString("outputBudget"),
+                                    JsonString("semanticViews")
                                 ]
                             )
                         )
