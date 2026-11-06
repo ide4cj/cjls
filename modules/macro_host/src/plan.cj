@@ -75,7 +75,10 @@ public func buildPlan(
                     dir,
                     unit.isMacro,
                     unit.deps.map { dep => (modules.get(dep) ?? unit.module, dep.name(db)) },
-                    unit.binaries |> filterMap { cjo: VfsPath => cjo.filePath } |> collectArray
+                    unit.binaries |> filterMap { cjo: VfsPath => cjo.filePath } |> collectArray,
+                    nativeLibraries: unit.nativeLibraries |>
+                        filterMap { lib => lib.dir.filePath.map { dir => (lib.name, dir) } } |>
+                        collectArray
                 )
             )
         }

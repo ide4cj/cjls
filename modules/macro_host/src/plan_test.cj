@@ -20,7 +20,7 @@ class PlanToolchain <: Toolchain {
 
     PlanToolchain(private let names: HashMap<String, String>) {}
 
-    public func compile(arguments: Array<String>): (Int64, String) {
+    public func compile(arguments: Array<String>, nativeDirectories: Array<Path>): (Int64, String) {
         calls.add(arguments)
         let name = names[arguments[1]]
         let out = Path(argumentOf(arguments, "--output-dir=").getOrThrow())

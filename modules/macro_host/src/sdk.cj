@@ -79,8 +79,8 @@ public class SdkToolchain <: Toolchain {
         this.environment = sdkToolEnvironment(variables, paths.runtimeLib)
     }
 
-    public func compile(arguments: Array<String>): (Int64, String) {
-        let (code, out, err) = run(arguments)
+    public func compile(arguments: Array<String>, nativeDirectories: Array<Path>): (Int64, String) {
+        let (code, out, err) = run(arguments, nativeDirectories: nativeDirectories)
         (code, err + out)
     }
 
@@ -92,12 +92,23 @@ public class SdkToolchain <: Toolchain {
         if (code == 0) { out.trimAscii() } else { None }
     }
 
-    private func run(arguments: Array<String>): (Int64, String, String) {
+    private func run(
+        arguments: Array<String>,
+        nativeDirectories!: Array<Path> = []
+    ): (Int64, String, String) {
+        var toolEnvironment = environment
+        for (dir in nativeDirectories) {
+            toolEnvironment = sdkToolEnvironment(toolEnvironment.toArray(), dir)
+        }
+        // Native dependencies must not replace the selected SDK's runtime libraries.
+        if (!nativeDirectories.isEmpty()) {
+            toolEnvironment = sdkToolEnvironment(toolEnvironment.toArray(), paths.runtimeLib)
+        }
         try {
             let (code, out, err) = executeWithOutput(
                 paths.cjc.toString(),
                 arguments,
-                environment: environment
+                environment: toolEnvironment
             )
             (code, String.fromUtf8(out), String.fromUtf8(err))
         } catch (e: ProcessException) {

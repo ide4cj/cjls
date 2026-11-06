@@ -632,7 +632,8 @@ class CjpmLowering {
                 testDeps: testDeps.toArray(),
                 member: member,
                 inactive: inactive.filter { file => file.path != script },
-                resolutionScope: if (forScript) { scriptScope } else { "" }
+                resolutionScope: if (forScript) { scriptScope } else { "" },
+                nativeLibraries: nativeLibraries(manifest, dir)
             )
         )
         buildScript(dir, manifest, member)
@@ -889,6 +890,40 @@ class CjpmLowering {
         get() {
             "${root}#scripts"
         }
+    }
+
+    /**
+     * cjpm merges native names common -> target -> selected profile, then fills absent names
+     * from the workspace. Paths retain the base of the declaring manifest.
+     */
+    private func nativeLibraries(manifest: Manifest, dir: VfsPath): Array<NativeLibrary> {
+        let selected = HashMap<String, NativeLibrary>()
+        let declarations = ArrayList<(Manifest, VfsPath)>([(manifest, dir)])
+        if (this.manifest.workspace.isSome() && dir != root && members.contains(dir)) {
+            declarations.add((this.manifest, root))
+        }
+        for ((declared, base) in declarations) {
+            let own = HashMap<String, String>()
+            let target = targetOf(declared, forScript: true)
+            let mode = target.flatMap { it => modeOf(it) }
+            for (
+                ffi in [
+                    declared.ffi,
+                    target.flatMap { it => it.ffi },
+                    mode.flatMap { it => it.ffi }
+                ]
+            ) {
+                for ((name, lib) in ffi.flatMap { it => it.c } ?? HashMap<String, CLibrary>()) {
+                    own[name] = lib.path
+                }
+            }
+            for ((name, lib) in own where !selected.contains(name)) {
+                selected[name] = NativeLibrary(name, loading.resolve(base, lib))
+            }
+        }
+        let libraries = selected.values().toArray()
+        sort(libraries, by: { a, b => a.name.compare(b.name) })
+        libraries
     }
 
     private func graphCfg(forScript!: Bool): Cfg {

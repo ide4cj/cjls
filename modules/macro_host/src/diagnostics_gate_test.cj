@@ -41,7 +41,8 @@ func gateFindings(root: VfsPath): Array<String> {
     let toolchain = SdkToolchain(paths)
     let version = toolchain.version().getOrThrow()
     let out = Directory.createTemp(getTempDirectory()).join("macro-build")
-    let built = buildPlan(db, macroBuildPlan(db), { _ => out }, version, toolchain)
+    let plan = macroBuildPlan(db)
+    let built = buildPlan(db, plan, { _ => out }, version, toolchain)
     let found = ArrayList<String>()
     let libraries = HashMap<Package, MacroLibrary>()
     for ((pkg, result) in built.libraries) {
@@ -58,7 +59,9 @@ func gateFindings(root: VfsPath): Array<String> {
             }
         }
 
-    let servers = MacroServers(paths, Duration.minute, NoopLogger())
+    let nativeDirs =
+        plan.flatMap { unit => unit.nativeLibraries }.filterMap { lib => lib.dir.filePath }
+    let servers = MacroServers(paths, Duration.minute, NoopLogger(), nativeDirectories: nativeDirs)
     try {
         while (true) {
             let requests = sendableRequests(

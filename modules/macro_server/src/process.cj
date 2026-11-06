@@ -160,13 +160,16 @@ func macroServerLibraryDirs(paths: MacroServerPaths): Array<Path> {
  * @throws ProcessException - if it cannot be started on POSIX
  * @throws ProcessStartException - if it cannot be started on Windows
  */
-public func startMacroServer(paths: MacroServerPaths): MacroServerProcess {
+public func startMacroServer(
+    paths: MacroServerPaths,
+    nativeDirectories!: Array<Path> = []
+): MacroServerProcess {
     let directory = Directory.createTemp(getTempDirectory())
     let output = File(directory.join("output"), OpenMode.Write)
     try {
         let child = startPiped(
             paths.server,
-            macroServerLibraryDirs(paths),
+            macroServerLibraryDirs(paths).concat(nativeDirectories),
             { pipes => macroServerArgs(paths, pipes) },
             output: output
         )

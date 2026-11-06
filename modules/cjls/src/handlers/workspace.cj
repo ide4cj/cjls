@@ -686,24 +686,33 @@ func watch(state: ServerState, client: Client, logger: Logger, roots: Array<VfsP
 }
 
 /**
- * Keeps the `.cjo` of the binaries of `model`, which an event reloads the project for, and, if they
+ * Keeps the `.cjo` and native library paths of `model`, whose events reload the project, and, if they
  * are not those the client watches already, asks it to watch them by a registration of their own,
  * the one before unregistered after: they are outside the roots, as the SDK is, and change with
  * the project. Nothing is registered if the client cannot register a watcher at run time.
  */
 func watchBinaries(state: ServerState, client: Client, logger: Logger, model: ProjectModel): Unit {
     let (dirs, files) = binaryPaths(model)
+    let nativeSeen = HashSet<VfsPath>()
+    let nativeDirs =
+        model
+            .modules
+            .flatMap { module => module.nativeLibraries.map { lib => lib.dir } }
+            .filter { dir => nativeSeen.add(dir) }
     let before = state.binaryWatch
-    if (let Some(before) <- before && before.dirs == dirs && before.files == files) {
+    if (
+        let Some(before) <- before && before.dirs == dirs && before.files == files &&
+            before.nativeDirs == nativeDirs
+    ) {
         return
     }
     let id: ?String =
-        if (state.watchesFiles && (!dirs.isEmpty() || !files.isEmpty())) {
+        if (state.watchesFiles && (!dirs.isEmpty() || !files.isEmpty() || !nativeDirs.isEmpty())) {
             state.registrationId()
         } else {
             Option<String>.None
         }
-    let watch = BinaryWatch(id, dirs, files)
+    let watch = BinaryWatch(id, dirs, files, nativeDirs: nativeDirs)
     state.binaryWatch = watch
     if (let Some(id) <- id) {
         client.request(
@@ -741,7 +750,8 @@ func binaryPaths(model: ProjectModel): (Array<VfsPath>, Array<VfsPath>) {
 }
 
 /**
- * Watchers of the `.cjo` of `watch`: of every one in a directory, and of a `.cjo` named, created,
+ * Watchers of binary `.cjo` files and native directory children: of every `.cjo` in a binary
+ * directory, and of a `.cjo` named, created,
  * changed or deleted; and of a directory itself come or gone, as a client reports a directory
  * replaced as a whole (D58), so each is watched from the directory it is in. Patterns relative to
  * that directory if the client takes them, globs of their paths otherwise, which a client that
@@ -770,6 +780,17 @@ func binaryRegistration(id: String, watch: BinaryWatch, relative: Bool): Registr
                 watchers.add(
                     FileSystemWatcher(globPattern: globPattern(dir, "*.cjo", relative), kind: any)
                 )
+        }
+    }
+    for (dir in watch.nativeDirs) {
+        watchers.add(FileSystemWatcher(globPattern: globPattern(dir, "*", relative), kind: any))
+        if (let Some(parent) <- dir.parent) {
+            watchers.add(
+                FileSystemWatcher(
+                    globPattern: globPattern(parent, dir.name, relative),
+                    kind: comeOrGone
+                )
+            )
         }
     }
     for (file in watch.files) {

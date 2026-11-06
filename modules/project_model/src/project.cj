@@ -337,6 +337,7 @@ func lowerProjectJson(json: ProjectJson, base: VfsPath, loading: Loading): Proje
                     testDeps: module.testDeps ?? [],
                     member: module.member ?? true,
                     resolutionScope: module.resolutionScope ?? "",
+                    nativeLibraries: nativeLibrariesOf(module, base, loading),
                     cfg: module.cfg.map { own => cfg.overriddenBy(cfgOf(own)) },
                     inactive: (module.inactive ?? [])
                         .map { file => InactiveFile(loading.resolve(base, file.file), file.reason) }
@@ -403,6 +404,17 @@ public func toProjectJson(model: ProjectModel, base: VfsPath): ProjectJson {
                         Some(module.testDeps)
                     },
                     member: module.member,
+                    nativeLibraries: if (module.nativeLibraries.isEmpty()) {
+                        None
+                    } else {
+                        Some(
+                            HashMap<String, String>(
+                                module
+                                    .nativeLibraries
+                                    .map { lib => (lib.name, relative(lib.dir, base)) }
+                            )
+                        )
+                    },
                     resolutionScope: if (module.resolutionScope.isEmpty()) {
                         None
                     } else {
@@ -720,4 +732,17 @@ func linkedProject(
         return ProjectLoad(ProjectModel(cfg, []), ProjectFile(path), [e.message])
     }
     ProjectLoad(ProjectModel(cfg, []), ProjectFile(path), ["${path} is not there"])
+}
+
+private func nativeLibrariesOf(
+    module: ModuleJson,
+    base: VfsPath,
+    loading: Loading
+): Array<NativeLibrary> {
+    let libraries =
+        (module.nativeLibraries ?? HashMap<String, String>())
+            .toArray()
+            .map { lib => NativeLibrary(lib[0], loading.resolve(base, lib[1])) }
+    sort(libraries, by: { a, b => a.name.compare(b.name) })
+    libraries
 }

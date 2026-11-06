@@ -105,6 +105,14 @@ public struct InactiveFile {
 }
 
 /**
+ * A native linker name and its search directory. It supplies no Cangjie declarations.
+ */
+@Derive[Equatable]
+public struct NativeLibrary {
+    public NativeLibrary(public let name: String, public let dir: VfsPath) {}
+}
+
+/**
  * A module of a project: a root on disk and the packages under it, what it may import, and how it
  * is built. A module is its root package to cjc (`protected` stops at the first segment of a
  * package's name); this is the unit of the build, named after its root package.
@@ -140,7 +148,11 @@ public struct ModuleModel {
          * Independent source dependency selection; empty for the ordinary project graph.
          * Modules in another scope cannot supply imports even when their names match.
          */
-        public let resolutionScope!: String = ""
+        public let resolutionScope!: String = "",
+        /**
+         * Native libraries for macro linking; these never supply Cangjie imports.
+         */
+        public let nativeLibraries!: Array<NativeLibrary> = []
     ) {}
 
     /**
@@ -417,7 +429,8 @@ extend ModuleModel {
             member: member,
             cfg: cfg,
             inactive: inactive,
-            resolutionScope: resolutionScope
+            resolutionScope: resolutionScope,
+            nativeLibraries: nativeLibraries
         )
     }
 }
@@ -477,6 +490,7 @@ public struct Module {
      * Its files the build leaves out (`ModuleModel.inactive`).
      */
     public var inactive: Array<InactiveSourceFile>
+    public var nativeLibraries: Array<NativeLibrary> = []
 }
 
 /**

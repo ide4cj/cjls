@@ -5,6 +5,8 @@ the handler's (C7)."""
 import ast
 import os
 import pathlib
+import shutil
+import subprocess
 import sys
 
 import pytest
@@ -103,6 +105,96 @@ async def test_expand_macro_answers_the_expansion_and_shows_the_expanded_file(se
         assert not os.access(path, os.W_OK)
     assert (tmp_path / ".cache" / "cjls" / ".gitignore").read_text() == "*\n"
 
+    await server.shutdown_session()
+
+
+@pytest.mark.skipif(SDK is None, reason="no SDK (CJLS_E2E_SDK)")
+@pytest.mark.parametrize("native_kind", ["static", "shared"])
+async def test_workspace_macro_links_transitive_native_dependency(server: LanguageClient, tmp_path, native_kind):
+    # arrange
+    cc, ar = shutil.which("cc"), shutil.which("ar")
+    if sys.platform == "win32" or cc is None or ar is None:
+        pytest.skip("requires a POSIX C compiler and archiver")
+    native = tmp_path / "helper" / "native"
+    native.mkdir(parents=True)
+    (native / "value.c").write_text("long long native_value(void) { return 42; }\n")
+    subprocess.run([cc, "-fPIC", "-c", "value.c", "-o", "value.o"], cwd=native,
+                   check=True, capture_output=True, timeout=30)
+    if native_kind == "static":
+        command = [ar, "rcs", "libvalue.a", "value.o"]
+    elif sys.platform == "darwin":
+        command = [cc, "-dynamiclib", "value.o", "-o", "libvalue.dylib"]
+    else:
+        command = [cc, "-shared", "value.o", "-o", "libvalue.so"]
+    subprocess.run(command, cwd=native, check=True, capture_output=True, timeout=30)
+    (tmp_path / "cjpm.toml").write_text('''[package]
+name = "app"
+output-type = "executable"
+[dependencies]
+helper = {path = "helper", output-type = "dynamic"}
+''')
+    (tmp_path / "helper" / "cjpm.toml").write_text('''[package]
+name = "helper"
+output-type = "static"
+[ffi.c]
+value = {path = "native"}
+''')
+    helper = tmp_path / "helper" / "src"
+    helper.mkdir()
+    (helper / "value.cj").write_text('''package helper
+import helper.gen.*
+foreign func native_value(): Int64
+@NativeValue public func extraValue(): Int64 { 0 }
+public func value(): Int64 { unsafe { native_value() } + extraValue() - 42 }
+''')
+    generator = helper / "gen"
+    generator.mkdir()
+    (generator / "macro.cj").write_text('''macro package helper.gen
+import std.ast.*
+foreign func native_value(): Int64
+public macro NativeValue(input: Tokens): Tokens {
+    let answer = Token(INTEGER_LITERAL, unsafe { native_value() }.toString())
+    quote(public func extraValue(): Int64 { $answer })
+}
+''')
+    macros = tmp_path / "src" / "ms"
+    macros.mkdir(parents=True)
+    (macros / "macro.cj").write_text('''macro package app.ms
+import std.ast.*
+import helper.*
+public macro Value(input: Tokens): Tokens {
+    let answer = Token(INTEGER_LITERAL, value().toString())
+    quote(public func generated(): Int64 { $answer })
+}
+''')
+    file = tmp_path / "src" / "main.cj"
+    file.write_text('''package app
+import app.ms.*
+@Value public func generated(): Int64 { 0 }
+''')
+
+    @server.feature(types.CLIENT_REGISTER_CAPABILITY)
+    def register(params: types.RegistrationParams):
+        pass
+
+    # act
+    await server.initialize_session(types.InitializeParams(
+        capabilities=capabilities("visual-studio-code"),
+        workspace_folders=[types.WorkspaceFolder(uri=tmp_path.as_uri(), name="ws")],
+        initialization_options={"cangjieHome": pathlib.Path(SDK).resolve().as_uri()},
+    ))
+    await loaded(server)
+
+    async def expansion():
+        return await server.protocol.send_request_async("cjls/expandMacro", {
+            "textDocument": {"uri": file.as_uri()}, "position": {"line": 2, "character": 2},
+        })
+
+    while (expanded := await expansion()) is None or expanded.kind != "server":
+        await server.refreshes.get()
+    # assert: the macro executed native code through its source dependency.
+    assert "func generated(): Int64" in expanded.expansion
+    assert "42" in expanded.expansion
     await server.shutdown_session()
 
 
