@@ -2,8 +2,9 @@ package cjmcp
 
 import std.fs.Path
 import stdx.log.{Logger, NoopLogger}
-import fjson.{JsonValue, fromJsonBytes}
+import fjson.*
 import loupe.vfs.VfsPath
+import stdxx.Nullable
 
 class McpException <: Exception {
     McpException(message: String, let code: Int64) {
@@ -29,7 +30,7 @@ class McpServer {
         sessions.close()
     }
 
-    func handle(line: Array<Byte>): ?JsonValue {
+    func handle(line: Array<Byte>): ?ToJson {
         let request =
             try {
                 fromJsonBytes<JsonValue>(line)
@@ -55,7 +56,7 @@ class McpServer {
             } else {
                 notification = true
             }
-            let params = request.get("params") ?? obj([])
+            let params = request.get("params") ?? JsonObject([])
             if (!isObject(params)) {
                 throw McpException("Params must be an object", -32602)
             }
@@ -66,7 +67,7 @@ class McpServer {
                 return None
             }
             let result = dispatch(method.asString(), params)
-            obj([("jsonrpc", JsonString("2.0")), ("id", id), ("result", result)])
+            McpResponse(id, result)
         } catch (e: McpException) {
             if (notification) { None } else { failure(id, e.code, e.message) }
         } catch (_: IllegalArgumentException) {
@@ -76,9 +77,9 @@ class McpServer {
         }
     }
 
-    private func dispatch(method: String, params: JsonValue): JsonValue {
+    private func dispatch(method: String, params: JsonValue): ToJson {
         if (method == "ping") {
-            return obj([])
+            return McpEmpty()
         }
         if (method == "initialize") {
             return initializeSession(params)
@@ -90,12 +91,12 @@ class McpServer {
             throw McpException("Initialize the session first", -32600)
         }
         if (method == "tools/list") {
-            return obj([("tools", tools())])
+            return McpToolsResult(tools())
         }
         callTool(params)
     }
 
-    private func initializeSession(params: JsonValue): JsonValue {
+    private func initializeSession(params: JsonValue): McpInitializeResult {
         if (isInitialized) {
             throw McpException("Already initialized", -32600)
         }
@@ -108,17 +109,15 @@ class McpServer {
             throw McpException("Invalid initialize parameters", -32602)
         }
         isInitialized = true
-        return obj(
-            [
-                ("protocolVersion", JsonString("2025-11-25")),
-                ("capabilities", obj([("tools", obj([]))])),
-                ("serverInfo", serverInfo()),
-                ("instructions", JsonString(agentInstructions))
-            ]
+        return McpInitializeResult(
+            "2025-11-25",
+            McpCapabilities(McpEmpty()),
+            serverInfo(),
+            agentInstructions
         )
     }
 
-    private func callTool(params: JsonValue): JsonValue {
+    private func callTool(params: JsonValue): McpToolResult {
         var maxOutputBytes: Int64 = 24000
         var selectedRoot = root.toString()
         let code =
@@ -149,23 +148,16 @@ class McpServer {
             } catch (e: IllegalArgumentException) {
                 throw McpException(e.message, -32602)
             }
-        var sessionId: JsonValue = JsonNull
+        var sessionId = Nullable<String>.Null
         try {
             let entry = sessions.acquire(selectedRoot, logger)
             selectedRoot = entry.root
-            sessionId = JsonString(entry.id)
+            sessionId = Nullable<String>.Value(entry.id)
             let result = entry.python.run(code, maxOutputBytes)
             toolResult(result, error: !result["error"].isNull())
         } catch (e: Exception) {
             toolResult(
-                obj(
-                    [
-                        ("error", JsonString(e.message)),
-                        ("revision", JsonNull),
-                        ("root", JsonString(selectedRoot)),
-                        ("sessionId", sessionId)
-                    ]
-                ),
+                McpExecutionFailure(e.message, Nullable<Int64>.Null, selectedRoot, sessionId),
                 error: true
             )
         }
@@ -173,120 +165,44 @@ class McpServer {
 }
 
 /**
- * Build a JSON object from its named members.
- */
-func obj(members: Array<(String, JsonValue)>): JsonValue {
-    JsonObject(members)
-}
-
-/**
  * Wrap a Python result as MCP text and structured content.
  */
-func toolResult(value: JsonValue, error!: Bool): JsonValue {
-    obj(
-        [
-            (
-                "content",
-                JsonArray(
-                    [obj([("type", JsonString("text")), ("text", JsonString(value.toString()))])]
-                )
-            ),
-            ("structuredContent", value),
-            ("isError", JsonBool(error))
-        ]
-    )
+func toolResult(value: ToJson, error!: Bool): McpToolResult {
+    McpToolResult([McpTextContent(String.fromUtf8(toJsonBytes(value)))], value, isError: error)
 }
 
 /**
  * Build a JSON-RPC error response with the original request ID.
  */
-func failure(id: JsonValue, code: Int64, message: String): JsonValue {
-    obj(
-        [
-            ("jsonrpc", JsonString("2.0")),
-            ("id", id),
-            ("error", obj([("code", JsonInteger(code)), ("message", JsonString(message))]))
-        ]
-    )
+func failure(id: JsonValue, code: Int64, message: String): McpErrorResponse {
+    McpErrorResponse(id, McpError(code, message))
 }
 
 /**
  * Describe the runPython tool and its argument schema.
  */
-func tools(): JsonValue {
-    let code = obj(
-        [
-            ("type", JsonString("string")),
-            (
-                "description",
-                JsonString(
-                    "Python script. workspace is a live native Cangjie object. result supports JSON data plus WorkspaceDiagnostic, MacroStatus, MacroState, TextRange and Severity values, encoded automatically. stdout and stderr are captured."
-                )
-            )
-        ]
+func tools(): Array<McpTool> {
+    let properties = McpToolProperties(
+        McpStringSchema(
+            "Python script. workspace is a live native Cangjie object. result supports JSON data plus WorkspaceDiagnostic, MacroStatus, MacroState, TextRange and Severity values, encoded automatically. stdout and stderr are captured."
+        ),
+        McpStringSchema(
+            "Absolute project/worktree directory. Omit to use --dir; never follows the previous call. Each canonical root has an independent cached session."
+        ),
+        McpBudgetSchema(
+            0,
+            24000,
+            "Budget for the UTF-8 JSON response (result, stdout, stderr, error, root, sessionId and revision). Default 24000; 0 explicitly allows unlimited output. Excess returns OutputBudgetExceeded after execution, with the full response available as last_output in the next script."
+        )
     )
-    let schema = obj(
-        [
-            ("type", JsonString("object")),
-            (
-                "properties",
-                obj(
-                    [
-                        ("code", code),
-                        (
-                            "root",
-                            obj(
-                                [
-                                    ("type", JsonString("string")),
-                                    (
-                                        "description",
-                                        JsonString(
-                                            "Absolute project/worktree directory. Omit to use --dir; never follows the previous call. Each canonical root has an independent cached session."
-                                        )
-                                    )
-                                ]
-                            )
-                        ),
-                        (
-                            "maxOutputBytes",
-                            obj(
-                                [
-                                    ("type", JsonString("integer")),
-                                    ("minimum", JsonInteger(0)),
-                                    ("default", JsonInteger(24000)),
-                                    (
-                                        "description",
-                                        JsonString(
-                                            "Budget for the UTF-8 JSON response (result, stdout, stderr, error, root, sessionId and revision). Default 24000; 0 explicitly allows unlimited output. Excess returns OutputBudgetExceeded after execution, with the full response available as last_output in the next script."
-                                        )
-                                    )
-                                ]
-                            )
-                        )
-                    ]
-                )
-            ),
-            ("required", JsonArray([JsonString("code")])),
-            ("additionalProperties", JsonBool(false))
-        ]
-    )
-    let tool = obj(
-        [
-            ("name", JsonString("runPython")),
-            (
-                "description",
-                JsonString(
-                    "Query native Cangjie analysis with Python; follow server instructions. Python has process permissions and no hard timeout."
-                )
-            ),
-            ("inputSchema", schema),
-            (
-                "annotations",
-                obj([("readOnlyHint", JsonBool(false)), ("openWorldHint", JsonBool(true))])
-            )
-        ]
-    )
-    JsonArray([tool])
+    [
+        McpTool(
+            "runPython",
+            "Query native Cangjie analysis with Python; follow server instructions. Python has process permissions and no hard timeout.",
+            McpInputSchema(properties, ["code"], additionalProperties: false),
+            McpToolAnnotations(readOnlyHint: false, openWorldHint: true)
+        )
+    ]
 }
 
 /**

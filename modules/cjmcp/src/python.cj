@@ -3,7 +3,7 @@ package cjmcp
 import std.fs.Path
 import std.runtime.blackBox
 import stdx.log.{Logger, NoopLogger}
-import fjson.{JsonValue, fromJsonBytes}
+import fjson.{JsonValue, fromJsonBytes, toJsonBytes}
 import ginkgo.TextRange
 import loupe.{
     Diagnostic,
@@ -348,7 +348,7 @@ class PythonSession {
                         IllegalStateException("Python output state was not initialized")
                     },
                 PyString(sessionId),
-                PyString(serverInfo().toString())
+                PyString(String.fromUtf8(toJsonBytes(serverInfo())))
             ]
         )
         let gil =
