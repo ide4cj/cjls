@@ -439,7 +439,18 @@ extend SemanticObject {
         for (file in scope.files) {
             db.unwindIfCancelled()
             if (!isConstructor && canFilterName && !fileWords(db, file).has(wordHash(name))) {
-                continue
+                // A renamed re-export can hide the declaration spelling from the caller's file.
+                let bindings = SemanticFile(analysis, ItemFile.Source(file)).visibleNames() ?? []
+                if (
+                    !bindings
+                        .any {
+                            binding =>
+                            binding.target.identity == NamedIdentity(DeclDef(target)) &&
+                                fileWords(db, file).has(wordHash(binding.name))
+                        }
+                ) {
+                    continue
+                }
             }
             if (inactiveReasonOf(db, file).isSome()) {
                 continue
