@@ -222,6 +222,10 @@ public enum UnknownReason <: ToString {
      * Implied generic bounds exceeded the expansion budget; their consequences are unknown.
      */
     | GenericBoundsLimit
+    /**
+     * Member-driven lambda inference exceeded its candidate trial budget.
+     */
+    | LambdaCandidatesLimit
 
     public func toString(): String {
         match (this) {
@@ -229,6 +233,7 @@ public enum UnknownReason <: ToString {
             case NotInferred => "not inferred"
             case NoStd => "no std"
             case GenericBoundsLimit => "generic bounds limit"
+            case LambdaCandidatesLimit => "lambda candidates limit"
         }
     }
 }
