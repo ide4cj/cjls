@@ -113,7 +113,13 @@ A tracked result holds no `SyntaxNode`, `SyntaxToken`, typed view, `GreenNode` o
 (`parse` itself excepted), only `SyntaxNodePtr`/`AstPtr`: a node keeps its whole tree alive, and
 `lru` on `parse` frees nothing (D17).
 
-A handler holds nodes for the length of a request.
+A handler holds nodes for the length of a request. Public semantic syntax views retain
+that request's `SemanticAnalysis` and check cancellation on every operation, including
+tokens and parser errors. They do not expose unchecked raw trees. A retained semantic
+syntax pointer carries the analysis instance and contextual `ItemFile` as well as the
+kind/range; resolving it in a foreign file, expansion or analysis is rejected before
+raw pointer resolution. An input write cancels retained views and pointers even if
+the next tree has identical kinds and ranges.
 
 ### A14: Meaningful cycle fallbacks
 
@@ -305,6 +311,14 @@ A desugaring in the HIR (an optional chain into `QuestMatchExpr`s) adds its expr
 those it is made of, of the same node or of none, and names std.core only by `LangExpr` (A28):
 `BodySourceMap.exprAt` gives a node's expression as written, the link `$v.b` of `a?.b`, and the
 expressions after it of that node are what it is desugared into, the last its value (D70).
+
+Exact semantic syntax lookup is separate from position lookup: an unmapped node
+has an empty mapping, never its nearest mapped ancestor. All-expression lookup
+retains arena order, including later desugared values, followed by distinct
+expansion call-site aliases in lowering order. Reverse traversal retains the
+canonical written syntax before its aliases. A call-site alias does not turn a
+generated expansion origin into physical source or solve source-argument descent
+(#370); synthetic and unavailable origins remain distinct.
 
 A custom annotation's constructor uses a synthetic callee during inference. Its placement
 diagnostic targets the declaration, so that source stays separately in `BodySourceMap`, with

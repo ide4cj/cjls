@@ -621,6 +621,36 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
         }
     }
 
+    /**
+     * All exact mappings in expression arena order, followed by distinct expansion aliases.
+     * Unlike exprAtSource this includes the later desugared values (A29).
+     */
+    public func exprsAtSource(source: BodySource): Array<ExprId> {
+        let found = ArrayList<ExprId>()
+        for (i in 0..exprs.size where exprs[i] == WrittenSource(source)) {
+            found.add(ExprId(i))
+        }
+        for (alias in aliases where alias.source == source && !found.contains(alias.expr)) {
+            found.add(alias.expr)
+        }
+        found.toArray()
+    }
+
+    /**
+     * Exact written origin followed by distinct call-site aliases in lowering order.
+     * Synthetic expressions have no written origin; aliases do not change that classification.
+     */
+    public func sourcesOfExpr(id: ExprId): Array<BodySource> {
+        let found = ArrayList<BodySource>()
+        if (let Some(WrittenSource(source)) <- exprs.get(id.index)) {
+            found.add(source)
+        }
+        for (alias in aliases where alias.expr == id && !found.contains(alias.source)) {
+            found.add(alias.source)
+        }
+        found.toArray()
+    }
+
     public func patAt(ptr: SyntaxNodePtr<SyntaxKind>): ?PatId {
         patAtSource(BodySource(ptr))
     }
