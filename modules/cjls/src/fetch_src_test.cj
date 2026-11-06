@@ -2,9 +2,10 @@ package cjls
 
 import std.collection.{ArrayList, HashMap}
 import std.env.getTempDirectory
-import std.fs.{Directory, File, Path, exists}
+import std.fs.{Directory, File, Path, exists, removeIfExists}
 import std.io.ByteBuffer
 import platform.executableFile
+import project_model.compilerVersionOf
 
 const NOTES =
     """
@@ -75,6 +76,31 @@ func sdkHome(): Path {
 
 @Test
 class FetchSrcTest {
+    @TestCase
+    func discoveryAlreadyReadTheCompilerVersion(): Unit {
+        // arrange
+        let home = sdkHome()
+        let host = FakeSrcHost(None, HashMap([(GITHUB_NOTES, NOTES)]), RUNTIME_TREE)
+
+        try {
+            // act
+            let exitCode = fetchSrc(
+                home,
+                home.join("src"),
+                host,
+                ByteBuffer(),
+                ByteBuffer(),
+                version: "1.3.0-alpha.20261002001050"
+            )
+
+            // assert
+            @Expect(exitCode, 0)
+            @Expect(!host.asked.toArray().any { request => request.startsWith("cjc ") })
+        } finally {
+            removeIfExists(home, recursive: true)
+        }
+    }
+
     @TestCase
     func theVersionIsWhatCjcPrints() {
         // act, assert
