@@ -16,6 +16,7 @@ reduce irrelevant output or resolve uncertainty. Keep intermediate data in Pytho
 
 Read only the recipe needed for an unfamiliar operation:
 
+- [Composable semantics, project and syntax](references/semantic.md)
 - [Declarations and usages](references/navigation.md)
 - [Call hierarchy](references/calls.md)
 - [Expression types and selected callees](references/inference.md)

@@ -3,6 +3,8 @@ package loupe.vfs
 import std.fs.Path
 import stdx.encoding.url.{URL, UrlSyntaxException}
 import platform.{canonicalPath, fileUriPathOf, pathOfFileUriPath, pathSeparator}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * Where a file is: a normalized absolute path on disk, or, for a document that has none (an
@@ -14,6 +16,7 @@ import platform.{canonicalPath, fileUriPathOf, pathOfFileUriPath, pathSeparator}
  * lowercase: clients differ in both (VS Code sends `c%3A/`, Neovim `C:/`), and the letter's case
  * never tells two drives apart. The rest keeps its case, as the client got it from the file system.
  */
+@DerivePython
 public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
     /**
      * A path on disk is kept as the text of its canonical `Path`, a virtual one as its URI: a
@@ -25,6 +28,7 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
     /**
      * @throws IllegalArgumentException - if `path` is not absolute
      */
+    @PyIgnore
     public static func file(path: Path): VfsPath {
         if (!path.isAbsolute()) {
             throw IllegalArgumentException("not an absolute path: ${path}")
@@ -68,6 +72,7 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
     /**
      * The path on disk, `None` for a virtual one.
      */
+    @PyIgnore
     public prop filePath: ?Path {
         get() {
             if (onDisk) { Path(text) } else { None }

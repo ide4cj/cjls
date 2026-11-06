@@ -273,30 +273,51 @@ public struct ArgTarget <: ByIndex & Equatable<ArgTarget> {
 /**
  * A final substitution, keyed by the binder that declared the parameter.
  */
-@Derive[Equatable]
-public struct GenericBinding {
+@DerivePython
+public struct GenericBinding <: Equatable<GenericBinding> {
     public GenericBinding(
         public let owner: GenericOwner,
         public let index: Int64,
         public let ty: Ty
     ) {}
+
+    public operator func ==(other: GenericBinding): Bool {
+        owner == other.owner && index == other.index && ty == other.ty
+    }
+
+    public operator func !=(other: GenericBinding): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * Selection outcome; unavailable input reasons remain in the inferred expression and signature types.
  */
-@Derive[Equatable]
-public enum CallResolutionOutcome {
+@DerivePython
+public enum CallResolutionOutcome <: Equatable<CallResolutionOutcome> {
     | Resolved
     | Ambiguous
     | Unresolved
+
+    public operator func ==(other: CallResolutionOutcome): Bool {
+        match ((this, other)) {
+            case (CallResolutionOutcome.Resolved, CallResolutionOutcome.Resolved) => true
+            case (CallResolutionOutcome.Ambiguous, CallResolutionOutcome.Ambiguous) => true
+            case (CallResolutionOutcome.Unresolved, CallResolutionOutcome.Unresolved) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: CallResolutionOutcome): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * The final inference evidence for one application, keyed by its callee.
  */
-@Derive[Equatable]
-public struct CallResolution <: ByIndex {
+@DerivePython
+public struct CallResolution <: ByIndex & Equatable<CallResolution> {
     public CallResolution(
         public let expr: ExprId,
         public let outcome: CallResolutionOutcome,
@@ -315,6 +336,18 @@ public struct CallResolution <: ByIndex {
 
     public func keyIndex(): Int64 {
         expr.index
+    }
+
+    public operator func ==(other: CallResolution): Bool {
+        expr == other.expr && outcome == other.outcome && decl == other.decl &&
+            local == other.local &&
+            signature == other.signature &&
+            bindings == other.bindings &&
+            params == other.params
+    }
+
+    public operator func !=(other: CallResolution): Bool {
+        !(this == other)
     }
 }
 

@@ -24,6 +24,7 @@ import loupe.{
     NavigationTarget,
     Reference as AnalysisReference,
     RelatedHighlight,
+    SemanticAnalysis,
     builtinAnnotationDoc as nativeBuiltinAnnotationDoc,
     builtinMacroDoc as nativeBuiltinMacroDoc,
     builtinTypeDoc as nativeBuiltinTypeDoc,
@@ -131,6 +132,14 @@ class AnalysisRevision {
             }
             owner
         }
+    }
+
+    /**
+     * Snapshot views of this checked revision, cancelled by later input changes.
+     * @throws IllegalStateException - if this handle belongs to an older workspace revision.
+     */
+    public func semantic(): SemanticAnalysis {
+        SemanticAnalysis(state.db)
     }
 
     public func declarations(path: String): Array<DefId> {
