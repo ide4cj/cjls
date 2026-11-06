@@ -375,6 +375,82 @@ class InferTest {
     }
 
     @TestCase
+    func standaloneLambdaRejectedMemberBodiesSuppressInnerDiagnostics(): Unit {
+        // arrange
+        let fixture = Fixture.parse(
+            #"
+            package m
+            class Receiver { public let lambdaMarker: Int64 = 1 }
+            func test(): Unit {
+                let invalid = {p => p.lambdaMarker; "text" - 1}
+            }
+            "#
+        )
+        let db = fixture.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
+        let source = db.sourceFile(fixture.files[0].fileId).getOrThrow()
+        let item = itemTree(db, source)
+            .items
+            .iterator()
+            .filter { one => one.kind == ItemKind.Func && one.names == ["test"] }
+            .next()
+            .getOrThrow()
+        let def = DefId(db, ItemFile.Source(source), item.id)
+
+        let lowered = body(db, def)
+        let local = (0..lowered.locals.size)
+            .iterator()
+            .filter { i => lowered.locals[i].name == "invalid" }
+            .next()
+            .getOrThrow()
+
+        // act
+        let result = inferBody(db, def)
+        let actual = result.locals[local].kind(db)
+        let noDiagnostics = result.diagnostics.isEmpty()
+
+        // assert
+        @Expect(actual, ErrorTy)
+        @Expect(noDiagnostics)
+    }
+
+    @TestCase
+    func standaloneLambdaAmbiguityPrecedesUnavailableCandidates(): Unit {
+        // arrange: without std, the first receiver's inferred String field is unavailable.
+        let fixture = Fixture.parse(
+            #"
+            package m
+            class Uncertain { public let lambdaMixed = "text" }
+            class First { public let lambdaMixed: Int64 = 1 }
+            class Second { public let lambdaMixed: Int64 = 1 }
+            func test(): Unit { let ambiguous = {p => p.lambdaMixed} }
+            "#
+        )
+        let db = fixture.database()
+        let source = db.sourceFile(fixture.files[0].fileId).getOrThrow()
+        let items = itemTree(db, source).items
+        let field = DefId(db, ItemFile.Source(source), items[0].members[0].id)
+        let def = DefId(db, ItemFile.Source(source), items[3].id)
+
+        let lowered = body(db, def)
+        let local = (0..lowered.locals.size)
+            .iterator()
+            .filter { i => lowered.locals[i].name == "ambiguous" }
+            .next()
+            .getOrThrow()
+
+        // act
+        let unavailable = declaredTyOf(db, field).kind(db)
+        let result = inferBody(db, def)
+        let actual = result.locals[local].kind(db)
+        let noDiagnostics = result.diagnostics.isEmpty()
+
+        // assert: two concrete receiver solutions prove ambiguity despite the third candidate.
+        @Expect(unavailable, UnknownTy(UnknownReason.NoStd))
+        @Expect(actual, ErrorTy)
+        @Expect(noDiagnostics)
+    }
+
+    @TestCase
     func standaloneLambdaTrialsDoNotKeepRejectedOverloadConstraints() {
         checkInference(
             #"

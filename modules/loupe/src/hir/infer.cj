@@ -1971,7 +1971,9 @@ class Inference {
             search
         )
         let failure =
-            if (search.limited) {
+            if (search.solutions.size > 1) {
+                error
+            } else if (search.limited) {
                 unknown(UnknownReason.LambdaCandidatesLimit)
             } else {
                 search.unavailable ?? error
@@ -1988,7 +1990,13 @@ class Inference {
                     solved.flatMap { one => one.get(i) } ?? failure
             param(params[i], ty)
         }
+        if (solved.isNone()) {
+            quiet++
+        }
         let ret = function(None, block)
+        if (solved.isNone()) {
+            quiet--
+        }
         match (solved) {
             case Some(closed) => Ty(db, FuncTy(closed, ret, false))
             case None => failure

@@ -14,5 +14,5 @@ class Receiver {
 func test(): Unit {
     let inferred = {x => x.lambdaUnique}
     let wrong: (Int64) -> Int64 = inferred
-//                                ^^^^^^^ wrong error: mismatched types: expected '(Int64) -> Int64', found '(Receiver) -> Int64'
+//                                ^^^^^^^^ wrong error: mismatched types: expected '(Int64) -> Int64', found '(Receiver) -> Int64'
 }
