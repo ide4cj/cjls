@@ -5,6 +5,7 @@ import std.env.{getStdErr, getStdOut, getWorkingDirectory}
 import std.fs.Path
 import stdx.log.LogLevel
 import stdx.logger.SimpleLogger
+import fjson.toJsonBytes
 import loupe.vfs.VfsPath
 import platform.{StdinStream, useBinaryStdio}
 
@@ -66,7 +67,8 @@ func serveStdio(server: McpServer): Unit {
         for (byte in buffer[..count]) {
             if (byte == 10) {
                 if (let Some(response) <- server.handle(line.toArray())) {
-                    output.write("${response}\n")
+                    output.write(toJsonBytes(response))
+                    output.write("\n")
                     output.flush()
                 }
                 line.clear()

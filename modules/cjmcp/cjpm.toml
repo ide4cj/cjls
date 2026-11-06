@@ -20,6 +20,7 @@ source_change = { path = "../source_change" }
 cjformat = { path = "../cjformat" }
 ginkgo = { path = "../ginkgo" }
 fjson = { path = "../fjson" }
+stdxx = { path = "../stdxx" }
 loupe = { path = "../loupe" }
 macro_host = { path = "../macro_host" }
 platform = { path = "../platform" }
