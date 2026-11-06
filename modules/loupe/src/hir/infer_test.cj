@@ -244,9 +244,134 @@ class InferTest {
                 let conflict = {x => 2.0 ** x; x + 1.0}
             //      ^^^^^^^^ {unknown}
             //                  ^ {unknown}
+                // cjc: parameters of this lambda expression must have type annotations
+                let narrow = {x => 1i8 ** x; x + 1u64}
+            //      ^^^^^^ {unknown}
+            //                ^ UInt64
             }
             "#
         )
+    }
+
+    @TestCase
+    func standaloneLambdaPowerFallsBackToDeclaredOperators(): Unit {
+        checkInference(
+            #"
+            package m
+            extend Int8 {
+                public operator func **(rhs: UInt64): Int8 { this }
+            //                          ^^^ UInt64
+            }
+            func test(): Unit {
+                let power = {x => 1i8 ** x}
+            //      ^^^^^ (UInt64) -> Int8
+            //               ^ UInt64
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func standaloneLambdaMembersDetermineTheirReceiver(): Unit {
+        checkInference(
+            #"
+            package m
+            class First {
+                public let lambdaOnly: Int64 = 1
+                public let lambdaShared: Int64 = 1
+                public func lambdaMethod(x: Int8): Int8 { x }
+            //                           ^ Int8
+            }
+            class Second {
+                public let lambdaShared: String = "other"
+            }
+            class Box<T> {
+                public Box(public let lambdaGeneric: T) {}
+            //                        ^^^^^^^^^^^^^ T
+                public func lambdaPut(value: T): T { value }
+            //                        ^^^^^ T
+            }
+            func test(): Unit {
+                let field = {x => x.lambdaOnly}
+            //      ^^^^^ (First) -> Int64
+            //               ^ First
+                let called = {x => x.lambdaMethod(1i8)}
+            //      ^^^^^^ (First) -> Int8
+            //                ^ First
+                let selected = {x => x.lambdaShared + 1}
+            //      ^^^^^^^^ (First) -> Int64
+            //                  ^ First
+                let generic = {x => x.lambdaGeneric + 1}
+            //      ^^^^^^^ (Box<Int64>) -> Int64
+            //                 ^ Box<Int64>
+                let argument = {x => x.lambdaPut(1i8)}
+            //      ^^^^^^^^ (Box<Int8>) -> Int8
+            //                  ^ Box<Int8>
+                let both = {x, y => x.lambdaOnly + y}
+            //      ^^^^ (First, Int64) -> Int64
+            //              ^ First
+            //                 ^ Int64
+                let joint = {x, y => x.lambdaPut(y) + 1}
+            //      ^^^^^ (Box<Int64>, Int64) -> Int64
+            //               ^ Box<Int64>
+            //                  ^ Int64
+                let nested = {x => {=> x.lambdaOnly}}
+            //      ^^^^^^ (First) -> () -> Int64
+            //                ^ First
+                let nestedSelected = {x => {=> x.lambdaShared + 1}}
+            //      ^^^^^^^^^^^^^^ (First) -> () -> Int64
+            //                        ^ First
+                // cjc: parameters of this lambda expression must have type annotations
+                let ambiguous = {x => x.lambdaShared}
+            //      ^^^^^^^^^ {unknown}
+            //                   ^ {unknown}
+                // cjc: parameters of this lambda expression must have type annotations
+                let unsolved = {x => x.lambdaGeneric}
+            //      ^^^^^^^^ {unknown}
+            //                  ^ {unknown}
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func standaloneLambdaCandidateBudgetIsUnavailableAnalysis(): Unit {
+        // arrange
+        let declarations = String.join(
+            Array(129) {
+                i =>
+                "class Candidate${i} { public func lambdaBudget(value: String): Int64 { 1 } }"
+            },
+            delimiter: "\n"
+        )
+        let fixture = Fixture.parse(
+            """
+            package m
+            ${declarations}
+            func test(): Unit {
+                let limited = {x => x.lambdaBudget(1)}
+            }
+            """
+        )
+        let db = fixture.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
+        let source = db.sourceFile(fixture.files[0].fileId).getOrThrow()
+        let item = itemTree(db, source)
+            .items
+            .iterator()
+            .filter { one => one.kind == ItemKind.Func && one.names == ["test"] }
+            .next()
+            .getOrThrow()
+        let def = DefId(db, ItemFile.Source(source), item.id)
+        let lowered = body(db, def)
+        let result = inferBody(db, def)
+        let local = (0..lowered.locals.size)
+            .iterator()
+            .filter { i => lowered.locals[i].name == "limited" }
+            .next()
+            .getOrThrow()
+        @Expect(result.locals[local].kind(db), UnknownTy(UnknownReason.LambdaCandidatesLimit))
+        @Expect(result.diagnostics.isEmpty())
+        @Expect(result.locals.iterator().all { one => !hasInferVars(db, one) })
     }
 
     @TestCase

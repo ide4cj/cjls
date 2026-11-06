@@ -633,6 +633,7 @@ enum Undo {
     | Returned(Frame)
     | LambdaBound(LambdaConstraints)
     | LambdaRejected(LambdaConstraints)
+    | LambdaReplayError(LambdaReplay)
     | Reported
 }
 
@@ -671,6 +672,7 @@ class Inference {
     // the first variable of the next call inferred: those of the calls being inferred are under it
     private var nextVar = 0
     private let lambdas = ArrayList<LambdaConstraints>()
+    private let lambdaReplays = ArrayList<LambdaReplay>()
     // `std.core`'s `Option`, a value is boxed into
     private let option: ?DefId
     // the checks against a type expected that failed: a candidate tried that fails one fits not (8d)
@@ -1124,6 +1126,7 @@ class Inference {
                 case Returned(frame) => frame.returns.remove(at: frame.returns.size - 1)
                 case LambdaBound(one) => one.bounds.remove(at: one.bounds.size - 1)
                 case LambdaRejected(one) => one.rejected--
+                case LambdaReplayError(one) => one.errors--
                 case Reported => reported.remove(at: reported.size - 1)
             }
         }
@@ -1241,6 +1244,19 @@ class Inference {
      */
     private func infer(id: ExprId, expected: ?Ty): Ty {
         let ty = inferExpr(id, expected)
+        if (
+            !lambdaReplays.isEmpty() && let Some(why) <- firstUnknownIn(db, ty) &&
+                why.kind(db) == ErrorTy
+        ) {
+            // A dropped expression can fail without affecting the block's return type. Only
+            // concrete lambda replays count these errors; candidate trials undo them normally.
+            for (replay in lambdaReplays) {
+                if (trying > 0) {
+                    undo.add(LambdaReplayError(replay))
+                }
+                replay.errors++
+            }
+        }
         setExpr(id, ty)
         if (let Some(one) <- expected) {
             lambdaBound(ty, one)
@@ -1882,6 +1898,14 @@ class Inference {
      * with concrete parameter types. Neither a direct call nor a pipeline supplies those types.
      */
     private func synthesizedLambda(params: Array<BodyParam>, block: ExprId): Ty {
+        let choices = lambdaMemberChoices(db, def, params, block)
+        if (choices.iterator().any { one => !one.isEmpty() }) {
+            return memberLambda(params, block, choices)
+        }
+        return bodyLambda(params, block)
+    }
+
+    private func bodyLambda(params: Array<BodyParam>, block: ExprId): Ty {
         let base = nextVar
         nextVar += params.size
         let constraints = LambdaConstraints(base, params.size)
@@ -1913,11 +1937,206 @@ class Inference {
         for (i in 0..params.size) {
             param(params[i], closed[i])
         }
+        let replay = LambdaReplay()
+        lambdaReplays.add(replay)
+        // cjc suppresses a rejected synthesized body's diagnostics and reports its missing
+        // parameter annotations instead. Its failed inner operations are still replay errors.
+        quiet++
         let ret = function(None, block)
+        quiet--
+        lambdaReplays.remove(at: lambdaReplays.size - 1)
         if ((0..params.size).iterator().any { i => params[i].ty.isNone() && solved[i].isNone() }) {
             return failure
         }
+        // cjc rechecks the concrete body before accepting a synthesized lambda. Solved
+        // parameters alone cannot make an invalid operator or member access well typed.
+        if (replay.errors > 0 || mismatches > before || hasUnknowns(db, ret)) {
+            return unknownOf(db, [ret, failure]) ?? error
+        }
         Ty(db, FuncTy(closed, ret, false))
+    }
+
+    private func memberLambda(
+        params: Array<BodyParam>,
+        block: ExprId,
+        choices: Array<Array<ExtendedType>>
+    ): Ty {
+        let search = LambdaSearch()
+        memberLambdaChoices(
+            params,
+            block,
+            choices,
+            0,
+            Array<?ExtendedType>(params.size, repeat: None),
+            search
+        )
+        let failure =
+            if (search.limited) {
+                unknown(UnknownReason.LambdaCandidatesLimit)
+            } else {
+                search.unavailable ?? error
+            }
+        let solved: ?Array<Ty> =
+            if (!search.limited && search.unavailable.isNone() && search.solutions.size == 1) {
+                Some(search.solutions[0])
+            } else {
+                None
+            }
+        for (i in 0..params.size) {
+            let ty =
+                params[i].ty.map { one => typeAt(one) } ??
+                    solved.flatMap { one => one.get(i) } ?? failure
+            param(params[i], ty)
+        }
+        let ret = function(None, block)
+        match (solved) {
+            case Some(closed) => Ty(db, FuncTy(closed, ret, false))
+            case None => failure
+        }
+    }
+
+    private func memberLambdaChoices(
+        params: Array<BodyParam>,
+        block: ExprId,
+        choices: Array<Array<ExtendedType>>,
+        index: Int64,
+        hints: Array<?ExtendedType>,
+        search: LambdaSearch
+    ): Unit {
+        if (search.limited || search.solutions.size > 1) {
+            return
+        }
+        if (index == params.size) {
+            // A product of otherwise small member candidate sets can be arbitrarily large.
+            // A bounded search must report unavailable analysis, never an invalid lambda.
+            if (search.trials >= 128) {
+                search.limited = true
+                return
+            }
+            search.trials++
+            if (
+                let Some(closed) <- tryMemberLambda(params, block, hints, search) &&
+                    !search.solutions.contains(closed)
+            ) {
+                search.solutions.add(closed)
+            }
+            return
+        }
+        if (choices[index].isEmpty()) {
+            hints[index] = None
+            memberLambdaChoices(params, block, choices, index + 1, hints, search)
+            return
+        }
+        for (one in choices[index]) {
+            hints[index] = one
+            memberLambdaChoices(params, block, choices, index + 1, hints, search)
+            if (search.limited || search.solutions.size > 1) {
+                return
+            }
+        }
+    }
+
+    private func memberLambdaParams(
+        params: Array<BodyParam>,
+        hints: Array<?ExtendedType>
+    ): Array<Ty> {
+        let open = Array<?Ty>(params.size, repeat: None)
+        // Allocate owner arguments first, so their body constraints solve before a parameter
+        // whose inferred type contains them. None of these variables survives the trial.
+        for (i in 0..params.size) {
+            if (let Some(written) <- params[i].ty) {
+                open[i] = typeAt(written)
+                continue
+            }
+            match (hints[i]) {
+                case Some(DeclType(owner)) =>
+                    let vars =
+                        Array(genericsOf(db, owner).size) {
+                            _ =>
+                            let ty = Ty(db, InferTy(nextVar))
+                            nextVar++
+                            ty
+                        }
+                    open[i] = Ty(db, DeclTy(owner, vars))
+                case Some(PrimType(name)) => open[i] = prim(name)
+                case Some(BuiltInHead(kind)) =>
+                    let vars =
+                        Array(compilerGenerics(kind).size) {
+                            _ =>
+                            let ty = Ty(db, InferTy(nextVar))
+                            nextVar++
+                            ty
+                        }
+                    open[i] = compilerTy(db, kind, vars)
+                case _ => ()
+            }
+        }
+        for (i in 0..params.size where open[i].isNone()) {
+            open[i] = Ty(db, InferTy(nextVar))
+            nextVar++
+        }
+        open.map { one => one ?? error }
+    }
+
+    private func tryMemberLambda(
+        params: Array<BodyParam>,
+        block: ExprId,
+        hints: Array<?ExtendedType>,
+        search: LambdaSearch
+    ): ?Array<Ty> {
+        let base = nextVar
+        let open = memberLambdaParams(params, hints)
+        let constraints = LambdaConstraints(base, nextVar - base)
+        let mark = undo.size
+        let before = mismatches
+        trying++
+        lambdas.add(constraints)
+        for (i in 0..params.size) {
+            let ty = open[i]
+            param(params[i], ty)
+            if (let Some(DeclType(owner)) <- hints[i] && let DeclTy(_, args) <- ty.kind(db)) {
+                for (bound in genericBounds(db, owner)) {
+                    for (upper in bound.bounds) {
+                        lambdaBound(
+                            substitute(db, bound.ty, owner, args),
+                            substitute(db, upper, owner, args)
+                        )
+                    }
+                }
+            }
+        }
+        let initial = function(None, block)
+        let solved = constraints.solve(db, from, option)
+        lambdas.remove(at: lambdas.size - 1)
+        rollBack(mark)
+        mismatches = before
+        nextVar = base
+        let closed = open.map { one => replaceVars(db, one, base, solved) }
+        var valid = !closed.iterator().any { one => hasUnknowns(db, one) }
+        var result = initial
+        if (valid) {
+            // Replaying the whole body checks member argument/result constraints together and
+            // prevents a rejected owner from leaving diagnostics or selected callees behind.
+            for (i in 0..params.size) {
+                param(params[i], closed[i])
+            }
+            let replay = LambdaReplay()
+            lambdaReplays.add(replay)
+            result = function(None, block)
+            lambdaReplays.remove(at: lambdaReplays.size - 1)
+            valid = replay.errors == 0 && mismatches == before && !hasUnknowns(db, result)
+        }
+        if (
+            !valid && let Some(why) <- unknownOf(db, [result].concat(closed)) &&
+                isAnalysisUnknown(db, why)
+        ) {
+            search.unavailable = search.unavailable ?? why
+        }
+        rollBack(mark)
+        mismatches = before
+        nextVar = base
+        trying--
+        if (valid) { Some(closed) } else { None }
     }
 
     private func lambdaBound(left: Ty, right: Ty, equal!: Bool = false): Unit {
@@ -2311,6 +2530,14 @@ class Inference {
         let isComparison = COMPARISONS.contains(op)
         if ((isPrim(left) || isTuple(left)) && isUnknown(db, right)) {
             return right
+        }
+        if (op == "**") {
+            return match ((left.kind(db), right.kind(db))) {
+                case (PrimTy("Int64"), PrimTy("UInt64")) => left
+                case (PrimTy("Float64"), PrimTy("Int64")) => left
+                case (PrimTy("Float64"), PrimTy("Float64")) => left
+                case _ => None
+            }
         }
         match ((left.kind(db), right.kind(db))) {
             case (PrimTy(_), PrimTy(_)) where isComparison => prim("Bool")

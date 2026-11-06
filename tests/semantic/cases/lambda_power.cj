@@ -11,5 +11,5 @@ package audit
 func test(): Unit {
     let power = {x => x ** 2}
     let wrong: (Int64) -> Int64 = power
-//                               ^^^^^ wrong error: mismatched types: expected '(Int64) -> Int64', found '(Float64) -> Float64'
+//                                ^^^^^ wrong error: mismatched types: expected '(Int64) -> Int64', found '(Float64) -> Float64'
 }
