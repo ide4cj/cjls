@@ -206,6 +206,50 @@ class InferTest {
     }
 
     @TestCase
+    func standaloneLambdaPowerConstrainsEachOperandSeparately() {
+        checkInference(
+            #"
+            package m
+            func test(): Unit {
+                let floating = {x => x ** 2}
+            //      ^^^^^^^^ (Float64) -> Float64
+            //                  ^ Float64
+                let integer = {x => x ** 2u64}
+            //      ^^^^^^^ (Int64) -> Int64
+            //                 ^ Int64
+                let decimal = {x => x ** 2.0}
+            //      ^^^^^^^ (Float64) -> Float64
+            //                 ^ Float64
+                let exponent = {x => 2 ** x}
+            //      ^^^^^^^^ (UInt64) -> Int64
+            //                  ^ UInt64
+                let floatExponent = {x => 2.0 ** x}
+            //      ^^^^^^^^^^^^^ (Int64) -> Float64
+            //                       ^ Int64
+                // cjc: parameters of this lambda expression must have type annotations
+                let ambiguous = {x, y => x ** y}
+            //      ^^^^^^^^^ {unknown}
+            //                   ^ {unknown}
+            //                      ^ {unknown}
+                // cjc: parameters of this lambda expression must have type annotations
+                let invalid = {x => x ** 2i8}
+            //      ^^^^^^^ {unknown}
+            //                 ^ {unknown}
+                // cjc rejects an ambiguous power before solving later operand constraints.
+                let late = {x, y => x ** y; x + 1; y + 1u64}
+            //      ^^^^ {unknown}
+            //              ^ {unknown}
+            //                 ^ {unknown}
+                // cjc defaults a floating base's unknown exponent to Int64.
+                let conflict = {x => 2.0 ** x; x + 1.0}
+            //      ^^^^^^^^ {unknown}
+            //                  ^ {unknown}
+            }
+            "#
+        )
+    }
+
+    @TestCase
     func standaloneLambdaTrialsDoNotKeepRejectedOverloadConstraints() {
         checkInference(
             #"

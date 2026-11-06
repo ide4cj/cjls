@@ -9,6 +9,7 @@ import loupe.db.{AnalysisDatabase, SourceFile}
  */
 class LambdaConstraints {
     let bounds = ArrayList<(Ty, Ty, Bool)>()
+    var rejected = 0
 
     LambdaConstraints(let base: Int64, let count: Int64) {}
 
@@ -20,6 +21,9 @@ class LambdaConstraints {
     }
 
     func solve(db: AnalysisDatabase, from: ?SourceFile, option: ?DefId): Array<?Ty> {
+        if (rejected > 0) {
+            return Array<?Ty>(count, repeat: None)
+        }
         let representatives = Array(count) { i => i }
         // Built-in binary operators require the same operand type. Merge these variables before
         // solving bounds, including a chain such as `x + y + 1` whose first operands tell no type.

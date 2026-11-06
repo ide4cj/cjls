@@ -632,6 +632,7 @@ enum Undo {
     | ArgsWas(ExprId, ?ArgTarget)
     | Returned(Frame)
     | LambdaBound(LambdaConstraints)
+    | LambdaRejected(LambdaConstraints)
     | Reported
 }
 
@@ -1122,6 +1123,7 @@ class Inference {
                 case ArgsWas(expr, None) => argTargets.remove(expr.index)
                 case Returned(frame) => frame.returns.remove(at: frame.returns.size - 1)
                 case LambdaBound(one) => one.bounds.remove(at: one.bounds.size - 1)
+                case LambdaRejected(one) => one.rejected--
                 case Reported => reported.remove(at: reported.size - 1)
             }
         }
@@ -1930,6 +1932,15 @@ class Inference {
         }
     }
 
+    private func rejectLambda(ty: Ty): Unit {
+        for (one in lambdas where one.contains(db, ty)) {
+            if (trying > 0) {
+                undo.add(LambdaRejected(one))
+            }
+            one.rejected++
+        }
+    }
+
     private func lambdaVariable(ty: Ty): Bool {
         !lambdas.isEmpty() && lambdas.iterator().any { one => one.contains(db, ty) }
     }
@@ -2180,8 +2191,33 @@ class Inference {
      * Reusing its operands avoids repeating context-free subtrees when no variable is present.
      */
     private func lambdaBinaryTy(op: String, left: Ty, right: Ty): ?Ty {
-        if (op == "<<" || op == ">>" || op == "**") {
+        if (op == "<<" || op == ">>") {
             return None
+        }
+        if (op == "**") {
+            // cjc's power pairs are (Int64, UInt64), (Float64, Int64), and
+            // (Float64, Float64). Unlike addition, the two operands are never equated.
+            if (lambdaVariable(left)) {
+                let base =
+                    match (right.kind(db)) {
+                        case PrimTy("UInt64") => prim("Int64")
+                        case PrimTy("Int64") | PrimTy("Float64") => prim("Float64")
+                        case _ =>
+                            rejectLambda(left)
+                            return None
+                    }
+                lambdaBound(left, base, equal: true)
+            } else {
+                let exponent =
+                    match (left.kind(db)) {
+                        case PrimTy("Int64") => prim("UInt64")
+                        // cjc defaults the otherwise unconstrained floating power's exponent.
+                        case PrimTy("Float64") => prim("Int64")
+                        case _ => return None
+                    }
+                lambdaBound(right, exponent, equal: true)
+            }
+            return left
         }
         let other = if (lambdaVariable(left)) { right } else { left }
         let permitted =

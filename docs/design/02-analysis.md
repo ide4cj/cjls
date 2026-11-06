@@ -285,8 +285,11 @@ A synthesized lambda also owns temporary variables for parameters whose types ar
 the call's arguments never supply missing parameter types. Inference trials journal these
 constraints with their other writes, then the body is inferred again with solved parameter types.
 A parameter left unsolved makes the lambda an error; its variables never escape into results.
-Member-driven parameter inference (`TryInferFromSyntaxInfo`) and power-operator constraints
-remain gaps tracked in #248.
+Power operands constrain different primitive types: `Int64 ** UInt64`,
+`Float64 ** Int64` or `Float64 ** Float64`; an unknown exponent of a floating base
+defaults to `Int64`. A power with both operands unknown is rejected before later
+body constraints solve them, as in cjc. Member-driven parameter inference
+(`TryInferFromSyntaxInfo`) remains a gap tracked in #248.
 
 Arguments are checked only against types without variables, an unsolved one an error type.
 Every application and callee is recorded with its solved type; no variable reaches an
