@@ -56,6 +56,11 @@ this(rooted(chunked(text), 0)) }`).
 
 Exception: only where that hurts readability or performance, with a comment why.
 
+When a type exported with `@DerivePython` needs to hide its primary constructor
+with `@PyIgnore`, use an ordinary `init` and explicit fields instead: the Python
+stub generator cannot interpret `@PyIgnore` on primary constructors. Keep fields
+previously hidden by that constructor hidden too. This exception also applies to C3.
+
 ### C3: Constructor fields
 
 A field set from a parameter as is is declared in the primary constructor (`Parser(let input:
