@@ -3726,7 +3726,11 @@ class Inference {
                 if (!isOfCall && let Some(at) <- call) {
                     reportFailure(at, callable, args)
                 }
-                mismatches++
+                // An unread macro may supply the real signature. Its nominal result can
+                // constrain an enclosing call, while this call remains explicitly unresolved.
+                if (!hasUnreadConstructorSignature(callable)) {
+                    mismatches++
+                }
                 quiet++
                 let ty = callWith(callee, callable, looseMatch(callable, args), args, expected)
                 quiet--
@@ -4148,25 +4152,46 @@ class Inference {
     }
 
     /**
+     * An initializer keeps its nominal result even when a macro's unseen parameter list prevents
+     * validation. A function value or local function returning that type is not an initializer.
+     */
+    private func hasUnreadConstructorSignature(callable: Callable): Bool {
+        let isInit =
+            match (callable.decl.map { id => id.item(db).kind }) {
+                case Some(Init) | Some(PrimaryInit) => true
+                case None =>
+                    !callable.isValue && callable.local.isNone() && callable.applied.isNone()
+                case _ => false
+            }
+        isInit && hasUnreadCallSignature(callable)
+    }
+
+    /**
+     * Whether a missing expansion may change this function's signature or declare its constructor (#176).
+     */
+    private func hasUnreadCallSignature(callable: Callable): Bool {
+        if (callable.decl.map { id => hasUnreadMacros(db, id) } ?? false) {
+            return true
+        }
+        let isInit =
+            match (callable.decl.map { id => id.item(db).kind }) {
+                case None | Some(Init) | Some(PrimaryInit) => true
+                case _ => false
+            }
+        match (callable.ret.kind(db)) {
+            case DeclTy(id, _) where isInit => hasUnreadMacros(db, id)
+            case _ => false
+        }
+    }
+
+    /**
      * Reports why the arguments of the call `call` of the one function `callable` match not, as cjc
      * picks it (N156): of one that may be variadic, what its first try found; of another, a name
      * wrong if their count may be right, else their count (cjc's `FilterIncompatibleCandidatesForCall`):
      * "missing argument", "extra argument" (N152), and those of names.
      */
     private func reportFailure(call: ExprId, callable: Callable, args: Array<CallArg>): Unit {
-        // a macro whose expansion is not read may change the function, or declare the constructors (#176)
-        let isMacros = callable.decl.map { id => hasUnreadMacros(db, id) } ?? false
-        let isInit =
-            match (callable.decl.map { id => id.item(db).kind }) {
-                case None | Some(Init) | Some(PrimaryInit) => true
-                case _ => false
-            }
-        let isMacroInit =
-            match (callable.ret.kind(db)) {
-                case DeclTy(id, _) where isInit => hasUnreadMacros(db, id)
-                case _ => false
-            }
-        if (isMacros || isMacroInit) {
+        if (hasUnreadCallSignature(callable)) {
             return
         }
         let size = callable.params.size

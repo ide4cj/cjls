@@ -399,6 +399,11 @@ Custom annotation placement is checked only after its constructor and argument t
 known; its synthetic callee identifies the check, while the separate declaration source
 supplies the diagnostic range. It does not make a synthetic expression user-written.
 
+An unread macro may supply a type's constructor parameters. A synthetic default
+initializer then cannot establish an argument mismatch: its call evidence stays
+unresolved, while its nominal result type can still satisfy an enclosing call's
+parameter. Ordinary callable mismatches remain failures of their own candidates.
+
 A false error on code cjc accepts fails `DiagnosticsGateTest`: none on this repository, on std's
 sources none beyond `std_diagnostics_known.txt`, whose lines each name their gap and only go
 (D90).
