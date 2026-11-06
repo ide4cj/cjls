@@ -87,7 +87,9 @@ origin archives and retains the other SDK pins. The official SDK download page
 currently also publishes SHA256 values; compare them with the downloaded hashes.
 For a nightly bump, update `.cangjie-version` and run `pin <tag>`; this replaces
 the old nightly hashes while keeping the release window. Moving the supported
-window also needs the token tables and CI checks described by D94.
+window also needs the token tables and CI checks described by D94. Regenerate the
+runtime version window with `python3 scripts/sdk_window_codegen.py`; CI checks
+that it matches both pin files.
 
 The installer prints environment exports; sourcing the installed SDK's
 `envsetup.sh` loads the SDK environment into this shell; set `CANGJIE_STDX_PATH`

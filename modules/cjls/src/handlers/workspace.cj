@@ -32,6 +32,7 @@ import project_model.{
     loneFileProjects,
     packageHeader,
     projectDirOf,
+    sdkWindowChannel,
     withCangjieHome,
     withCangjieSrc,
     withCangjieStdxPath,
@@ -385,7 +386,15 @@ func loadProject(
     let budget = request.budget
     let home = findCangjieHome(request.cangjieHome, env: { name => getVariable(name) })
     if (let Some(home) <- home) {
-        logger.info("found the SDK", [("path", home.path), ("source", home.source)])
+        logger.info(
+            "found the SDK",
+            [
+                ("path", home.path),
+                ("source", home.source),
+                ("version", home.version ?? "unknown"),
+                ("window", home.version.map { version => sdkWindowChannel(version) } ?? "unknown")
+            ]
+        )
     }
     let withHome = withCangjieHome({ name => getVariable(name) }, home)
     let src = findCangjieSrc(request.cangjieSrc, env: withHome)
@@ -640,10 +649,26 @@ func openFirst(paths: Array<VfsPath>, open: Array<VfsPath>): Array<VfsPath> {
 }
 
 /**
- * What the user is to be told of the SDK, once: none found, or none of its `std` read (another
- * version, the budget); `None` if `std` is there, or the project has a `std` of its own.
+ * Adds one session warning for a version outside the supported window without losing any
+ * existing SDK-content warning.
  */
 func sdkWarning(state: ServerState, home: ?CangjieHome): ?String {
+    let contentsWarning = sdkContentsWarning(state, home)
+    if (let Some(version) <- home.flatMap { selected => selected.version }) {
+        if (sdkWindowChannel(version) == "out of window" && !state.warnedSdkVersion) {
+            state.warnedSdkVersion = true
+            let windowWarning =
+                "Cangjie SDK ${version} is outside this cjls release's supported SDK window. The server will continue loading available binary packages; see its log for the selected SDK."
+            return windowWarning + (contentsWarning.map { warning => " ${warning}" } ?? "")
+        }
+    }
+    contentsWarning
+}
+
+/**
+ * What the user is told when no SDK is found or none of its std packages could be read.
+ */
+func sdkContentsWarning(state: ServerState, home: ?CangjieHome): ?String {
     let project = state.analysis.project() ?? return None
     let db = state.analysis
     if (!project.binaries(db).iterator().any { binary => binary.name == "std" }) {

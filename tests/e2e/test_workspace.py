@@ -1,5 +1,7 @@
 import json
+import os
 import pathlib
+import sys
 
 import pytest
 from lsprotocol import types
@@ -168,4 +170,54 @@ async def test_a_cjo_of_a_binary_changed_finds_the_project_again(server: Languag
         globs = [w.glob_pattern if isinstance(w.glob_pattern, str) else w.glob_pattern.pattern for w in watchers]
         assert any(g.split("/")[-2:] == ["bin", "*.cjo"] for g in globs)
 
+    await server.shutdown_session()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="fake cjc uses a POSIX executable script")
+@pytest.mark.parametrize("version", ["1.0.4", "1.2.0", None, "failed", "invalid-utf8"])
+async def test_sdk_window_warns_once_and_keeps_binary_analysis(server: LanguageClient, tmp_path, version):
+    # arrange: select an SDK whose compiler is different from cjc on the driver's PATH.
+    sdk = os.environ.get("CJLS_E2E_SDK") or os.environ.get("CANGJIE_HOME")
+    if not sdk:
+        pytest.skip("an SDK is needed for binary analysis")
+    home = tmp_path / "sdk"
+    (home / "bin").mkdir(parents=True)
+    (home / "modules").symlink_to(pathlib.Path(sdk) / "modules", target_is_directory=True)
+    compiler = home / "bin" / "cjc"
+    printed_version = "1.0.4" if version == "failed" else version
+    output = f"Cangjie Compiler: {printed_version} (cjnative)" if printed_version else "unrecognized output"
+    body = "import os\nos.write(1, bytes([255]))\n" if version == "invalid-utf8" else f"print({output!r})\n"
+    compiler.write_text(f"#!{sys.executable}\n" + body + ("raise SystemExit(1)\n" if version == "failed" else ""))
+    compiler.chmod(0o755)
+    root = tmp_path / "ws"
+    root.mkdir()
+    source = root / "a.cj"
+    source.write_text("import std.collection.*\nfunc make(): ArrayList<Int64> { ArrayList<Int64>() }\n")
+    @server.feature(types.CLIENT_REGISTER_CAPABILITY)
+    def register(_params: types.RegistrationParams):
+        pass
+
+    await server.initialize_session(types.InitializeParams(
+        capabilities=capabilities("visual-studio-code"),
+        workspace_folders=[types.WorkspaceFolder(uri=root.as_uri(), name="ws")],
+        initialization_options={"cangjieHome": str(home)},
+    ))
+    await loaded(server)
+
+    # act: a watched source change triggers another complete project load.
+    (root / "b.cj").write_text("func added() {}\n")
+    server.workspace_did_change_watched_files(types.DidChangeWatchedFilesParams(changes=[
+        types.FileEvent(uri=(root / "b.cj").as_uri(), type=types.FileChangeType.Created),
+    ]))
+    await loaded(server, 2)
+    hover = await server.text_document_hover_async(types.HoverParams(
+        text_document=types.TextDocumentIdentifier(uri=source.as_uri()),
+        position=types.Position(line=1, character=15),
+    ))
+
+    # assert: unsupported versions warn once; every SDK still reads std's binaries.
+    window_warnings = [params.message for params in server.messages if "supported SDK window" in params.message]
+    assert len(window_warnings) == (1 if version == "1.0.4" else 0)
+    assert hover is not None
+    assert "ArrayList" in str(hover.contents)
     await server.shutdown_session()

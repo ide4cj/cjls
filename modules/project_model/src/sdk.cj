@@ -1,6 +1,7 @@
 package project_model
 
 import std.fs.*
+import std.process.{ProcessException, executeWithOutput}
 import platform.{executableFile, pathListSeparator}
 
 /**
@@ -13,7 +14,11 @@ public struct CangjieHome {
          * What named it, for the log: `initializationOptions.cangjieHome`, `CANGJIE_HOME`, cjsdk's
          * default toolchain, or `cjc` on `PATH`.
          */
-        public let source: String
+        public let source: String,
+        /**
+         * The selected compiler's version; absent when it cannot run or its output is unrecognized.
+         */
+        public let version!: ?String = None
     ) {}
 }
 
@@ -27,7 +32,11 @@ public struct CangjieHome {
  *
  * `env` gives the value of an environment variable.
  */
-public func findCangjieHome(option: ?String, env!: (String) -> ?String): ?CangjieHome {
+public func findCangjieHome(
+    option: ?String,
+    env!: (String) -> ?String,
+    compilerOutput!: (Path) -> ?String = systemCompilerOutput
+): ?CangjieHome {
     let home =
         match (env("HOME")) {
             case Some(home) => home
@@ -62,7 +71,12 @@ public func findCangjieHome(option: ?String, env!: (String) -> ?String): ?Cangji
     for ((path, source) in candidates) {
         if (let Some(path) <- path) {
             if (isDirectory(path)) {
-                return CangjieHome(path, source)
+                let cjc = Path(path).join("bin").join(executableFile("cjc"))
+                return CangjieHome(
+                    path,
+                    source,
+                    version: compilerOutput(cjc).flatMap { output => compilerVersionOf(output) }
+                )
             }
         }
     }
@@ -166,4 +180,64 @@ func isDirectory(path: String): Bool {
                 false
             }
         )
+}
+
+/**
+ * The version `cjc --version` prints (`Cangjie Compiler: 1.3.0-alpha.20261002001050 (cjnative)`):
+ * a nightly's is its tag.
+ */
+public func compilerVersionOf(output: String): ?String {
+    let prefix = "Cangjie Compiler: "
+    for (line in output.lines() where line.startsWith(prefix)) {
+        let version = line[prefix.size..].trimAscii()
+        let end = version.indexOf(" ") ?? version.size
+        if (end > 0) {
+            let token = version[..end]
+            let coreEnd = token.indexOf("-") ?? token.size
+            let core = token[..coreEnd].split(".")
+            if (
+                core.size == 3 &&
+                    core
+                        .all {
+                            part =>
+                            !part.isEmpty() &&
+                                part.toArray().all { byte => byte >= b'0' && byte <= b'9' }
+                        }
+            ) {
+                return token
+            }
+        }
+    }
+    None
+}
+
+/**
+ * Runs only the selected SDK's compiler; failure does not prevent loading its binaries.
+ */
+func systemCompilerOutput(cjc: Path): ?String {
+    try {
+        let (code, out, _) = executeWithOutput(cjc.toString(), ["--version"])
+        if (code == 0) { String.fromUtf8(out) } else { None }
+    } catch (_: ProcessException) {
+        None
+    } catch (_: IllegalArgumentException) {
+        // A compiler's output is external bytes; malformed UTF-8 does not discard its SDK.
+        None
+    }
+}
+
+/**
+ * The supported channel of an exact SDK version, or `out of window` (D94).
+ */
+public func sdkWindowChannel(version: String): String {
+    if (version == SDK_LTS_VERSION) {
+        return "LTS"
+    }
+    if (version == SDK_STS_VERSION) {
+        return "STS"
+    }
+    if (version == SDK_PIN_VERSION) {
+        return "pinned nightly"
+    }
+    "out of window"
 }
