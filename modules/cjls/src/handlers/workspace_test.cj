@@ -1669,7 +1669,7 @@ func registrationsOf(request: RequestBody): Array<Registration> {
 @Test
 class BinaryWatchTest {
     @TestCase
-    func nativeDirectoriesAreWatchedWithoutMakingThemCangjieBinaries() {
+    func nativeDirectoriesAreWatchedWithoutMakingThemCangjieBinaries(): Unit {
         // arrange
         let dir = VfsPath.file(getTempDirectory().join("cjls-native"))
         // act

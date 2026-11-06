@@ -85,6 +85,8 @@ private = {path = "native"}
                 env: sdkEnv,
                 cfg: LINUX
             )
+            let merged = ProjectModel.merge([load.model, load.model], LINUX)
+            let (db, vfs) = testDependencyDatabase(load.model)
             // assert
             @Expect(load.problems, [])
             @Expect(problems.isEmpty())
@@ -98,9 +100,8 @@ private = {path = "native"}
             @Expect(helper.nativeLibraries, [NativeLibrary("private", dir.join("helper/native"))])
             @Expect(configured, load.model)
             @Expect(projected, load.model)
-            @Expect(ProjectModel.merge([load.model, load.model], LINUX), load.model)
+            @Expect(merged, load.model)
             @Expect(!load.model.binaries.any { b => b.name == "shared" })
-            let (db, vfs) = testDependencyDatabase(load.model)
             expectDependencyImport(
                 db,
                 vfs,
@@ -156,6 +157,7 @@ foreign = {path = "native"}
             @Expect(load.problems, [])
             @Expect(plan.map { u => u.pkg.name(db) }, ["helper", "app"])
             @Expect(plan[1].nativeLibraries, [NativeLibrary("foreign", dir.join("helper/native")), NativeLibrary("own", dir.join("own"))])
+            // act
             File.writeTo(
                 dir.join("helper/cjpm.toml").filePath.getOrThrow(),
                 """
@@ -168,7 +170,11 @@ foreign = {path = "changed"}
             let reloaded = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv, cfg: LINUX)
                 .getOrThrow()
             db.setProject(reloaded.model, vfs.paths)
-            @Expect(macroBuildPlan(db)[1].nativeLibraries[0], NativeLibrary("foreign", dir.join("helper/changed")))
+            let reloadedPlan = macroBuildPlan(db)
+
+            // assert
+            @Expect(reloaded.problems, [])
+            @Expect(reloadedPlan[1].nativeLibraries[0], NativeLibrary("foreign", dir.join("helper/changed")))
         } finally {
             removeTree(dir)
         }
@@ -207,6 +213,7 @@ selected = {path = "cross"}
                         sdkEnv(name)
                     }
                 }
+            // act
             let load = loadCjpmProject(dir.join("cjpm.toml"), env: env, cfg: cross).getOrThrow()
             // assert
             @Expect(load.problems, [])

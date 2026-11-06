@@ -96,14 +96,11 @@ public class SdkToolchain <: Toolchain {
         arguments: Array<String>,
         nativeDirectories!: Array<Path> = []
     ): (Int64, String, String) {
-        var toolEnvironment = environment
-        for (dir in nativeDirectories) {
-            toolEnvironment = sdkToolEnvironment(toolEnvironment.toArray(), dir)
-        }
-        // Native dependencies must not replace the selected SDK's runtime libraries.
-        if (!nativeDirectories.isEmpty()) {
-            toolEnvironment = sdkToolEnvironment(toolEnvironment.toArray(), paths.runtimeLib)
-        }
+        let toolEnvironment = nativeToolEnvironment(
+            environment,
+            paths.runtimeLib,
+            nativeDirectories
+        )
         try {
             let (code, out, err) = executeWithOutput(
                 paths.cjc.toString(),
@@ -123,4 +120,24 @@ public class SdkToolchain <: Toolchain {
  */
 public func tokenNumbersOf(paths: MacroServerPaths, version: String): ?TokenNumbers {
     TokenNumbers.read(paths.tokensInc) ?? TokenNumbers.builtin(version)
+}
+
+/**
+ * The compiler's loader paths, with the selected SDK protected from native dependencies.
+ */
+func nativeToolEnvironment(
+    environment: HashMap<String, String>,
+    runtimeLib: Path,
+    nativeDirectories: Array<Path>
+): HashMap<String, String> {
+    var toolEnvironment = environment
+    // sdkToolEnvironment prepends: walk backwards to keep the linker's first directory first.
+    for (offset in 0..nativeDirectories.size) {
+        let dir = nativeDirectories[nativeDirectories.size - offset - 1]
+        toolEnvironment = sdkToolEnvironment(toolEnvironment.toArray(), dir)
+    }
+    if (!nativeDirectories.isEmpty()) {
+        toolEnvironment = sdkToolEnvironment(toolEnvironment.toArray(), runtimeLib)
+    }
+    toolEnvironment
 }
