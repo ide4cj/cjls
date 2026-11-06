@@ -13,8 +13,12 @@ import py_interop.internal_macros.DerivePython
 @When[os == "Linux"]
 @DerivePython
 class PythonSignatureSourceMap {
+    private let value: SignatureSourceMap
+
     @PyIgnore
-    PythonSignatureSourceMap(private let value: SignatureSourceMap) {}
+    init(value: SignatureSourceMap) {
+        this.value = value
+    }
 
     public prop ranges: Array<?TextRange> {
         get() {
@@ -40,7 +44,7 @@ class PythonSignatureSourceMap {
 @DerivePython
 class PythonLoweredSignature {
     @PyIgnore
-    PythonLoweredSignature(value: LoweredSignature) {
+    init(value: LoweredSignature) {
         signature = value.signature
         sourceMap = PythonSignatureSourceMap(value.sourceMap)
     }

@@ -112,8 +112,11 @@ import py_interop.internal_macros.DerivePython
 @When[os == "Linux"]
 @DerivePython
 class AnalysisRevision {
+    private let owner: WorkspaceState
+
     @PyIgnore
-    AnalysisRevision(private let owner: WorkspaceState) {
+    init(owner: WorkspaceState) {
+        this.owner = owner
         revision = owner.revision
     }
 
