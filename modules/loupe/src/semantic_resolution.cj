@@ -1,9 +1,10 @@
 package loupe
 
 import std.collection.{ArrayList, HashSet}
-import std.deriving.Derive
 import cjsyntax.CjSyntaxNode
 import cjsyntax.ast.isIdent
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.hir.{
     CallResolution,
     CallResolutionOutcome,
@@ -35,17 +36,44 @@ import loupe.hir.{
  * Resolution completeness, independent of whether navigation source is available.
  * MissingResolutionReason states that inference retained no more precise failure explanation.
  */
-@Derive[Equatable]
-public enum SemanticResolutionStatus {
+@DerivePython
+public enum SemanticResolutionStatus <: Equatable<SemanticResolutionStatus> {
     | ResolvedMeaning
     | AmbiguousMeaning
     | UnresolvedMeaning
     | UnavailableMeaning
+
+    public operator func ==(other: SemanticResolutionStatus): Bool {
+        match ((this, other)) {
+            case (
+                    SemanticResolutionStatus.ResolvedMeaning,
+                    SemanticResolutionStatus.ResolvedMeaning
+                ) => true
+            case (
+                    SemanticResolutionStatus.AmbiguousMeaning,
+                    SemanticResolutionStatus.AmbiguousMeaning
+                ) => true
+            case (
+                    SemanticResolutionStatus.UnresolvedMeaning,
+                    SemanticResolutionStatus.UnresolvedMeaning
+                ) => true
+            case (
+                    SemanticResolutionStatus.UnavailableMeaning,
+                    SemanticResolutionStatus.UnavailableMeaning
+                ) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: SemanticResolutionStatus): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * Preserved analysis gaps, or an explicit absence of a retained failure explanation.
  */
+@DerivePython
 public enum SemanticResolutionReason {
     | MissingResolutionReason
     | MissingResolutionData
@@ -58,6 +86,7 @@ public enum SemanticResolutionReason {
 /**
  * A final instantiated generic parameter, identified by its real declaration or local binder.
  */
+@DerivePython
 public struct SemanticGenericBinding {
     SemanticGenericBinding(
         public let parameter: SemanticObject,
@@ -68,6 +97,7 @@ public struct SemanticGenericBinding {
 /**
  * An inference diagnostic and its owner-qualified anchor in the originating snapshot.
  */
+@DerivePython
 public struct SemanticResolutionDiagnostic {
     SemanticResolutionDiagnostic(
         public let anchor: SemanticObject,
@@ -79,13 +109,23 @@ public struct SemanticResolutionDiagnostic {
  * Retained call evidence. A resolved function value has no declaration target; local named
  * functions keep their body-qualified local identity. Initializers and named types stay separate.
  */
+@DerivePython
 public class SemanticCallResolution {
-    SemanticCallResolution(
-        let analysis: SemanticAnalysis,
-        let owner: DefId,
-        let raw: CallResolution,
-        public let isSetter!: Bool = false
-    ) {}
+    @PyIgnore
+    let analysis: SemanticAnalysis
+    @PyIgnore
+    let owner: DefId
+    @PyIgnore
+    let raw: CallResolution
+    public let isSetter: Bool
+
+    @PyIgnore
+    init(analysis: SemanticAnalysis, owner: DefId, raw: CallResolution, isSetter!: Bool = false) {
+        this.analysis = analysis
+        this.owner = owner
+        this.raw = raw
+        this.isSetter = isSetter
+    }
 
     public prop callee: SemanticObject {
         get() {
@@ -168,6 +208,7 @@ public class SemanticCallResolution {
  * Status describes identity selection; a resolved declaration may still have an incomplete type.
  * Path identities and diagnostic payloads belong to occurrence's snapshot, like SemanticIdentity.
  */
+@DerivePython
 public class SemanticResolution {
     SemanticResolution(
         public let occurrence: SemanticOccurrence,
@@ -184,6 +225,7 @@ public class SemanticResolution {
  * A declaration's retained body results and whether its source was available to analysis.
  * Empty records alone never establish that an unavailable binary body has no references or calls.
  */
+@DerivePython
 public class SemanticBodyResolutions {
     SemanticBodyResolutions(
         public let owner: SemanticObject,
@@ -194,6 +236,7 @@ public class SemanticBodyResolutions {
     ) {}
 }
 
+@DerivePython
 extend SemanticOccurrence {
     /**
      * Uses the same classification and selected identities as navigation, with explicit non-success.
@@ -316,6 +359,7 @@ extend SemanticOccurrence {
     }
 }
 
+@DerivePython
 extend SemanticObject {
     /**
      * Body records with explicit source availability. Checked binary attachments use their

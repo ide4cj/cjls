@@ -14,7 +14,7 @@ serverInfo by MCP initialize. Its name/version identify the executable product;
 _meta contains apiVersion (currently 1), commit (full build-time Git SHA or null),
 dirty (whether the build checkout had local changes, or null without Git identity)
 and features: structuredDiagnostics, worktreeSessions, checkedSourceChanges,
-sourceExcerpts and outputBudget. Feature names describe this binary's supported
+sourceExcerpts, outputBudget and semanticViews. Feature names describe this binary's supported
 Python/tool contracts, not analysis completeness or preparation success.
 
 The build hook embeds identity before compilation and preserves the generated
@@ -217,6 +217,37 @@ producing revision's `item`, `parent`,
 resolve them. `text(path)` reads the retained revision; `fileId(path)` resolves
 its file identity. Original HIR/result values, constructors and methods are
 exported directly with `@DerivePython`; immutable fields remain read-only.
+
+### Composable semantic views
+
+`a.semantic()` creates a native `SemanticAnalysis` snapshot from the same checked
+revision. Start with `s.at(a.fileId(path), offset)` for an occurrence,
+`s.syntaxAt(a.fileId(path))` for a lossless tree, or `s.project()` for the loaded
+project. Occurrences compose through `resolution()`, `contextualFile()` and their
+owner/definition objects. Objects expose types, syntax origins, body resolution,
+usages, immediate calls and direct hierarchy relationships without another
+database argument. Returned gaps and unavailable states retain the native loupe
+contract; an empty collection does not establish complete analysis.
+
+Semantic views keep their originating snapshot and reject operations after an
+input change. Keep one `SemanticAnalysis` when combining contextual objects or
+resolving syntax pointers: a pointer from another analysis is rejected even if
+its file and range match. Constructors carrying snapshot state are hidden.
+`SemanticIdentity` is a copied identity, valid only in its producing context.
+
+The Python location helpers `sourceText()` and `coordinates()` return snapshot
+text and a zero-based `(line, UTF-8 byte column)` pair. `excerpt(full=True)`
+returns the full location range. Raw `Rope`, `LineColumn`, generic parser errors
+and syntax kinds stay outside the bindings; use `kindName()` on a syntax element
+and `message()`/`range()` on a syntax error. `VfsPath` supports string construction
+with `file(path)`, display and path operations; its raw `std.fs.Path` accessor is
+hidden. Project module identities are opaque, like other calca identities.
+
+`InferenceResult.calls`, `setterCalls`, `callOf` and `setterCallOf` also expose
+native `CallResolution`, `CallResolutionOutcome` and `GenericBinding` values.
+They preserve final generic substitutions, argument mapping and unresolved or
+ambiguous outcomes. See the [semantic recipe](skills/cangjie-mcp/references/semantic.md)
+for a bounded traversal.
 
 ### Other analysis queries
 
