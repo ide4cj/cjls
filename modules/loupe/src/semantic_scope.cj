@@ -1,12 +1,51 @@
 package loupe
 
-import std.collection.*
-import ginkgo.TextRange
-import loupe.db.Cfg
-import loupe.hir.*
+import std.collection.{ArrayList, collectArray, filterMap}
+import loupe.db.{Package, SourceFile}
+import loupe.hir.{
+    CfgExpr,
+    DefId,
+    Glob,
+    ImportError,
+    ImportPath,
+    ImportSite,
+    Imported,
+    ItemFile,
+    ItemKind,
+    Namespace,
+    PackageRef,
+    Resolution,
+    ScopeStage,
+    Visibility,
+    WhenDiagnostics,
+    cfgOfFile,
+    conditionOf,
+    defMapAt,
+    expansionsOf,
+    exportsAt,
+    fileImportsAt,
+    importLevelOf,
+    importsAt,
+    isTestOf,
+    itemTreeOf,
+    lookUp,
+    packageOfFile,
+    preludeOf,
+    resolutionFile,
+    resolutionPackage,
+    resolveImport,
+    scopeFileOf,
+    syntaxOf,
+    targetOf,
+    testImportsOf,
+    visibleOf,
+    whenDiagnostics
+}
 
-/** A name and its semantic target; site retains the available immediate import provenance. */
-public class SemanticBinding {
+/**
+ * A name and its semantic target; site retains the available immediate import provenance.
+ */
+public struct SemanticBinding {
     SemanticBinding(
         public let name: String,
         public let target: SemanticObject,
@@ -17,18 +56,24 @@ public class SemanticBinding {
     ) {}
 }
 
-/** Export cycles are distinct from a known empty exported-name collection. */
-public class SemanticExports {
+/**
+ * Export cycles are distinct from a known empty exported-name collection.
+ */
+public struct SemanticExports {
     SemanticExports(
         public let names: Array<SemanticBinding>,
-        public let cyclic: Bool,
-        /** False for unloaded source inputs or an unreadable binary; names may be partial. */
-        public let isAvailable: Bool
+        public let isCyclic!: Bool,
+        /**
+         * False for unloaded source inputs or an unreadable binary; names may be partial.
+         */
+        public let isAvailable!: Bool
     ) {}
 }
 
-/** One active import path, its alias/glob, visibility, stage and contextual syntax site. */
-public class SemanticImport {
+/**
+ * One active import path, its alias/glob, visibility, stage and contextual syntax site.
+ */
+public struct SemanticImport {
     SemanticImport(
         public let file: SemanticFile,
         public let path: ImportPath,
@@ -45,7 +90,9 @@ public class SemanticImport {
         }
     }
 
-    /** Exact import declaration when syntax is available; site.path indexes grouped paths. */
+    /**
+     * Exact import declaration when syntax is available; site.path indexes grouped paths.
+     */
     public func location(): ?SemanticLocation {
         let db = file.analysis.db
         db.unwindIfCancelled()
@@ -55,13 +102,17 @@ public class SemanticImport {
     }
 }
 
-/** An implicit glob kept separate from written imports and dependency permissions. */
-public class SemanticImplicitImport {
-    SemanticImplicitImport(public let target: SemanticPackage, public let isTestImport: Bool) {}
+/**
+ * An implicit glob kept separate from written imports and dependency permissions.
+ */
+public struct SemanticImplicitImport {
+    SemanticImplicitImport(public let target: SemanticPackage, public let isTestImport!: Bool) {}
 }
 
-/** Condition evidence includes unknown evaluations independently of loaded-active filtering. */
-public class SemanticCondition {
+/**
+ * Condition evidence includes unknown evaluations independently of loaded-active filtering.
+ */
+public struct SemanticCondition {
     SemanticCondition(
         public let location: SemanticLocation,
         public let expression: CfgExpr,
@@ -70,7 +121,9 @@ public class SemanticCondition {
     ) {}
 }
 
-/** File identity retains ordinary/test/script, attachment and expansion context. */
+/**
+ * File identity retains ordinary/test/script, attachment and expansion context.
+ */
 public class SemanticFile {
     SemanticFile(let analysis: SemanticAnalysis, public let identity: ItemFile) {}
 
@@ -137,57 +190,66 @@ public class SemanticFile {
                 for (i in 0..item.paths.size) {
                     let path = item.paths[i]
                     let site = ImportSite(file, item.id, i, level)
-                    let target =
-                        match (targetOf(db, from, path, level, ofTests: isTest())) {
-                            case PackageOf(_, target) => Some(target)
-                            case GlobOf(target, _) => Some(target)
-                            case NameOf(target, _, _, _) => Some(target)
-                            case _ => None<PackageRef>
-                        }
-                    let names = ArrayList<SemanticBinding>()
-                    var error: ?ImportError = None
-                    match (resolveImport(db, from, path, level, ofTests: isTest(), stage: stage)) {
-                        case ToPackage(name, target) =>
-                            names.add(
-                                SemanticBinding(
-                                    name,
-                                    analysis.object(NamedIdentity(Definition.PackageDef(target))),
-                                    level,
-                                    site,
-                                    stage
-                                )
-                            )
-                        case ToNames(_, brought) =>
-                            for ((name, defs) in brought) {
-                                for (id in defs) {
-                                    names.add(
-                                        SemanticBinding(
-                                            name,
-                                            analysis.object(NamedIdentity(Definition.DeclDef(id))),
-                                            level,
-                                            site,
-                                            stage
-                                        )
-                                    )
-                                }
-                            }
-                        case Unresolved(reason) => error = reason
-                    }
-                    result.add(
-                        SemanticImport(
-                            this,
-                            path,
-                            site,
-                            stage,
-                            target.map { id => SemanticPackage(analysis, id) },
-                            names.toArray(),
-                            error
-                        )
-                    )
+                    result.add(resolveWrittenImport(from, path, site, stage))
                 }
             }
         }
         Some(result.toArray())
+    }
+
+    private func resolveWrittenImport(
+        from: PackageRef,
+        path: ImportPath,
+        site: ImportSite,
+        stage: ScopeStage
+    ): SemanticImport {
+        let db = analysis.db
+        let level = site.level
+        let target =
+            match (targetOf(db, from, path, level, ofTests: isTest())) {
+                case PackageOf(_, target) => Some(target)
+                case GlobOf(target, _) => Some(target)
+                case NameOf(target, _, _, _) => Some(target)
+                case _ => None<PackageRef>
+            }
+        let names = ArrayList<SemanticBinding>()
+        var error: ?ImportError = None
+        match (resolveImport(db, from, path, level, ofTests: isTest(), stage: stage)) {
+            case ToPackage(name, target) =>
+                names.add(
+                    SemanticBinding(
+                        name,
+                        analysis.object(NamedIdentity(Definition.PackageDef(target))),
+                        level,
+                        site,
+                        stage
+                    )
+                )
+            case ToNames(_, brought) =>
+                for ((name, defs) in brought) {
+                    for (id in defs) {
+                        names.add(
+                            SemanticBinding(
+                                name,
+                                analysis.object(NamedIdentity(Definition.DeclDef(id))),
+                                level,
+                                site,
+                                stage
+                            )
+                        )
+                    }
+                }
+            case Unresolved(reason) => error = reason
+        }
+        SemanticImport(
+            this,
+            path,
+            site,
+            stage,
+            target.map { id => SemanticPackage(analysis, id) },
+            names.toArray(),
+            error
+        )
     }
 
     public func implicitImports(): ?Array<SemanticImplicitImport> {
@@ -197,11 +259,17 @@ public class SemanticFile {
         let pkg = packageOfFile(db, file) ?? return None
         let result = ArrayList<SemanticImplicitImport>()
         if (let Some(glob) <- preludeOf(db, pkg)) {
-            result.add(SemanticImplicitImport(SemanticPackage(analysis, glob.pkg), false))
+            result.add(
+                SemanticImplicitImport(SemanticPackage(analysis, glob.pkg), isTestImport: false)
+            )
         }
-        for (glob in testImportsOf(db, pkg, file)) {
-            result.add(SemanticImplicitImport(SemanticPackage(analysis, glob.pkg), true))
-        }
+        result.add(
+            all: testImportsOf(db, pkg, file)
+                .map {
+                    glob =>
+                    SemanticImplicitImport(SemanticPackage(analysis, glob.pkg), isTestImport: true)
+                }
+        )
         Some(result.toArray())
     }
 
@@ -214,8 +282,19 @@ public class SemanticFile {
         db.unwindIfCancelled()
         let source = scopeFileOf(db, identity) ?? return None
         let pkg = packageOfFile(db, source) ?? return None
+        let result = ArrayList(ownBindings(pkg, source, stage))
+        addImportedBindings(result, pkg, source, stage)
+        addSiblingConstructors(result, pkg, source, stage)
+        Some(result.toArray())
+    }
+
+    private func ownBindings(
+        pkg: Package,
+        source: SourceFile,
+        stage: ScopeStage
+    ): Array<SemanticBinding> {
+        let db = analysis.db
         let own = defMapAt(db, PackageRef.Source(pkg), stage)
-        let imports = importsAt(db, pkg, source, stage)
         let result = ArrayList<SemanticBinding>()
         for (map in [own.names, own.ctors]) {
             for ((name, defs) in map) {
@@ -237,6 +316,17 @@ public class SemanticFile {
                 }
             }
         }
+        result.toArray()
+    }
+
+    private func addImportedBindings(
+        result: ArrayList<SemanticBinding>,
+        pkg: Package,
+        source: SourceFile,
+        stage: ScopeStage
+    ): Unit {
+        let db = analysis.db
+        let imports = importsAt(db, pkg, source, stage)
         for (level in [imports.file, imports.pkg]) {
             for ((name, entries) in level.names) {
                 for (entry in entries) {
@@ -257,38 +347,58 @@ public class SemanticFile {
                 }
             }
             for (glob in level.globs) {
-                let exports = exportsAt(db, glob.pkg, stage)
-                for (map in [exports.names, exports.ctors]) {
-                    for ((name, defs) in map) {
-                        for (id in visibleOf(defs, glob.relation, glob.level)) {
-                            let implicit =
-                                if (glob.site.isNone()) {
-                                    Some(
-                                        SemanticImplicitImport(
-                                            SemanticPackage(analysis, glob.pkg),
-                                            testImportsOf(db, pkg, source)
-                                                .iterator()
-                                                .any { one => one.pkg == glob.pkg }
-                                        )
-                                    )
-                                } else {
-                                    None<SemanticImplicitImport>
-                                }
-                            result.add(
-                                SemanticBinding(
-                                    name,
-                                    analysis.object(NamedIdentity(Definition.DeclDef(id))),
-                                    glob.level,
-                                    glob.site,
-                                    stage,
-                                    implicitImport: implicit
-                                )
-                            )
-                        }
-                    }
+                addGlobBindings(result, glob, pkg, source, stage)
+            }
+        }
+    }
+
+    private func addGlobBindings(
+        result: ArrayList<SemanticBinding>,
+        glob: Glob,
+        pkg: Package,
+        source: SourceFile,
+        stage: ScopeStage
+    ): Unit {
+        let db = analysis.db
+        let exports = exportsAt(db, glob.pkg, stage)
+        let implicit =
+            if (glob.site.isNone()) {
+                Some(
+                    SemanticImplicitImport(
+                        SemanticPackage(analysis, glob.pkg),
+                        isTestImport: testImportsOf(db, pkg, source)
+                            .iterator()
+                            .any { one => one.pkg == glob.pkg }
+                    )
+                )
+            } else {
+                None<SemanticImplicitImport>
+            }
+        for (map in [exports.names, exports.ctors]) {
+            for ((name, defs) in map) {
+                for (id in visibleOf(defs, glob.relation, glob.level)) {
+                    result.add(
+                        SemanticBinding(
+                            name,
+                            analysis.object(NamedIdentity(Definition.DeclDef(id))),
+                            glob.level,
+                            glob.site,
+                            stage,
+                            implicitImport: implicit
+                        )
+                    )
                 }
             }
         }
+    }
+
+    private func addSiblingConstructors(
+        result: ArrayList<SemanticBinding>,
+        pkg: Package,
+        source: SourceFile,
+        stage: ScopeStage
+    ): Unit {
+        let db = analysis.db
         // Enum constructors imported by another file have package scope (N73). Read
         // each contextual file at the requested stage; the shared constructor index is expanded.
         for (id in pkg.files(db) where isTest() || !pkg.testFiles(db).contains(id)) {
@@ -299,41 +409,42 @@ public class SemanticFile {
             let level = fileImportsAt(db, pkg, other, stage)
             for ((name, ids) in level.ctors) {
                 for (ctor in ids) {
-                    let target = analysis.object(NamedIdentity(Definition.DeclDef(ctor)))
-                    if (
-                        !result
-                            .iterator()
-                            .any {
-                                one =>
-                                one.name == name && one.target.identity == target.identity
-                            }
-                    ) {
-                        result.add(SemanticBinding(name, target, Visibility.Private, None, stage))
-                    }
+                    addDistinctConstructor(result, name, ctor, Visibility.Private, None, stage)
                 }
             }
             for (glob in level.globs) {
                 for ((name, defs) in exportsAt(db, glob.pkg, stage).ctors) {
                     for (ctor in visibleOf(defs, glob.relation, glob.level)) {
-                        let target = analysis.object(NamedIdentity(Definition.DeclDef(ctor)))
-                        if (
-                            !result
-                                .iterator()
-                                .any {
-                                    one =>
-                                    one.name == name && one.target.identity == target.identity
-                                }
-                        ) {
-                            result.add(SemanticBinding(name, target, glob.level, glob.site, stage))
-                        }
+                        addDistinctConstructor(result, name, ctor, glob.level, glob.site, stage)
                     }
                 }
             }
         }
-        Some(result.toArray())
     }
 
-    func importBinding(name: String, imported: Imported, stage: ScopeStage): SemanticBinding {
+    private func addDistinctConstructor(
+        result: ArrayList<SemanticBinding>,
+        name: String,
+        id: DefId,
+        visibility: Visibility,
+        site: ?ImportSite,
+        stage: ScopeStage
+    ): Unit {
+        let target = analysis.object(NamedIdentity(Definition.DeclDef(id)))
+        if (
+            !result
+                .iterator()
+                .any { one => one.name == name && one.target.identity == target.identity }
+        ) {
+            result.add(SemanticBinding(name, target, visibility, site, stage))
+        }
+    }
+
+    private func importBinding(
+        name: String,
+        imported: Imported,
+        stage: ScopeStage
+    ): SemanticBinding {
         let definition =
             match (imported.target) {
                 case OfDecl(id) => Definition.DeclDef(id)
@@ -342,13 +453,15 @@ public class SemanticFile {
         SemanticBinding(
             name,
             analysis.object(NamedIdentity(definition)),
-            imported.site.map { site => site.level } ?? Visibility.Private,
+            imported.site?.level ?? Visibility.Private,
             imported.site,
             stage
         )
     }
 
-    /** Exact package/file lookup, preserving ambiguity through the existing Resolution value. */
+    /**
+     * Exact package/file lookup, preserving ambiguity through the existing Resolution value.
+     */
     public func lookup(name: String, namespace: Namespace): ?Resolution {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -357,29 +470,36 @@ public class SemanticFile {
         Some(lookUp(db, pkg, source, name, namespace))
     }
 
-    /** All written @When conditions, including nested and unknown ones, with revision text. */
+    /**
+     * All written @When conditions, including nested and unknown ones, with revision text.
+     */
     public func conditions(): ?Array<SemanticCondition> {
         let db = analysis.db
         db.unwindIfCancelled()
         let cfg = configuration()?.cfg ?? return None
         let (root, _) = syntaxOf(db, identity) ?? return None
-        let result = ArrayList<SemanticCondition>()
-        for (node in root.descendants()) {
-            if (let Some(condition) <- conditionOf(node)) {
-                result.add(
-                    SemanticCondition(
-                        analysis.location(identity, node.textRange, node.textRange),
-                        condition,
-                        condition.evaluate(cfg),
-                        condition.whyFalse(cfg)
-                    )
-                )
-            }
-        }
-        Some(result.toArray())
+        Some(
+            root.descendants() |>
+                filterMap {
+                    node =>
+                    conditionOf(node)
+                        .map {
+                            condition =>
+                            SemanticCondition(
+                                analysis.location(identity, node.textRange, node.textRange),
+                                condition,
+                                condition.evaluate(cfg),
+                                condition.whyFalse(cfg)
+                            )
+                        }
+                } |>
+                collectArray
+        )
     }
 
-    /** Outermost inactive ranges and invalid-condition diagnostics; none without source text. */
+    /**
+     * Outermost inactive ranges and invalid-condition diagnostics; none without source text.
+     */
     public func whenStatus(): ?WhenDiagnostics {
         let db = analysis.db
         db.unwindIfCancelled()

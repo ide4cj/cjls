@@ -1,9 +1,21 @@
 package loupe
 
-import std.collection.*
+import std.collection.{ArrayList, collectArray, filterMap, map}
 import std.deriving.Derive
 import loupe.db.{AnalysisDatabase, BinaryModel, Cfg, InactiveSourceFile, Module}
-import loupe.hir.*
+import loupe.hir.{
+    DefId,
+    ItemFile,
+    PackageRef,
+    ScopeStage,
+    Visibility,
+    binaryItemTrees,
+    exportsAt,
+    filesOf,
+    nameOf,
+    packageIndex,
+    resolutionPackage
+}
 import loupe.vfs.{FileId, VfsPath}
 
 extend SemanticAnalysis {
@@ -22,12 +34,16 @@ extend SemanticAnalysis {
  * Array filtering. All methods use the originating snapshot and cancel after input changes.
  */
 public class SemanticProject {
-    SemanticProject(let analysis: SemanticAnalysis) {}
+    SemanticProject(private let analysis: SemanticAnalysis) {}
 
     public func modules(): Array<SemanticModule> {
         let db = analysis.db
         db.unwindIfCancelled()
-        db.project().getOrThrow().modules(db).map { id => SemanticModule(analysis, id) }
+        db
+            .project()
+            .getOrThrow { IllegalStateException("project inputs must be loaded") }
+            .modules(db)
+            .map { id => SemanticModule(analysis, id) }
     }
 
     /**
@@ -36,14 +52,14 @@ public class SemanticProject {
     public func packages(): Array<SemanticPackage> {
         let db = analysis.db
         db.unwindIfCancelled()
-        let project = db.project().getOrThrow()
-        let result = ArrayList<SemanticPackage>()
-        for (module in modules()) {
-            result.add(all: module.packages())
-        }
-        for (binary in project.binaryPackages(db)) {
-            result.add(SemanticPackage(analysis, PackageRef.Binary(binary)))
-        }
+        let project =
+            db.project().getOrThrow { IllegalStateException("project inputs must be loaded") }
+        let result = ArrayList(modules().flatMap { module => module.packages() })
+        result.add(
+            all: project
+                .binaryPackages(db)
+                .map { binary => SemanticPackage(analysis, PackageRef.Binary(binary)) }
+        )
         for (source in project.binarySources(db)) {
             if (
                 let Some(pkg) <- source.context &&
@@ -63,17 +79,27 @@ public class SemanticProject {
         modules().flatMap { module => module.dependencies() }
     }
 
-    /** Selected loaded binary models; never enumerates their paths on disk. */
+    /**
+     * Selected loaded binary models; never enumerates their paths on disk.
+     */
     public func binaries(): Array<BinaryModel> {
         let db = analysis.db
         db.unwindIfCancelled()
-        db.project().getOrThrow().binaries(db)
+        db
+            .project()
+            .getOrThrow { IllegalStateException("project inputs must be loaded") }
+            .binaries(db)
     }
 
     public func configuration(): SemanticConfiguration {
         let db = analysis.db
         db.unwindIfCancelled()
-        SemanticConfiguration(db.project().getOrThrow().cfg(db))
+        SemanticConfiguration(
+            db
+                .project()
+                .getOrThrow { IllegalStateException("project inputs must be loaded") }
+                .cfg(db)
+        )
     }
 }
 
@@ -84,7 +110,7 @@ public class SemanticProject {
  * Missing @When comparison keys remain unknown/active; absent debug/test flags currently
  * follow CfgExpr's false default, not proof that the compiler was invoked without them.
  */
-public class SemanticConfiguration {
+public struct SemanticConfiguration {
     SemanticConfiguration(public let cfg: Cfg) {}
 
     public prop loadingProblems: ?Array<String> {
@@ -102,25 +128,29 @@ public class SemanticConfiguration {
             None
         }
     }
-    public prop completeCompilerInvocation: Bool {
+    public prop hasCompleteCompilerInvocation: Bool {
         get() {
             false
         }
     }
 }
 
-/** A dependency permission, not evidence of an import statement. */
-public class SemanticDependency {
+/**
+ * A dependency permission, not evidence of an import statement.
+ */
+public struct SemanticDependency {
     SemanticDependency(
         public let source: SemanticModule,
         public let name: String,
-        public let testOnly: Bool,
-        public let implicit: Bool,
         public let modules: Array<SemanticModule>,
-        public let binaries: Array<BinaryModel>
+        public let binaries: Array<BinaryModel>,
+        public let isTestOnly!: Bool = false,
+        public let isImplicit!: Bool = false
     ) {}
 
-    /** False distinguishes a missing selected target from an empty package collection. */
+    /**
+     * False distinguishes a missing selected target from an empty package collection.
+     */
     public prop isResolved: Bool {
         get() {
             !modules.isEmpty() || !binaries.isEmpty()
@@ -128,9 +158,11 @@ public class SemanticDependency {
     }
 }
 
-/** Module identity includes its independent resolution scope, including script selections. */
+/**
+ * Module identity includes its independent resolution scope, including script selections.
+ */
 public class SemanticModule {
-    SemanticModule(let analysis: SemanticAnalysis, public let identity: Module) {}
+    SemanticModule(private let analysis: SemanticAnalysis, public let identity: Module) {}
 
     public func name(): String {
         analysis.db.unwindIfCancelled()
@@ -162,10 +194,18 @@ public class SemanticModule {
     public func configuration(): SemanticConfiguration {
         let db = analysis.db
         db.unwindIfCancelled()
-        SemanticConfiguration(identity.cfg(db) ?? db.project().getOrThrow().cfg(db))
+        SemanticConfiguration(
+            identity.cfg(db) ??
+                db
+                    .project()
+                    .getOrThrow { IllegalStateException("project inputs must be loaded") }
+                    .cfg(db)
+        )
     }
 
-    /** Source-set exclusions retained by the loader, even when their text was not loaded. */
+    /**
+     * Source-set exclusions retained by the loader, even when their text was not loaded.
+     */
     public func inactiveFiles(): Array<InactiveSourceFile> {
         analysis.db.unwindIfCancelled()
         identity.inactive(analysis.db)
@@ -178,44 +218,47 @@ public class SemanticModule {
     public func dependencies(): Array<SemanticDependency> {
         let db = analysis.db
         db.unwindIfCancelled()
-        let project = analysis.project().getOrThrow()
+        let project =
+            analysis.project().getOrThrow { IllegalStateException("project inputs must be loaded") }
         let modules = project.modules()
         let binaries = project.binaries()
-        let result = ArrayList<SemanticDependency>()
-        func add(name: String, testOnly: Bool, implicit: Bool): Unit {
-            result.add(
-                SemanticDependency(
-                    this,
-                    name,
-                    testOnly,
-                    implicit,
-                    modules
-                        .filter {
-                            one =>
-                            one.name() == name &&
-                                (
-                                    one.resolutionScope() == resolutionScope() ||
-                                        (name == "std" && one.resolutionScope().isEmpty())
-                                )
-                        },
-                    binaries.filter { one => one.name == name }
-                )
+        func dependency(
+            name: String,
+            isTestOnly!: Bool = false,
+            isImplicit!: Bool = false
+        ): SemanticDependency {
+            SemanticDependency(
+                this,
+                name,
+                modules
+                    .filter {
+                        one =>
+                        one.name() == name &&
+                            (
+                                one.resolutionScope() == resolutionScope() ||
+                                    (name == "std" && one.resolutionScope().isEmpty())
+                            )
+                    },
+                binaries.filter { one => one.name == name },
+                isTestOnly: isTestOnly,
+                isImplicit: isImplicit
             )
         }
-        for (name in identity.deps(db)) {
-            add(name, false, false)
+        let ordinary = identity.deps(db)
+        let declared = ordinary
+            .map { name => dependency(name) }
+            .concat(identity.testDeps(db).map { name => dependency(name, isTestOnly: true) })
+        if (ordinary.contains("std")) {
+            declared
+        } else {
+            declared.concat([dependency("std", isImplicit: true)])
         }
-        for (name in identity.testDeps(db)) {
-            add(name, true, false)
-        }
-        if (!identity.deps(db).contains("std")) {
-            add("std", false, true)
-        }
-        result.toArray()
     }
 }
 
-/** Loaded origin, independent of a declaration's navigation source. */
+/**
+ * Loaded origin, independent of a declaration's navigation source.
+ */
 @Derive[Equatable]
 public enum SemanticPackageOrigin {
     | WorkspacePackage
@@ -224,7 +267,9 @@ public enum SemanticPackageOrigin {
     | AttachedPackage
 }
 
-/** A contextual package. Attached source retains its detached identity, not its binary's. */
+/**
+ * A contextual package. Attached source retains its detached identity, not its binary's.
+ */
 public class SemanticPackage {
     SemanticPackage(let analysis: SemanticAnalysis, public let identity: PackageRef) {}
 
@@ -267,7 +312,7 @@ public class SemanticPackage {
     }
 
     public func isWorkspaceMember(): Bool {
-        module().map { one => one.isWorkspaceMember() } ?? false
+        module()?.isWorkspaceMember() ?? false
     }
 
     public func origin(): SemanticPackageOrigin {
@@ -279,14 +324,16 @@ public class SemanticPackage {
         }
     }
 
-    /** Detached source contexts attached to this binary; empty without loaded attachments. */
+    /**
+     * Detached source contexts attached to this binary; empty without loaded attachments.
+     */
     public func attachedSources(): Array<SemanticPackage> {
         let db = analysis.db
         db.unwindIfCancelled()
-        let binary = this.binary() ?? return []
+        let binary = binary() ?? return []
         analysis
             .project()
-            .getOrThrow()
+            .getOrThrow { IllegalStateException("project inputs must be loaded") }
             .packages()
             .filter {
                 pkg =>
@@ -311,7 +358,9 @@ public class SemanticPackage {
         }
     }
 
-    /** Source identities whose text is not loaded; empty for binaries. */
+    /**
+     * Source identities whose text is not loaded; empty for binaries.
+     */
     public func unavailableFiles(): Array<FileId> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -330,13 +379,10 @@ public class SemanticPackage {
         let db = analysis.db
         db.unwindIfCancelled()
         let index = packageIndex(db)
-        let result = ArrayList<SemanticPackage>()
-        for ((name, _) in index.packages) {
-            if (let Some(pkg) <- index.find(name, from: identity, ofTests: ofTests)) {
-                result.add(SemanticPackage(analysis, pkg))
-            }
-        }
-        result.toArray()
+        index.packages |>
+            filterMap { entry => index.find(entry[0], from: identity, ofTests: ofTests) } |>
+            map { pkg => SemanticPackage(analysis, pkg) } |>
+            collectArray
     }
 
     /**
@@ -353,7 +399,7 @@ public class SemanticPackage {
             }
         analysis
             .project()
-            .getOrThrow()
+            .getOrThrow { IllegalStateException("project inputs must be loaded") }
             .packages()
             .filter {
                 one =>
@@ -375,19 +421,18 @@ public class SemanticPackage {
         let target = binary().map { pkg => pkg.identity } ?? identity
         let result = ArrayList<SemanticImport>()
         let unavailable = ArrayList<SemanticPackage>()
-        for (pkg in analysis.project().getOrThrow().packages()) {
+        for (
+            pkg in analysis
+                .project()
+                .getOrThrow { IllegalStateException("project inputs must be loaded") }
+                .packages()
+        ) {
             match (pkg.imports(stage: stage)) {
                 case Some(imports) =>
                     if (!pkg.unavailableFiles().isEmpty()) {
                         unavailable.add(pkg)
                     }
-                    result.add(
-                        all: imports
-                            .filter {
-                                one =>
-                                one.target.map { pkg => pkg.identity == target } ?? false
-                            }
-                    )
+                    result.add(all: imports.filter { one => one.target?.identity == Some(target) })
                 case None => unavailable.add(pkg)
             }
         }
@@ -406,7 +451,9 @@ public class SemanticPackage {
         Some(files().flatMap { file => file.imports(stage: stage) ?? [] })
     }
 
-    /** Exports include re-export visibility. Cycles are explicit, not an empty success. */
+    /**
+     * Exports include re-export visibility. Cycles are explicit, not an empty success.
+     */
     public func exports(stage!: ScopeStage = ScopeStage.Expanded): SemanticExports {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -418,33 +465,11 @@ public class SemanticPackage {
         for (map in [exports.names, exports.ctors]) {
             for ((name, defs) in map) {
                 for (def in defs) {
-                    let target = analysis.object(NamedIdentity(Definition.DeclDef(def.id)))
-                    let sites =
-                        routes
-                            .filter {
-                                route =>
-                                route
-                                    .names
-                                    .iterator()
-                                    .any {
-                                        binding =>
-                                        binding.name == name &&
-                                            binding.target.identity == target.identity
-                                    }
-                            }
-                    if (sites.isEmpty()) {
-                        result.add(SemanticBinding(name, target, def.visibility, None, stage))
-                    } else {
-                        for (route in sites) {
-                            result.add(
-                                SemanticBinding(name, target, def.visibility, route.site, stage)
-                            )
-                        }
-                    }
+                    result.add(all: exportedBindings(name, def.id, def.visibility, routes, stage))
                 }
             }
         }
-        let available =
+        let isAvailable =
             match (identity) {
                 case Binary(pkg) => !binaryItemTrees(db, pkg).isEmpty()
                 case Source(pkg) =>
@@ -456,7 +481,33 @@ public class SemanticPackage {
                                 true
                         )
             }
-        SemanticExports(result.toArray(), exports.cyclic, available)
+        SemanticExports(result.toArray(), isCyclic: exports.cyclic, isAvailable: isAvailable)
+    }
+
+    private func exportedBindings(
+        name: String,
+        id: DefId,
+        visibility: Visibility,
+        routes: Array<SemanticImport>,
+        stage: ScopeStage
+    ): Array<SemanticBinding> {
+        let target = analysis.object(NamedIdentity(Definition.DeclDef(id)))
+        let sites =
+            routes
+                .filter {
+                    route =>
+                    route
+                        .names
+                        .any {
+                            binding =>
+                            binding.name == name && binding.target.identity == target.identity
+                        }
+                }
+        if (sites.isEmpty()) {
+            [SemanticBinding(name, target, visibility, None, stage)]
+        } else {
+            sites.map { route => SemanticBinding(name, target, visibility, route.site, stage) }
+        }
     }
 
     public func configuration(): ?SemanticConfiguration {
@@ -464,11 +515,21 @@ public class SemanticPackage {
         db.unwindIfCancelled()
         match (identity) {
             case Source(pkg) where pkg.binary(db).isSome() =>
-                Some(SemanticConfiguration(db.project().getOrThrow().cfg(db)))
+                Some(
+                    SemanticConfiguration(
+                        db
+                            .project()
+                            .getOrThrow { IllegalStateException("project inputs must be loaded") }
+                            .cfg(db)
+                    )
+                )
             case Source(pkg) =>
                 let base =
-                    module().map { one => one.configuration().cfg } ??
-                        db.project().getOrThrow().cfg(db)
+                    module()?.configuration().cfg ??
+                        db
+                            .project()
+                            .getOrThrow { IllegalStateException("project inputs must be loaded") }
+                            .cfg(db)
                 Some(
                     SemanticConfiguration(pkg.cfg(db).map { own => base.overriddenBy(own) } ?? base)
                 )
@@ -477,8 +538,10 @@ public class SemanticPackage {
     }
 }
 
-/** Reverse written-import evidence with explicit missing-source and binary graph gaps. */
-public class SemanticImporters {
+/**
+ * Reverse written-import evidence with explicit missing-source and binary graph gaps.
+ */
+public struct SemanticImporters {
     SemanticImporters(
         public let entries: Array<SemanticImport>,
         public let unavailablePackages: Array<SemanticPackage>
@@ -486,7 +549,9 @@ public class SemanticImporters {
 }
 
 extend SemanticObject {
-    /** Context of the identity itself; never reconstructed through its navigation location. */
+    /**
+     * Context of the identity itself; never reconstructed through its navigation location.
+     */
     public func contextualPackage(): ?SemanticPackage {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -512,6 +577,9 @@ extend SemanticLocation {
     }
 }
 
+/**
+ * The contextual item file owning an identity, absent for packages and built-ins.
+ */
 func semanticIdentityFile(db: AnalysisDatabase, identity: SemanticIdentity): ?ItemFile {
     match (identity) {
         case NamedIdentity(DeclDef(owner)) => owner.file(db)

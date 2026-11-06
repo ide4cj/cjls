@@ -129,7 +129,8 @@ extend SemanticObject {
      * currently unavailable, matching findReferences rather than pretending expansion completeness.
      * Explicit inPackages searches those contextual files instead of the default reference scope.
      * It also reads scope aliases, allowing reverse import traversal through renamed re-exports.
-     * Packages must originate from this same SemanticAnalysis; binaries have no written usages.
+     * Binaries have no written usages.
+     * @throws IllegalArgumentException - if a package belongs to another SemanticAnalysis.
      */
     public func usages(inPackages!: ?Array<SemanticPackage> = None): ?SemanticUsages {
         let db = analysis.db
@@ -139,29 +140,7 @@ extend SemanticObject {
         if (names.isEmpty()) {
             return SemanticUsages([], ["unsupported-name"])
         }
-        let from = relationshipFile(definition)
-        let files =
-            if (let Some(packages) <- inPackages) {
-                let files = ArrayList<SourceFile>()
-                for (pkg in packages) {
-                    if (!refEq(pkg.analysis, analysis)) {
-                        throw IllegalArgumentException(
-                            "usage scope must belong to the same SemanticAnalysis"
-                        )
-                    }
-                    for (file in pkg.files()) {
-                        if (let Source(source) <- file.identity && !files.contains(source)) {
-                            files.add(source)
-                        }
-                    }
-                }
-                files.toArray()
-            } else if (let Some(file) <- from) {
-                searchScope(db, [definition], file)
-            } else {
-                let scope = relationshipScope(db)
-                scope.files.toArray()
-            }
+        let files = usageFiles(definition, inPackages: inPackages)
         let hashes = names.map { name => wordHash(name) }
         let found = ArrayList<SemanticUsage>()
         for (file in files) {
@@ -171,33 +150,13 @@ extend SemanticObject {
             if (inPackages.isNone() && !hashes.any { hash => fileWords(db, file).has(hash) }) {
                 continue
             }
-            let root = parse(db, file).syntaxNode()
-            let active = ActiveFilter.of(db, file)
-            let scopeNames: Array<String> =
-                if (inPackages.isSome()) {
-                    (SemanticFile(analysis, ItemFile.Source(file)).visibleNames() ?? [])
-                        .filter { binding => binding.target.identity == identity }
-                        .map { binding => binding.name }
-                } else {
-                    []
-                }
-            let candidates = names.concat(scopeNames)
-            let aliases = aliasesIn(db, file, root, candidates, [definition])
-            for (token in namesMeaning(db, file, root, candidates.concat(aliases), [definition])) {
-                if (token.parent.ancestors().any { node => !active.isActive(node) }) {
-                    continue
-                }
-                let itemFile = ItemFile.Source(file)
-                found.add(
-                    SemanticUsage(
-                        this,
-                        analysis.location(itemFile, token.textRange, token.textRange),
-                        semanticUsageOwner(analysis, itemFile, token),
-                        accessOf(token),
-                        declares(token)
-                    )
-                )
-            }
+            addUsagesInFile(
+                found,
+                file,
+                definition,
+                names,
+                includeScopeAliases: inPackages.isSome()
+            )
         }
         let gaps = ArrayList<String>(["macro-origin-usages"])
         if (
@@ -215,6 +174,72 @@ extend SemanticObject {
             gaps.add("binary-source-usages")
         }
         SemanticUsages(found.toArray(), gaps.toArray())
+    }
+
+    private func usageFiles(
+        definition: Definition,
+        inPackages!: ?Array<SemanticPackage>
+    ): Array<SourceFile> {
+        let db = analysis.db
+        let from = relationshipFile(definition)
+        if (let Some(packages) <- inPackages) {
+            let files = ArrayList<SourceFile>()
+            for (pkg in packages) {
+                if (!refEq(pkg.analysis, analysis)) {
+                    throw IllegalArgumentException(
+                        "usage scope must belong to the same SemanticAnalysis"
+                    )
+                }
+                for (file in pkg.files()) {
+                    if (let Source(source) <- file.identity && !files.contains(source)) {
+                        files.add(source)
+                    }
+                }
+            }
+            files.toArray()
+        } else if (let Some(file) <- from) {
+            searchScope(db, [definition], file)
+        } else {
+            let scope = relationshipScope(db)
+            scope.files.toArray()
+        }
+    }
+
+    private func addUsagesInFile(
+        found: ArrayList<SemanticUsage>,
+        file: SourceFile,
+        definition: Definition,
+        names: Array<String>,
+        includeScopeAliases!: Bool
+    ): Unit {
+        let db = analysis.db
+        let root = parse(db, file).syntaxNode()
+        let active = ActiveFilter.of(db, file)
+        let scopeNames: Array<String> =
+            if (includeScopeAliases) {
+                (SemanticFile(analysis, ItemFile.Source(file)).visibleNames() ?? [])
+                    .filter { binding => binding.target.identity == identity }
+                    .map { binding => binding.name }
+            } else {
+                []
+            }
+        let candidates = names.concat(scopeNames)
+        let aliases = aliasesIn(db, file, root, candidates, [definition])
+        for (token in namesMeaning(db, file, root, candidates.concat(aliases), [definition])) {
+            if (token.parent.ancestors().any { node => !active.isActive(node) }) {
+                continue
+            }
+            let itemFile = ItemFile.Source(file)
+            found.add(
+                SemanticUsage(
+                    this,
+                    analysis.location(itemFile, token.textRange, token.textRange),
+                    semanticUsageOwner(analysis, itemFile, token),
+                    accessOf(token),
+                    declares(token)
+                )
+            )
+        }
     }
 
     func relationshipDefinition(): ?Definition {

@@ -58,6 +58,8 @@ class SemanticProjectTest {
         @Expect(lib.writtenImporters().entries[0].file.contextualPackage().getOrThrow().name(), "bridge")
         @Expect(lib.potentialDependents().map { pkg => pkg.name() }.contains("unused"))
         @Expect(!lib.potentialDependents().map { pkg => pkg.name() }.contains("app"))
+
+        // act
         let reverse =
             lib.writtenImporters().entries.map { one => one.file.contextualPackage().getOrThrow() }
         let downstream =
@@ -65,9 +67,10 @@ class SemanticProjectTest {
                 .writtenImporters()
                 .entries
                 .map { one => one.file.contextualPackage().getOrThrow() }
-        @Expect(target.usages(inPackages: reverse.concat(downstream)).getOrThrow().entries.any { use =>
-            use.location.excerpt() == Some("alias")
-        })
+        let usages = target.usages(inPackages: reverse.concat(downstream)).getOrThrow()
+
+        // assert
+        @Expect(usages.entries.any { use => use.location.excerpt() == Some("alias") })
         @Expect(bridge.exports().names[0].site.isSome())
         @Expect(file.visibleNames().getOrThrow().any { name => name.name == "alias" && name.site.isSome() })
         @Expect(analysis.project().getOrThrow().files().size, 4)
@@ -187,7 +190,7 @@ class SemanticProjectTest {
         @Expect(plainImport.error.isSome())
         @Expect(testImport.error.isNone())
         @Expect(testImport.names.size, 1)
-        @Expect(pkg.module().getOrThrow().dependencies()[0].testOnly)
+        @Expect(pkg.module().getOrThrow().dependencies()[0].isTestOnly)
         @Expect(!pkg.permittedPackages().any { one => one.name() == "helper" })
         @Expect(pkg.permittedPackages(ofTests: true).any { one => one.name() == "helper" })
         @Expect(plain.implicitImports().getOrThrow().size, 1)
@@ -224,7 +227,7 @@ class SemanticProjectTest {
 
         // assert
         @Expect(cfg.cfg.get("os"), Some("Linux"))
-        @Expect(!cfg.completeCompilerInvocation)
+        @Expect(!cfg.hasCompleteCompilerInvocation)
         @Expect(cfg.loadingProblems.isNone())
         @Expect(cfg.selectionProvenance.isNone())
         @Expect(cfg.selectedSourceSets.isNone())
@@ -409,8 +412,11 @@ class SemanticProjectTest {
         let target = first.at(at.fileId, at.offset).getOrThrow().definitions.getOrThrow()[0]
         let otherPackages = second.project().getOrThrow().packages()
 
-        // act / assert
-        @AssertThrows[IllegalArgumentException](target.usages(inPackages: otherPackages))
+        // act
+        let search = { => target.usages(inPackages: otherPackages) }
+
+        // assert
+        @AssertThrows[IllegalArgumentException](search())
     }
 
     @TestCase
@@ -436,12 +442,12 @@ class SemanticProjectTest {
         // assert
         @Expect(project.binaries(), [selected])
         @Expect(!dependencies[0].isResolved)
-        @Expect(dependencies[1].implicit)
+        @Expect(dependencies[1].isImplicit)
         @Expect(dependencies[1].isResolved)
         @Expect(project.packages().any { pkg => pkg.name() == "std.core" })
         @Expect(project.configuration().cfg.get("os"), Some("Linux"))
         @Expect(project.configuration().selectionProvenance.isNone())
-        @Expect(!project.configuration().completeCompilerInvocation)
+        @Expect(!project.configuration().hasCompleteCompilerInvocation)
     }
 
     @TestCase
