@@ -386,6 +386,8 @@ including their constructors, fields, properties and methods. Immutable fields
 remain read-only. The bindings are built on all native platforms; `runPython`
 currently supports native Linux x86_64 and returns an unsupported-platform tool
 error elsewhere. Cross compilation of the Python exports has not been verified.
+Constructors hidden with `@PyIgnore` follow the ordinary-`init` exception in
+[C2](../../docs/design/03-conventions.md#c2-primary-constructors).
 Exported value types implement equality, hashing and string conversion directly
 in their declarations so `@DerivePython` can bind those native methods without
 standard deriving or special trait modes.
