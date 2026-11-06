@@ -48,7 +48,8 @@ public func withPackageCfgs(model: ProjectModel, problems: ArrayList<String>): P
                     resolutionScope: module.resolutionScope,
                     member: module.member,
                     cfg: module.cfg,
-                    inactive: module.inactive
+                    inactive: module.inactive,
+                    nativeLibraries: module.nativeLibraries
                 )
             }
     ProjectModel(model.cfg, modules, binaries: model.binaries)

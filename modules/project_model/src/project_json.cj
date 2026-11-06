@@ -70,7 +70,11 @@ public struct ModuleJson {
         /**
          * Independent source selection; absent for the ordinary project graph.
          */
-        public let resolutionScope!: ?String = None
+        public let resolutionScope!: ?String = None,
+        /**
+         * Native linker names to directories, relative to the project file.
+         */
+        public let nativeLibraries!: ?HashMap<String, String> = None
     ) {}
 }
 

@@ -20,7 +20,8 @@ public struct MacroBuildUnit {
         public let module: String,
         public let isMacro: Bool,
         public let deps: Array<Package>,
-        public let binaries: Array<VfsPath>
+        public let binaries: Array<VfsPath>,
+        public let nativeLibraries!: Array<NativeLibrary> = []
     ) {}
 }
 
@@ -59,7 +60,13 @@ public func macroBuildPlan(db: AnalysisDatabase): Array<MacroBuildUnit> {
             modules[pkg] = module.name(db)
         }
     }
-    let planner = MacroBuildPlanner(db, modules)
+    let native = HashMap<Package, Array<NativeLibrary>>()
+    for (module in project.modules(db)) {
+        for (pkg in module.packages(db)) {
+            native[pkg] = module.nativeLibraries(db)
+        }
+    }
+    let planner = MacroBuildPlanner(db, modules, native)
     for (module in project.modules(db)) {
         for (pkg in module.packages(db) where isMacroPackage(db, pkg)) {
             planner.visit(pkg)
@@ -76,7 +83,8 @@ class MacroBuildPlanner {
 
     MacroBuildPlanner(
         private let db: AnalysisDatabase,
-        private let modules: HashMap<Package, String>
+        private let modules: HashMap<Package, String>,
+        private let native: HashMap<Package, Array<NativeLibrary>>
     ) {}
 
     func visit(pkg: Package): (Array<Package>, Array<VfsPath>) {
@@ -108,7 +116,14 @@ class MacroBuildPlanner {
         let done = (deps.toArray(), binaries.toArray())
         linked[pkg] = done
         units.add(
-            MacroBuildUnit(pkg, modules.get(pkg) ?? "", isMacroPackage(db, pkg), done[0], done[1])
+            MacroBuildUnit(
+                pkg,
+                modules.get(pkg) ?? "",
+                isMacroPackage(db, pkg),
+                done[0],
+                done[1],
+                nativeLibraries: done[0].concat([pkg]).flatMap { one => native.get(one) ?? [] }
+            )
         )
         done
     }

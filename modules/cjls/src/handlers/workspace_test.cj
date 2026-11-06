@@ -1669,6 +1669,23 @@ func registrationsOf(request: RequestBody): Array<Registration> {
 @Test
 class BinaryWatchTest {
     @TestCase
+    func nativeDirectoriesAreWatchedWithoutMakingThemCangjieBinaries(): Unit {
+        // arrange
+        let dir = VfsPath.file(getTempDirectory().join("cjls-native"))
+        // act
+        let watch = BinaryWatch(None, [], [], nativeDirs: [dir])
+        // assert
+        @Expect(watch.covers(dir))
+        @Expect(watch.covers(dir.join("libvalue.a")))
+        @Expect(watch.covers(dir.join("libvalue.so")))
+        @Expect(!watch.covers(dir.join("deep/libvalue.a")))
+        let watched = describedWatchers(binaryRegistration("native", watch, false))
+        let path = dir.toString().replace("\\", "/")
+        @Expect(watched[0], "${path}/* 7")
+        @Expect(watched[1], "${path} 5")
+    }
+
+    @TestCase
     func theCjoOfTheBinariesAreWatchedFromTheDirectoriesTheyAreIn() {
         // arrange
         let dir = binariesWorkspace()

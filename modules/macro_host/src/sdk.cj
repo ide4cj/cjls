@@ -79,8 +79,8 @@ public class SdkToolchain <: Toolchain {
         this.environment = sdkToolEnvironment(variables, paths.runtimeLib)
     }
 
-    public func compile(arguments: Array<String>): (Int64, String) {
-        let (code, out, err) = run(arguments)
+    public func compile(arguments: Array<String>, nativeDirectories: Array<Path>): (Int64, String) {
+        let (code, out, err) = run(arguments, nativeDirectories: nativeDirectories)
         (code, err + out)
     }
 
@@ -92,12 +92,20 @@ public class SdkToolchain <: Toolchain {
         if (code == 0) { out.trimAscii() } else { None }
     }
 
-    private func run(arguments: Array<String>): (Int64, String, String) {
+    private func run(
+        arguments: Array<String>,
+        nativeDirectories!: Array<Path> = []
+    ): (Int64, String, String) {
+        let toolEnvironment = nativeToolEnvironment(
+            environment,
+            paths.runtimeLib,
+            nativeDirectories
+        )
         try {
             let (code, out, err) = executeWithOutput(
                 paths.cjc.toString(),
                 arguments,
-                environment: environment
+                environment: toolEnvironment
             )
             (code, String.fromUtf8(out), String.fromUtf8(err))
         } catch (e: ProcessException) {
@@ -112,4 +120,24 @@ public class SdkToolchain <: Toolchain {
  */
 public func tokenNumbersOf(paths: MacroServerPaths, version: String): ?TokenNumbers {
     TokenNumbers.read(paths.tokensInc) ?? TokenNumbers.builtin(version)
+}
+
+/**
+ * The compiler's loader paths, with the selected SDK protected from native dependencies.
+ */
+func nativeToolEnvironment(
+    environment: HashMap<String, String>,
+    runtimeLib: Path,
+    nativeDirectories: Array<Path>
+): HashMap<String, String> {
+    var toolEnvironment = environment
+    // sdkToolEnvironment prepends: walk backwards to keep the linker's first directory first.
+    for (offset in 0..nativeDirectories.size) {
+        let dir = nativeDirectories[nativeDirectories.size - offset - 1]
+        toolEnvironment = sdkToolEnvironment(toolEnvironment.toArray(), dir)
+    }
+    if (!nativeDirectories.isEmpty()) {
+        toolEnvironment = sdkToolEnvironment(toolEnvironment.toArray(), runtimeLib)
+    }
+    toolEnvironment
 }

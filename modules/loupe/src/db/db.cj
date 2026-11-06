@@ -379,6 +379,12 @@ public class AnalysisDatabase <: Database {
                 if (old.inactive != model.inactive || old.durability != durability) {
                     module.setInactive(this).withDurability(durability).to(inactive)
                 }
+                if (old.nativeLibraries != model.nativeLibraries || old.durability != durability) {
+                    module
+                        .setNativeLibraries(this)
+                        .withDurability(durability)
+                        .to(model.nativeLibraries)
+                }
                 projects.modules.add(model.key, (module, model))
                 module
             case None =>
@@ -393,6 +399,7 @@ public class AnalysisDatabase <: Database {
                     model.member,
                     model.cfg,
                     inactive,
+                    nativeLibraries: model.nativeLibraries,
                     durability: durability
                 )
                 projects.modules.add(model.key, (module, model))

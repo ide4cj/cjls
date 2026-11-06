@@ -12,11 +12,13 @@ import platform.sharedLibrarySuffix
  */
 class FakeToolchain <: Toolchain {
     let calls = ArrayList<Array<String>>()
+    let nativeCalls = ArrayList<Array<Path>>()
 
     FakeToolchain(let failing!: Array<String> = []) {}
 
-    public func compile(arguments: Array<String>): (Int64, String) {
+    public func compile(arguments: Array<String>, nativeDirectories: Array<Path>): (Int64, String) {
         calls.add(arguments)
+        nativeCalls.add(nativeDirectories)
         let dir = arguments
             .iterator()
             .filter { a => a.startsWith("--output-dir=") }
@@ -63,6 +65,98 @@ func unit(src: Path, name: String, isMacro!: Bool = false, deps!: Array<String> 
 
 @Test
 class MacroBuilderTest {
+    @TestCase
+    func conflictingNativeNamesReportABuildFailureBeforeLinking(): Unit {
+        // arrange
+        let (src, out) = sources(["ms"])
+        try {
+            let toolchain = FakeToolchain()
+            let build = BuildUnit(
+                "m.ms",
+                "m",
+                src.join("ms"),
+                true,
+                [],
+                [],
+                nativeLibraries: [("value", src.join("one")), ("value", src.join("two"))]
+            )
+
+            // act
+            let built = MacroBuilder(out, "cjc 1", toolchain).build([build]).getOrThrow()
+
+            // assert
+            @Expect(toolchain.calls.size, 0)
+            match (built["m.ms"]) {
+                case NotBuilt(reason) =>
+                    @Expect(reason.contains("Conflicting native library `value`"))
+                case _ => @Fail("conflicting native inputs must not produce a library")
+            }
+        } finally {
+            remove(src.parent, recursive: true)
+        }
+    }
+
+    @TestCase
+    func nativeLibrariesLinkMacrosWithoutBecomingImportPathsAndInvalidateCache(): Unit {
+        // arrange
+        let (src, out) = sources(["ms"])
+        try {
+            let native = src.join("native")
+            Directory.create(native)
+            File.writeTo(native.join("libvalue.a"), "first".toArray())
+            let toolchain = FakeToolchain()
+            let builder = MacroBuilder(out, "cjc 1", toolchain)
+            let build = BuildUnit(
+                "m.ms",
+                "m",
+                src.join("ms"),
+                true,
+                [],
+                [],
+                nativeLibraries: [("value", native)]
+            )
+
+            // act
+            let first = builder.build([build]).getOrThrow()
+            let cached = builder.build([build]).getOrThrow()
+
+            // assert
+            @Expect(toolchain.calls.size, 1)
+            @Expect(stampOf(first, "m.ms"), stampOf(cached, "m.ms"))
+            @Expect(toolchain.calls[0].contains("-lvalue"))
+            @Expect(toolchain.nativeCalls[0], [native])
+            @Expect(toolchain.calls[0].contains(native.toString()))
+            @Expect(!toolchain.calls[0].contains("--import-path=${native}"))
+
+            // act: size changes avoid depending on filesystem timestamp granularity.
+            File.writeTo(native.join("libvalue.a"), "replacement".toArray())
+            let second = builder.build([build]).getOrThrow()
+
+            // assert
+            @Expect(toolchain.calls.size, 2)
+            @Expect(stampOf(first, "m.ms") != stampOf(second, "m.ms"))
+
+            // act
+            let changed = BuildUnit(
+                "m.ms",
+                "m",
+                src.join("ms"),
+                true,
+                [],
+                [],
+                nativeLibraries: [("other", native)]
+            )
+            let third = builder.build([changed]).getOrThrow()
+
+            // assert
+            @Expect(toolchain.calls.size, 3)
+            @Expect(toolchain.calls[2].contains("-lother"))
+            @Expect(stampOf(second, "m.ms") != stampOf(third, "m.ms"))
+        } finally {
+            remove(src.parent, recursive: true)
+        }
+    }
+
     @TestCase
     func aMacroPackageIsBuiltAfterWhatItImportsWithCjpmsArguments() {
         // arrange

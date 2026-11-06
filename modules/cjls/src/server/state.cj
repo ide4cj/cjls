@@ -12,26 +12,28 @@ import rope.{Encoding, Rope}
 
 /**
  * The `.cjo` of a project's binaries (D38), as an event reports them: every one in the
- * directories of theirs, each directory come or gone too, and those named one by one; and the id
+ * directories of theirs, each directory come or gone too, and those named one by one; native
+ * linker search directories and their direct children; and the id
  * of the registration the client watches them by, to unregister it by, `None` if it does not.
  */
 public struct BinaryWatch {
     public BinaryWatch(
         public let id: ?String,
         public let dirs: Array<VfsPath>,
-        public let files: Array<VfsPath>
+        public let files: Array<VfsPath>,
+        public let nativeDirs!: Array<VfsPath> = []
     ) {}
 
     /**
      * Whether an event at `path` is of what is watched: a `.cjo` in one of `dirs`, one of `files`,
-     * or one of `dirs` itself, come or gone as a whole.
+     * one of `dirs` itself, or a native directory or its direct child.
      */
     public func covers(path: VfsPath): Bool {
-        if (files.contains(path) || dirs.contains(path)) {
+        if (files.contains(path) || dirs.contains(path) || nativeDirs.contains(path)) {
             return true
         }
         let parent = path.parent ?? return false
-        path.name.endsWith(".cjo") && dirs.contains(parent)
+        (path.name.endsWith(".cjo") && dirs.contains(parent)) || nativeDirs.contains(parent)
     }
 }
 

@@ -19,7 +19,8 @@ public struct BuildUnit {
         public let dir: Path,
         public let isMacro: Bool,
         public let deps: Array<(String, String)>,
-        public let binaries: Array<Path>
+        public let binaries: Array<Path>,
+        public let nativeLibraries!: Array<(String, Path)> = []
     ) {}
 }
 
@@ -37,9 +38,10 @@ public enum BuiltLibrary {
  */
 public interface Toolchain {
     /**
-     * Runs `cjc` with `arguments`: its exit code and what it wrote to stderr and stdout.
+     * Runs `cjc` with `arguments`, loading macro native dependencies from `nativeDirectories`.
+     * Returns its exit code and what it wrote to stderr and stdout.
      */
-    func compile(arguments: Array<String>): (Int64, String)
+    func compile(arguments: Array<String>, nativeDirectories: Array<Path>): (Int64, String)
 }
 
 /**
@@ -104,6 +106,15 @@ public class MacroBuilder {
                 return NotBuilt("${dep}, which it imports, did not build")
             }
         }
+        let nativeDirs = HashMap<String, Path>()
+        for ((name, dir) in unit.nativeLibraries) {
+            if (let Some(previous) <- nativeDirs.get(name) && previous != dir) {
+                return NotBuilt(
+                    "Conflicting native library `${name}` search directories: ${previous} and ${dir}; align the ffi.c declarations."
+                )
+            }
+            nativeDirs[name] = dir
+        }
         let dir = out.join(unit.module)
         let output = dir.join(outputName(unit))
         let stampFile = dir.join("${unit.name}.stamp")
@@ -119,7 +130,10 @@ public class MacroBuilder {
         } catch (e: FSException) {
             return NotBuilt("${dir} cannot be made: ${e.message}")
         }
-        let (code, said) = toolchain.compile(argumentsOf(unit, macros))
+        let (code, said) = toolchain.compile(
+            argumentsOf(unit, macros),
+            unit.nativeLibraries.map { lib => lib[1] }
+        )
         if (code != 0 || !exists(output)) {
             return NotBuilt(if (said.isEmpty()) { "cjc exited with ${code}" } else { said })
         }
@@ -160,6 +174,10 @@ public class MacroBuilder {
                     arguments.add(all: ["-L", parent.toString(), "-l${stemOf(cjo)}"])
                 }
             }
+            let nativeNames = HashSet<String>()
+            for ((name, dir) in unit.nativeLibraries where nativeNames.add(name)) {
+                arguments.add(all: ["-L", dir.toString(), "-l${name}"])
+            }
             arguments.add("--compile-macro")
         } else {
             arguments.add(all: ["--output-type=staticlib", "-o=lib${unit.name}.a"])
@@ -182,6 +200,26 @@ public class MacroBuilder {
         for (cjo in unit.binaries) {
             text.append("\u{0}${cjo}=${timeOf(cjo)}")
         }
+        for ((name, dir) in unit.nativeLibraries) {
+            text.append("\u{0}${name}=${dir}")
+            // Both static archives and shared libraries can satisfy -l; stamp the directory's
+            // matching candidates so replacing a native library invalidates a cached macro.
+            let candidates = ArrayList<String>()
+            try {
+                for (
+                    entry in Directory.readFrom(dir) where (
+                        entry.name.startsWith("lib${name}.") || entry.name.startsWith("${name}.")
+                    )
+                ) {
+                    candidates.add("${entry.name}=${entry.size}:${timeOf(entry.path)}")
+                }
+            } catch (_: FSException) {}
+            let sorted = candidates.toArray()
+            sort(sorted)
+            for (candidate in sorted) {
+                text.append("\u{0}${candidate}")
+            }
+        }
         text.toString().hashCode()
     }
 }
@@ -203,9 +241,7 @@ func outputName(unit: BuildUnit): String {
 func sourcesOf(dir: Path): Array<String> {
     let found = ArrayList<String>()
     try {
-        for (
-            entry in Directory.readFrom(dir) where entry.isRegular() && entry.name.endsWith(".cj")
-        ) {
+        for (entry in Directory.readFrom(dir) where entry.name.endsWith(".cj")) {
             found.add("${entry.name}:${entry.size}:${timeOf(entry.path)}")
         }
     } catch (_: Exception) {}
