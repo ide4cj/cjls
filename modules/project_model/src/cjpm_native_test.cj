@@ -66,6 +66,7 @@ private = {path = "native"}
                 ("helper/src/lib.cj", "package helper\npublic class Helper {}")
             ]
         )
+
         try {
             // act
             let load = loadCjpmProject(
@@ -87,6 +88,7 @@ private = {path = "native"}
             )
             let merged = ProjectModel.merge([load.model, load.model], LINUX)
             let (db, vfs) = testDependencyDatabase(load.model)
+
             // assert
             @Expect(load.problems, [])
             @Expect(problems.isEmpty())
@@ -148,15 +150,18 @@ foreign = {path = "native"}
                 ("helper/src/lib.cj", "package helper\npublic class Helper {}")
             ]
         )
+
         try {
             // act
             let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv, cfg: LINUX).getOrThrow()
             let (db, vfs) = testDependencyDatabase(load.model)
             let plan = macroBuildPlan(db)
+
             // assert
             @Expect(load.problems, [])
             @Expect(plan.map { u => u.pkg.name(db) }, ["helper", "app"])
             @Expect(plan[1].nativeLibraries, [NativeLibrary("foreign", dir.join("helper/native")), NativeLibrary("own", dir.join("own"))])
+
             // act
             File.writeTo(
                 dir.join("helper/cjpm.toml").filePath.getOrThrow(),
@@ -213,8 +218,10 @@ selected = {path = "cross"}
                         sdkEnv(name)
                     }
                 }
+
             // act
             let load = loadCjpmProject(dir.join("cjpm.toml"), env: env, cfg: cross).getOrThrow()
+
             // assert
             @Expect(load.problems, [])
             @Expect(load.model.cfg, cross)

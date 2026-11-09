@@ -204,17 +204,19 @@ public class MacroBuilder {
             text.append("\u{0}${name}=${dir}")
             // Both static archives and shared libraries can satisfy -l; stamp the directory's
             // matching candidates so replacing a native library invalidates a cached macro.
-            let candidates = ArrayList<String>()
-            try {
-                for (
-                    entry in Directory.readFrom(dir) where (
-                        entry.name.startsWith("lib${name}.") || entry.name.startsWith("${name}.")
-                    )
-                ) {
-                    candidates.add("${entry.name}=${entry.size}:${timeOf(entry.path)}")
+            let sorted: Array<String> =
+                try {
+                    Directory
+                        .readFrom(dir)
+                        .filter {
+                            entry =>
+                            entry.name.startsWith("lib${name}.") ||
+                                entry.name.startsWith("${name}.")
+                        }
+                        .map { entry => "${entry.name}=${entry.size}:${timeOf(entry.path)}" }
+                } catch (_: FSException) {
+                    []
                 }
-            } catch (_: FSException) {}
-            let sorted = candidates.toArray()
             sort(sorted)
             for (candidate in sorted) {
                 text.append("\u{0}${candidate}")

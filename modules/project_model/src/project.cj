@@ -734,6 +734,9 @@ func linkedProject(
     ProjectLoad(ProjectModel(cfg, []), ProjectFile(path), ["${path} is not there"])
 }
 
+/**
+ * Resolves native linker directories relative to the project file, ordered by library name.
+ */
 private func nativeLibrariesOf(
     module: ModuleJson,
     base: VfsPath,

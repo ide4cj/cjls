@@ -209,11 +209,6 @@ class Watchdog <: Deadlines {
  */
 public class GuardedServer <: Expander {
     private var process: ?MacroServerProcess = None
-    private let paths: MacroServerPaths
-    private let nativeDirectories: Array<Path>
-    private let timeout: Duration
-    private let logger: Logger
-    private let deadlines: Deadlines
 
     public init(
         paths: MacroServerPaths,
@@ -224,19 +219,13 @@ public class GuardedServer <: Expander {
         this(paths, timeout, logger, Watchdog(logger), nativeDirectories: nativeDirectories)
     }
 
-    init(
-        paths: MacroServerPaths,
-        timeout: Duration,
-        logger: Logger,
-        deadlines: Deadlines,
-        nativeDirectories!: Array<Path> = []
-    ) {
-        this.paths = paths
-        this.nativeDirectories = nativeDirectories
-        this.timeout = timeout
-        this.logger = logger
-        this.deadlines = deadlines
-    }
+    GuardedServer(
+        private let paths: MacroServerPaths,
+        private let timeout: Duration,
+        private let logger: Logger,
+        private let deadlines: Deadlines,
+        private let nativeDirectories!: Array<Path> = []
+    ) {}
 
     public func expand(call: MacroCallData): CallOutcome {
         let server =
