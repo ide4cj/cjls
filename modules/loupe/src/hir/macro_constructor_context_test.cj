@@ -99,10 +99,20 @@ private func constructorContextEvidence(
     }
     let (callee, call) = constructors[0]
     (
-        inferred.callOf(callee).getOrThrow().outcome,
-        inferred.callOf(indices[0]).getOrThrow().outcome,
-        inferred[call].getOrThrow().text(db),
-        inferred[indices[0]].getOrThrow().text(db),
+        inferred
+            .callOf(callee)
+            .getOrThrow { IllegalStateException("fixture constructor call evidence is missing") }
+            .outcome,
+        inferred
+            .callOf(indices[0])
+            .getOrThrow { IllegalStateException("fixture setter call evidence is missing") }
+            .outcome,
+        inferred[call]
+            .getOrThrow { IllegalStateException("fixture constructor result type is missing") }
+            .text(db),
+        inferred[indices[0]]
+            .getOrThrow { IllegalStateException("fixture indexed expression type is missing") }
+            .text(db),
         !inferred.diagnostics.isEmpty()
     )
 }

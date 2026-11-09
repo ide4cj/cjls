@@ -206,7 +206,7 @@ class InferTest {
     }
 
     @TestCase
-    func standaloneLambdaPowerConstrainsEachOperandSeparately() {
+    func standaloneLambdaPowerConstrainsEachOperandSeparately(): Unit {
         checkInference(
             #"
             package m
@@ -354,24 +354,36 @@ class InferTest {
             """
         )
         let db = fixture.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
-        let source = db.sourceFile(fixture.files[0].fileId).getOrThrow()
-        let item = itemTree(db, source)
-            .items
-            .iterator()
-            .filter { one => one.kind == ItemKind.Func && one.names == ["test"] }
-            .next()
-            .getOrThrow()
+        let source =
+            db
+                .sourceFile(fixture.files[0].fileId)
+                .getOrThrow { IllegalStateException("fixture source is missing") }
+        let item =
+            itemTree(db, source)
+                .items
+                .iterator()
+                .filter { one => one.kind == ItemKind.Func && one.names == ["test"] }
+                .next()
+                .getOrThrow { IllegalStateException("fixture test function is missing") }
         let def = DefId(db, ItemFile.Source(source), item.id)
         let lowered = body(db, def)
+        let local =
+            (0..lowered.locals.size)
+                .iterator()
+                .filter { i => lowered.locals[i].name == "limited" }
+                .next()
+                .getOrThrow { IllegalStateException("fixture limited binding is missing") }
+
+        // act
         let result = inferBody(db, def)
-        let local = (0..lowered.locals.size)
-            .iterator()
-            .filter { i => lowered.locals[i].name == "limited" }
-            .next()
-            .getOrThrow()
-        @Expect(result.locals[local].kind(db), UnknownTy(UnknownReason.LambdaCandidatesLimit))
-        @Expect(result.diagnostics.isEmpty())
-        @Expect(result.locals.iterator().all { one => !hasInferVars(db, one) })
+        let actual = result.locals[local].kind(db)
+        let noDiagnostics = result.diagnostics.isEmpty()
+        let hasNoInferVars = result.locals.iterator().all { one => !hasInferVars(db, one) }
+
+        // assert
+        @Expect(actual, UnknownTy(UnknownReason.LambdaCandidatesLimit))
+        @Expect(noDiagnostics)
+        @Expect(hasNoInferVars)
     }
 
     @TestCase
@@ -387,21 +399,26 @@ class InferTest {
             "#
         )
         let db = fixture.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
-        let source = db.sourceFile(fixture.files[0].fileId).getOrThrow()
-        let item = itemTree(db, source)
-            .items
-            .iterator()
-            .filter { one => one.kind == ItemKind.Func && one.names == ["test"] }
-            .next()
-            .getOrThrow()
+        let source =
+            db
+                .sourceFile(fixture.files[0].fileId)
+                .getOrThrow { IllegalStateException("fixture source is missing") }
+        let item =
+            itemTree(db, source)
+                .items
+                .iterator()
+                .filter { one => one.kind == ItemKind.Func && one.names == ["test"] }
+                .next()
+                .getOrThrow { IllegalStateException("fixture test function is missing") }
         let def = DefId(db, ItemFile.Source(source), item.id)
 
         let lowered = body(db, def)
-        let local = (0..lowered.locals.size)
-            .iterator()
-            .filter { i => lowered.locals[i].name == "invalid" }
-            .next()
-            .getOrThrow()
+        let local =
+            (0..lowered.locals.size)
+                .iterator()
+                .filter { i => lowered.locals[i].name == "invalid" }
+                .next()
+                .getOrThrow { IllegalStateException("fixture invalid binding is missing") }
 
         // act
         let result = inferBody(db, def)
@@ -426,17 +443,21 @@ class InferTest {
             "#
         )
         let db = fixture.database()
-        let source = db.sourceFile(fixture.files[0].fileId).getOrThrow()
+        let source =
+            db
+                .sourceFile(fixture.files[0].fileId)
+                .getOrThrow { IllegalStateException("fixture source is missing") }
         let items = itemTree(db, source).items
         let field = DefId(db, ItemFile.Source(source), items[0].members[0].id)
         let def = DefId(db, ItemFile.Source(source), items[3].id)
 
         let lowered = body(db, def)
-        let local = (0..lowered.locals.size)
-            .iterator()
-            .filter { i => lowered.locals[i].name == "ambiguous" }
-            .next()
-            .getOrThrow()
+        let local =
+            (0..lowered.locals.size)
+                .iterator()
+                .filter { i => lowered.locals[i].name == "ambiguous" }
+                .next()
+                .getOrThrow { IllegalStateException("fixture ambiguous binding is missing") }
 
         // act
         let unavailable = declaredTyOf(db, field).kind(db)

@@ -1973,13 +1973,13 @@ class Inference {
         let failure =
             if (search.solutions.size > 1) {
                 error
-            } else if (search.limited) {
+            } else if (search.isLimited) {
                 unknown(UnknownReason.LambdaCandidatesLimit)
             } else {
                 search.unavailable ?? error
             }
         let solved: ?Array<Ty> =
-            if (!search.limited && search.unavailable.isNone() && search.solutions.size == 1) {
+            if (!search.isLimited && search.unavailable.isNone() && search.solutions.size == 1) {
                 Some(search.solutions[0])
             } else {
                 None
@@ -2011,14 +2011,14 @@ class Inference {
         hints: Array<?ExtendedType>,
         search: LambdaSearch
     ): Unit {
-        if (search.limited || search.solutions.size > 1) {
+        if (search.isLimited || search.solutions.size > 1) {
             return
         }
         if (index == params.size) {
             // A product of otherwise small member candidate sets can be arbitrarily large.
             // A bounded search must report unavailable analysis, never an invalid lambda.
             if (search.trials >= 128) {
-                search.limited = true
+                search.isLimited = true
                 return
             }
             search.trials++
@@ -2038,7 +2038,7 @@ class Inference {
         for (one in choices[index]) {
             hints[index] = one
             memberLambdaChoices(params, block, choices, index + 1, hints, search)
-            if (search.limited || search.solutions.size > 1) {
+            if (search.isLimited || search.solutions.size > 1) {
                 return
             }
         }

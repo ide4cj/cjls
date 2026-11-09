@@ -1,9 +1,9 @@
 package loupe.hir
 
-import std.collection.*
-import std.deriving.*
+import std.collection.{ArrayList, HashSet}
+import std.deriving.Derive
 import calca.*
-import calca.macros.*
+import calca.macros.CalcaTracked
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 
 /**
@@ -11,7 +11,12 @@ import loupe.db.{AnalysisDatabase, Package, SourceFile}
  */
 @Derive[Equatable, Hashable]
 struct LambdaMemberShape {
-    LambdaMemberShape(let name: String, let isField: Bool, let arity: Int64, let generics: Int64) {}
+    LambdaMemberShape(
+        let name: String,
+        let arity!: Int64,
+        let generics!: Int64,
+        let isField!: Bool
+    ) {}
 }
 
 /**
@@ -71,12 +76,23 @@ func lambdaMemberChoices(
 }
 
 /**
+ * Package and test visibility form one cache key. The named flag belongs here because
+ * tracked-function expansion currently emits positional parameters only.
+ */
+@Derive[Equatable, Hashable]
+struct LambdaMemberContext {
+    LambdaMemberContext(let pkg: Package, let includesTests!: Bool) {}
+}
+
+/**
  * A package's candidate universe depends on declarations and imports, never inferred bodies.
  * Namespace imports deliberately contribute no owners: only explicitly imported declarations
  * and globs participate in the compiler's member-based inference.
  */
 @CalcaTracked
-func lambdaMemberOwners(db: AnalysisDatabase, pkg: Package, ofTests: Bool): Array<ExtendedType> {
+func lambdaMemberOwners(db: AnalysisDatabase, context: LambdaMemberContext): Array<ExtendedType> {
+    let pkg = context.pkg
+    let ofTests = context.includesTests
     let owners = ArrayList<ExtendedType>()
     let known = HashSet<ExtendedType>()
     let add =
@@ -128,7 +144,7 @@ func lambdaOwnersWithMember(
     shape: LambdaMemberShape
 ): Array<ExtendedType> {
     let pkg = packageOfFile(db, file) ?? return []
-    lambdaMemberOwners(db, pkg, isTestOf(db, pkg, file))
+    lambdaMemberOwners(db, LambdaMemberContext(pkg, includesTests: isTestOf(db, pkg, file)))
         .filter { owner => lambdaHasMemberShape(db, owner, shape, file) }
 }
 
@@ -249,7 +265,12 @@ private class LambdaMemberScanner {
                         let FieldExpr(receiver, name, generics) <- hir[callee] &&
                             record(
                                 receiver,
-                                LambdaMemberShape(name, false, args.size, generics.size),
+                                LambdaMemberShape(
+                                    name,
+                                    arity: args.size,
+                                    generics: generics.size,
+                                    isField: false
+                                ),
                                 constrained: constrained
                             )
                     ) {
@@ -261,13 +282,17 @@ private class LambdaMemberScanner {
                 case IndexExpr(receiver, indices) =>
                     record(
                         receiver,
-                        LambdaMemberShape("[]", false, indices.size, 0),
+                        LambdaMemberShape("[]", arity: indices.size, generics: 0, isField: false),
                         constrained: constrained
                     )
                     pending.add((receiver, constrained))
                     pending.add(all: indices.map { one => (one, constrained) })
                 case FieldExpr(receiver, name, _) =>
-                    record(receiver, LambdaMemberShape(name, true, 0, 0), constrained: constrained)
+                    record(
+                        receiver,
+                        LambdaMemberShape(name, arity: 0, generics: 0, isField: true),
+                        constrained: constrained
+                    )
                     pending.add((receiver, constrained))
                 case _ => pending.add(all: children(expr).map { one => (one, constrained) })
             }

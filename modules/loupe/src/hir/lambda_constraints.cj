@@ -89,7 +89,7 @@ class LambdaConstraints {
 class LambdaSearch {
     let solutions = ArrayList<Array<Ty>>()
     var trials = 0
-    var limited = false
+    var isLimited = false
     var unavailable: ?Ty = None
 }
 
