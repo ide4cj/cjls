@@ -1,0 +1,20 @@
+class FileId:
+    """
+    
+    A file, by the index its path was given when first seen. Cheap to keep, compare and hash, and
+    the one handle the layers above know a file by; `Vfs` says which path it stands for.
+    
+    """
+    def __init__(self, __index: int):
+        ...
+    @property
+    def index(self) -> int:
+        ...
+    def __repr__(self) -> str:
+        ...
+    def __eq__(self, __other: FileId) -> bool:
+        ...
+    def __ne__(self, __other: FileId) -> bool:
+        ...
+    def __hash__(self) -> int:
+        ...
