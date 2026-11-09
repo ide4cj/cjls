@@ -42,6 +42,7 @@ import traceback as _cjmcp_traceback
 
 def __cjmcp_run(code, workspace, classes, max_output_bytes, state, session_id, server_info_json):
     scope = dict(classes, workspace=workspace, source_excerpts=source_excerpts,
+                 api_docs=_CjmcpApiDocs(),
                  server_info=_cjmcp_json.loads(server_info_json),
                  last_output=state.get("last_output"), __name__='__cjmcp_script__')
     def encode_native(value):
@@ -336,6 +337,7 @@ class PythonSession {
             Python.load(loglevel: LogLevel.ERROR)
             Python.exec(PYTHON_RUNNER)
             Python.exec(PYTHON_EVIDENCE)
+            Python.exec(PYTHON_API_DOCS)
             workspaceProxy = workspace.toPyObj()
             types =
                 PyDict<String, PyObj>(

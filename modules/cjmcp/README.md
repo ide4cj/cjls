@@ -20,7 +20,9 @@ tar -xzf cjmcp-linux-x86_64-*.tar.gz
 ```
 
 The archive includes `BUILD-INFO` with the source commit, SDK pin and target,
-plus the SDK checksum pins and licenses. Actions retains the download for 30 days;
+plus the SDK checksum pins, licenses and generated `.pyi` API reference in
+`api_docs/`. Keep that directory beside the executable when moving the installation.
+Actions retains the download for 30 days;
 it is an experimental artifact, separate from cjls releases. CI runs the protocol
 unit tests and the real-process MCP tests against the unpacked executable before
 uploading it.
@@ -104,6 +106,13 @@ the connection with [agent setup](agent-setup.md). Native objects are injected;
 there is no importable `loupe` Python package. Return `server_info` to identify
 the running build, Python API version and supported features before consulting
 documentation from another checkout; see [server identity](python-api.md#server-identity).
+
+Use `api_docs.files()` to list the supplied `.pyi` files and
+`api_docs.read("cjmcp/python.pyi")` to read one through `runPython`.
+Paths in declaration comments are relative to the documentation root.
+The archive supplies the checked-in reference; building and packaging do not
+run the local `cjpydoc` generator. See [API documentation](python-api.md#api-documentation)
+for lookup and output-budget behavior.
 
 Read the [API reference](python-api.md) only for detailed contracts:
 [source changes](python-api.md#applying-source-changes),

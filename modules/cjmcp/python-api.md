@@ -14,7 +14,7 @@ serverInfo by MCP initialize. Its name/version identify the executable product;
 _meta contains apiVersion (currently 1), commit (full build-time Git SHA or null),
 dirty (whether the build checkout had local changes, or null without Git identity)
 and features: structuredDiagnostics, worktreeSessions, checkedSourceChanges,
-sourceExcerpts, outputBudget and semanticViews. Feature names describe this binary's supported
+sourceExcerpts, outputBudget, semanticViews and apiDocs. Feature names describe this binary's supported
 Python/tool contracts, not analysis completeness or preparation success.
 
 The build hook embeds identity before compilation and preserves the generated
@@ -24,6 +24,38 @@ apiVersion changes for incompatible Python contract changes; additive features
 can be checked individually. Missing server_info identifies an older server
 without this discovery contract. Do not use a newer checkout's docs as proof of
 its capabilities. For example: result = server_info.
+
+## API documentation
+
+Each script receives `api_docs`, which reads the generated `.pyi` reference
+supplied with the server. It is independent of the selected workspace and revision:
+
+```python
+result = api_docs.files()
+# In a separate call, read the file needed for the task:
+# result = api_docs.read("cjmcp/python.pyi")
+```
+
+`files()` returns sorted paths relative to the documentation root. `read(path)`
+returns UTF-8 text; paths in declaration comments use the same root, for example
+`loupe.hir/def_map.pyi`. Start with `cjmcp/python.pyi` for `Workspace` and
+`cjmcp/analysis.pyi` for `AnalysisRevision`. These files document injected objects;
+their paths do not identify importable Python modules.
+
+The server first uses `api_docs/` beside its executable. A source build in
+`<checkout>/target/<profile>/bin/` falls back to that checkout's
+`modules/cjmcp/api_docs/`. It never selects documentation from the analyzed
+workspace or working directory. Keep `api_docs/` beside a relocated executable.
+Missing documentation/files raise `FileNotFoundError`; absolute paths, parent
+traversal, non-`.pyi` paths and links outside the documentation root are rejected
+with `ValueError`. Non-string paths raise `TypeError`.
+
+The regular `maxOutputBytes` budget applies. Read only relevant files, or filter
+their text in Python before returning it; some complete files exceed the default
+budget. Use `last_output` to recover an oversized response without repeating work.
+
+The reference is generated and reviewed locally, then committed. Neither builds
+nor artifact packaging run `cjpydoc`; the supplied files can lag binding changes.
 
 ## Selecting a project or worktree
 

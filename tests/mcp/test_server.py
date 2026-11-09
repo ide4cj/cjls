@@ -1,5 +1,6 @@
 """Drive embedded Python through the real MCP process, with stdin kept open."""
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -30,6 +31,101 @@ def server_environment():
 
 @unittest.skipUnless(sys.platform.startswith("linux"), "embedded CPython experiment supports native Linux")
 class McpStdioTest(WorktreeChecks, DiagnosticChecks, OutputChecks, SemanticChecks, unittest.TestCase):
+    def test_supplied_api_docs(self):
+        # An unrelated analyzed project and cwd must not override the server's reference.
+        with tempfile.TemporaryDirectory(prefix="cjmcp-api-docs-") as directory:
+            root = Path(directory)
+            fake = root / "api_docs/cjmcp/python.pyi"
+            fake.parent.mkdir(parents=True)
+            fake.write_text("unrelated workspace documentation", encoding="utf-8")
+            response = self._api_docs_script(BINARY, root, """
+import hashlib
+paths = api_docs.files()
+assert paths == sorted(set(paths))
+assert 'cjmcp/python.pyi' in paths
+assert 'cjmcp/analysis.pyi' in paths
+assert 'loupe.hir/def_map.pyi' in paths
+assert 'class Workspace:' in api_docs.read('cjmcp/python.pyi')
+assert "see 'loupe.hir/def_map.pyi'" in api_docs.read('cjmcp/analysis.pyi')
+assert 'class DefId:' in api_docs.read('loupe.hir/def_map.pyi')
+for path in ('/cjmcp/python.pyi', '../outside.pyi', 'cjmcp/../../outside.pyi', 'README.md'):
+    try:
+        api_docs.read(path)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError('invalid documentation path accepted: ' + path)
+try:
+    api_docs.read('missing.pyi')
+except FileNotFoundError:
+    pass
+else:
+    raise AssertionError('missing documentation file accepted')
+result = {path: hashlib.sha256(api_docs.read(path).encode('utf-8')).hexdigest()
+          for path in paths}
+""")
+        self.assertIsNone(response["error"], response)
+        docs = ROOT / "modules/cjmcp/api_docs"
+        expected = {
+            path.relative_to(docs).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in docs.rglob("*.pyi")
+        }
+        self.assertTrue(expected)
+        self.assertEqual(response["result"], expected)
+
+    def test_missing_api_docs_reports_error_without_workspace_fallback(self):
+        with tempfile.TemporaryDirectory(prefix="cjmcp-no-api-docs-") as directory:
+            root = Path(directory)
+            # Relocate the executable without its reference, while the project has a fake copy.
+            binary = root / "cjmcp"
+            try:
+                os.link(Path(BINARY).resolve(), binary)
+            except OSError:
+                import shutil
+                shutil.copy2(BINARY, binary)
+            fake = root / "project/api_docs/cjmcp/python.pyi"
+            fake.parent.mkdir(parents=True)
+            fake.write_text("unrelated workspace documentation", encoding="utf-8")
+            response = self._api_docs_script(binary, root / "project", """
+assert isinstance(workspace.files(), list)
+for operation in (api_docs.files, lambda: api_docs.read('cjmcp/python.pyi')):
+    try:
+        operation()
+    except FileNotFoundError as error:
+        assert 'beside the executable' in str(error)
+    else:
+        raise AssertionError('missing server documentation must be reported')
+result = True
+""")
+        self.assertIsNone(response["error"], response)
+        self.assertTrue(response["result"])
+
+    def _api_docs_script(self, binary, root, code):
+        messages = [
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+                "protocolVersion": "2025-11-25", "capabilities": {},
+                "clientInfo": {"name": "api-docs-test", "version": "1"},
+            }},
+            {"jsonrpc": "2.0", "method": "notifications/initialized"},
+            {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {
+                "name": "runPython", "arguments": {"code": code},
+            }},
+        ]
+        process = subprocess.run(
+            [str(Path(binary).resolve()), "--dir", str(root)], cwd=root,
+            input="".join(json.dumps(message) + "\n" for message in messages),
+            capture_output=True, text=True, timeout=60, env=server_environment(),
+        )
+        self.assertEqual(process.returncode, 0, process.stderr)
+        replies = [json.loads(line) for line in process.stdout.splitlines()]
+        initialization = next(reply["result"] for reply in replies if reply.get("id") == 1)
+        self.assertIn("apiDocs", initialization["serverInfo"]["_meta"]["features"])
+        self.assertIn("api_docs.read", initialization["instructions"])
+        reply = next(reply for reply in replies if reply.get("id") == 2)
+        self.assertNotIn("error", reply)
+        self.assertFalse(reply["result"]["isError"], reply)
+        return reply["result"]["structuredContent"]
+
     def test_repeated_native_proxy_allocation(self):
         # Reentering through enum constructors and payload getters exposed invalid GC roots.
         # This needs the real process: an interpreter crash cannot become a tool error.

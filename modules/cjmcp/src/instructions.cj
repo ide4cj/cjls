@@ -14,7 +14,11 @@ that session. Four roots are cached by recency; eviction closes their workers an
 macro hosts. Reopening creates a new sessionId. Calls remain sequential.
 workspace and native types are injected; do not import loupe.
 For API/version mismatches return server_info: its _meta has apiVersion, build
-commit/dirty and features. Use documentation matching the running binary.
+commit/dirty and features. Use documentation supplied with the running binary:
+api_docs.files() lists .pyi paths; api_docs.read(path) returns UTF-8 documentation.
+Start with cjmcp/python.pyi (Workspace) or cjmcp/analysis.pyi (AnalysisRevision).
+Follow links relative to the API documentation root. Read only relevant files;
+filter large files in Python before returning them to stay within the output budget.
 
 Minimize total task token use without sacrificing correctness, evidence or
 verification. Account for query code, returned data and repeated context.

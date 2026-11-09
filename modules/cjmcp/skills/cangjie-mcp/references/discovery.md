@@ -2,7 +2,21 @@
 
 Use the server's documented API first. Inspect only the object and member family
 needed for an unresolved question, preferably alongside the useful query rather
-than in a preliminary call. For an unfamiliar signature-related method:
+than in a preliminary call. When `server_info['_meta']['features']` includes
+`apiDocs`, read the supplied signatures before using introspection:
+
+```python
+result = api_docs.read("cjmcp/analysis.pyi")
+```
+
+`api_docs.files()` lists available `.pyi` paths. Start with `cjmcp/python.pyi`
+for `Workspace` or `cjmcp/analysis.pyi` for `AnalysisRevision`; follow paths in
+declaration comments relative to the documentation root. Files describe injected
+objects, not importable modules. Filter large files before returning text because
+the usual output budget applies. This is the locally generated reference shipped
+with the server, which may lag binding changes.
+
+For a member absent from the supplied reference, inspect a focused name family:
 
 ```python
 analysis = workspace.analysis()
