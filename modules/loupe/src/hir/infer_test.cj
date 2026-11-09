@@ -206,6 +206,272 @@ class InferTest {
     }
 
     @TestCase
+    func standaloneLambdaPowerConstrainsEachOperandSeparately(): Unit {
+        checkInference(
+            #"
+            package m
+            func test(): Unit {
+                let floating = {x => x ** 2}
+            //      ^^^^^^^^ (Float64) -> Float64
+            //                  ^ Float64
+                let integer = {x => x ** 2u64}
+            //      ^^^^^^^ (Int64) -> Int64
+            //                 ^ Int64
+                let decimal = {x => x ** 2.0}
+            //      ^^^^^^^ (Float64) -> Float64
+            //                 ^ Float64
+                let exponent = {x => 2 ** x}
+            //      ^^^^^^^^ (UInt64) -> Int64
+            //                  ^ UInt64
+                let floatExponent = {x => 2.0 ** x}
+            //      ^^^^^^^^^^^^^ (Int64) -> Float64
+            //                       ^ Int64
+                // cjc: parameters of this lambda expression must have type annotations
+                let ambiguous = {x, y => x ** y}
+            //      ^^^^^^^^^ {unknown}
+            //                   ^ {unknown}
+            //                      ^ {unknown}
+                // cjc: parameters of this lambda expression must have type annotations
+                let invalid = {x => x ** 2i8}
+            //      ^^^^^^^ {unknown}
+            //                 ^ {unknown}
+                // cjc rejects an ambiguous power before solving later operand constraints.
+                let late = {x, y => x ** y; x + 1; y + 1u64}
+            //      ^^^^ {unknown}
+            //              ^ {unknown}
+            //                 ^ {unknown}
+                // cjc defaults a floating base's unknown exponent to Int64.
+                let conflict = {x => 2.0 ** x; x + 1.0}
+            //      ^^^^^^^^ {unknown}
+            //                  ^ {unknown}
+                // cjc: parameters of this lambda expression must have type annotations
+                let narrow = {x => 1i8 ** x; x + 1u64}
+            //      ^^^^^^ {unknown}
+            //                ^ UInt64
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func standaloneLambdaPowerFallsBackToDeclaredOperators(): Unit {
+        checkInference(
+            #"
+            package m
+            extend Int8 {
+                public operator func **(rhs: UInt64): Int8 { this }
+            //                          ^^^ UInt64
+            }
+            func test(): Unit {
+                let power = {x => 1i8 ** x}
+            //      ^^^^^ (UInt64) -> Int8
+            //               ^ UInt64
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func standaloneLambdaMembersDetermineTheirReceiver(): Unit {
+        checkInference(
+            #"
+            package m
+            class First {
+                public let lambdaOnly: Int64 = 1
+                public let lambdaShared: Int64 = 1
+                public func lambdaMethod(x: Int8): Int8 { x }
+            //                           ^ Int8
+            }
+            class Second {
+                public let lambdaShared: String = "other"
+            }
+            class Box<T> {
+                public Box(public let lambdaGeneric: T) {}
+            //                        ^^^^^^^^^^^^^ T
+                public func lambdaPut(value: T): T { value }
+            //                        ^^^^^ T
+            }
+            func test(): Unit {
+                let field = {x => x.lambdaOnly}
+            //      ^^^^^ (First) -> Int64
+            //               ^ First
+                let called = {x => x.lambdaMethod(1i8)}
+            //      ^^^^^^ (First) -> Int8
+            //                ^ First
+                let selected = {x => x.lambdaShared + 1}
+            //      ^^^^^^^^ (First) -> Int64
+            //                  ^ First
+                let generic = {x => x.lambdaGeneric + 1}
+            //      ^^^^^^^ (Box<Int64>) -> Int64
+            //                 ^ Box<Int64>
+                let argument = {x => x.lambdaPut(1i8)}
+            //      ^^^^^^^^ (Box<Int8>) -> Int8
+            //                  ^ Box<Int8>
+                let both = {x, y => x.lambdaOnly + y}
+            //      ^^^^ (First, Int64) -> Int64
+            //              ^ First
+            //                 ^ Int64
+                let joint = {x, y => x.lambdaPut(y) + 1}
+            //      ^^^^^ (Box<Int64>, Int64) -> Int64
+            //               ^ Box<Int64>
+            //                  ^ Int64
+                let nested = {x => {=> x.lambdaOnly}}
+            //      ^^^^^^ (First) -> () -> Int64
+            //                ^ First
+                let nestedSelected = {x => {=> x.lambdaShared + 1}}
+            //      ^^^^^^^^^^^^^^ (First) -> () -> Int64
+            //                        ^ First
+                // cjc: parameters of this lambda expression must have type annotations
+                let ambiguous = {x => x.lambdaShared}
+            //      ^^^^^^^^^ {unknown}
+            //                   ^ {unknown}
+                // cjc: parameters of this lambda expression must have type annotations
+                let unsolved = {x => x.lambdaGeneric}
+            //      ^^^^^^^^ {unknown}
+            //                  ^ {unknown}
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func standaloneLambdaCandidateBudgetIsUnavailableAnalysis(): Unit {
+        // arrange
+        let declarations = String.join(
+            Array(129) {
+                i =>
+                "class Candidate${i} { public func lambdaBudget(value: String): Int64 { 1 } }"
+            },
+            delimiter: "\n"
+        )
+        let fixture = Fixture.parse(
+            """
+            package m
+            ${declarations}
+            func test(): Unit {
+                let limited = {x => x.lambdaBudget(1)}
+            }
+            """
+        )
+        let db = fixture.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
+        let source =
+            db
+                .sourceFile(fixture.files[0].fileId)
+                .getOrThrow { IllegalStateException("fixture source is missing") }
+        let item =
+            itemTree(db, source)
+                .items
+                .iterator()
+                .filter { one => one.kind == ItemKind.Func && one.names == ["test"] }
+                .next()
+                .getOrThrow { IllegalStateException("fixture test function is missing") }
+        let def = DefId(db, ItemFile.Source(source), item.id)
+        let lowered = body(db, def)
+        let local =
+            (0..lowered.locals.size)
+                .iterator()
+                .filter { i => lowered.locals[i].name == "limited" }
+                .next()
+                .getOrThrow { IllegalStateException("fixture limited binding is missing") }
+
+        // act
+        let result = inferBody(db, def)
+        let actual = result.locals[local].kind(db)
+        let noDiagnostics = result.diagnostics.isEmpty()
+        let hasNoInferVars = result.locals.iterator().all { one => !hasInferVars(db, one) }
+
+        // assert
+        @Expect(actual, UnknownTy(UnknownReason.LambdaCandidatesLimit))
+        @Expect(noDiagnostics)
+        @Expect(hasNoInferVars)
+    }
+
+    @TestCase
+    func standaloneLambdaRejectedMemberBodiesSuppressInnerDiagnostics(): Unit {
+        // arrange
+        let fixture = Fixture.parse(
+            #"
+            package m
+            class Receiver { public let lambdaMarker: Int64 = 1 }
+            func test(): Unit {
+                let invalid = {p => p.lambdaMarker; "text" - 1}
+            }
+            "#
+        )
+        let db = fixture.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
+        let source =
+            db
+                .sourceFile(fixture.files[0].fileId)
+                .getOrThrow { IllegalStateException("fixture source is missing") }
+        let item =
+            itemTree(db, source)
+                .items
+                .iterator()
+                .filter { one => one.kind == ItemKind.Func && one.names == ["test"] }
+                .next()
+                .getOrThrow { IllegalStateException("fixture test function is missing") }
+        let def = DefId(db, ItemFile.Source(source), item.id)
+
+        let lowered = body(db, def)
+        let local =
+            (0..lowered.locals.size)
+                .iterator()
+                .filter { i => lowered.locals[i].name == "invalid" }
+                .next()
+                .getOrThrow { IllegalStateException("fixture invalid binding is missing") }
+
+        // act
+        let result = inferBody(db, def)
+        let actual = result.locals[local].kind(db)
+        let noDiagnostics = result.diagnostics.isEmpty()
+
+        // assert
+        @Expect(actual, ErrorTy)
+        @Expect(noDiagnostics)
+    }
+
+    @TestCase
+    func standaloneLambdaAmbiguityPrecedesUnavailableCandidates(): Unit {
+        // arrange: without std, the first receiver's inferred String field is unavailable.
+        let fixture = Fixture.parse(
+            #"
+            package m
+            class Uncertain { public let lambdaMixed = "text" }
+            class First { public let lambdaMixed: Int64 = 1 }
+            class Second { public let lambdaMixed: Int64 = 1 }
+            func test(): Unit { let ambiguous = {p => p.lambdaMixed} }
+            "#
+        )
+        let db = fixture.database()
+        let source =
+            db
+                .sourceFile(fixture.files[0].fileId)
+                .getOrThrow { IllegalStateException("fixture source is missing") }
+        let items = itemTree(db, source).items
+        let field = DefId(db, ItemFile.Source(source), items[0].members[0].id)
+        let def = DefId(db, ItemFile.Source(source), items[3].id)
+
+        let lowered = body(db, def)
+        let local =
+            (0..lowered.locals.size)
+                .iterator()
+                .filter { i => lowered.locals[i].name == "ambiguous" }
+                .next()
+                .getOrThrow { IllegalStateException("fixture ambiguous binding is missing") }
+
+        // act
+        let unavailable = declaredTyOf(db, field).kind(db)
+        let result = inferBody(db, def)
+        let actual = result.locals[local].kind(db)
+        let noDiagnostics = result.diagnostics.isEmpty()
+
+        // assert: two concrete receiver solutions prove ambiguity despite the third candidate.
+        @Expect(unavailable, UnknownTy(UnknownReason.NoStd))
+        @Expect(actual, ErrorTy)
+        @Expect(noDiagnostics)
+    }
+
+    @TestCase
     func standaloneLambdaTrialsDoNotKeepRejectedOverloadConstraints() {
         checkInference(
             #"

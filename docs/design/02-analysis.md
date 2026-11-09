@@ -285,8 +285,22 @@ A synthesized lambda also owns temporary variables for parameters whose types ar
 the call's arguments never supply missing parameter types. Inference trials journal these
 constraints with their other writes, then the body is inferred again with solved parameter types.
 A parameter left unsolved makes the lambda an error; its variables never escape into results.
-Member-driven parameter inference (`TryInferFromSyntaxInfo`) and power-operator constraints
-remain gaps tracked in #248.
+Power operands constrain different primitive types: `Int64 ** UInt64`,
+`Float64 ** Int64` or `Float64 ** Float64`; an unknown exponent of a floating base
+defaults to `Int64`. A power with both operands unknown is rejected before later
+body constraints solve them, as in cjc. Direct member uses narrow a parameter to owners
+of the matching field, method or subscript shapes in the package and explicitly
+imported declarations (including globs and re-exports). A package-name import
+alone does not contribute owners. Inherited members participate through visible
+receiver types; a unique most-general owner is preferred when member results are
+unconstrained. Constrained uses retain distinct receiver types, even when one
+inherits the matching member from the other.
+Otherwise candidate owners and their generic arguments are tried against the
+whole body, and only a unique complete solution is replayed. Candidate trials
+are bounded at 128 combinations to keep an unbounded Cartesian product from
+blocking a query; exhaustion is `UnknownTy(LambdaCandidatesLimit)`, never a
+diagnostic that the lambda is invalid. Receivers reached through local aliases
+or returned from calls remain a gap tracked in #248.
 
 Arguments are checked only against types without variables, an unsolved one an error type.
 Every application and callee is recorded with its solved type; no variable reaches an
@@ -346,7 +360,7 @@ A type not known has three causes (D77, D143): `ErrorTy` only where cjc reports 
 far as the analysis follows cjc; `TodoTy(why)` for an unsupported analysis feature (macro
 expansion); `UnknownTy(why)` for missing or unreadable inputs (`NoStd`,
 `BinaryType`), a type not inferred yet (`NotInferred`), or an exhausted analysis resource budget
-(`GenericBoundsLimit`). A malformed binary or an unresolved binary dependency alone does not
+(`GenericBoundsLimit`, `LambdaCandidatesLimit`). A malformed binary or an unresolved binary dependency alone does not
 establish an error in the user's source.
 
 What is made of a type not known is that one, a `TodoTy` or `UnknownTy` before an `ErrorTy`
@@ -384,6 +398,11 @@ does. A check it cannot make yet is counted, so a candidate still fails, and not
 Custom annotation placement is checked only after its constructor and argument types are
 known; its synthetic callee identifies the check, while the separate declaration source
 supplies the diagnostic range. It does not make a synthetic expression user-written.
+
+An unread macro may supply a type's constructor parameters. A synthetic default
+initializer then cannot establish an argument mismatch: its call evidence stays
+unresolved, while its nominal result type can still satisfy an enclosing call's
+parameter. Ordinary callable mismatches remain failures of their own candidates.
 
 A false error on code cjc accepts fails `DiagnosticsGateTest`: none on this repository, on std's
 sources none beyond `std_diagnostics_known.txt`, whose lines each name their gap and only go
