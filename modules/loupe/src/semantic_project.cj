@@ -3,7 +3,7 @@ package loupe
 import std.collection.{ArrayList, collectArray, filterMap, map}
 import py_interop.*
 import py_interop.internal_macros.DerivePython
-import loupe.db.{AnalysisDatabase, BinaryModel, Cfg, InactiveSourceFile, Module}
+import loupe.db.{AnalysisDatabase, BinaryModel, Cfg, InactiveSourceFile, Module, NativeLibrary}
 import loupe.hir.{
     DefId,
     ItemFile,
@@ -190,6 +190,15 @@ public class SemanticModule {
     public func root(): VfsPath {
         analysis.db.unwindIfCancelled()
         identity.root(analysis.db)
+    }
+
+    /**
+     * Native linker inputs selected for this module; these are separate from Cangjie dependencies.
+     */
+    @PyDoc["Return this module's selected native linker names and search directories."]
+    public func nativeLibraries(): Array<NativeLibrary> {
+        analysis.db.unwindIfCancelled()
+        identity.nativeLibraries(analysis.db)
     }
 
     public func resolutionScope(): String {

@@ -8,6 +8,8 @@ import py_interop.internal_macros.DerivePython
  * File-qualified source adapter: the generic syntax pointer stays inside loupe.
  */
 @DerivePython
+@PyName["BodySource"]
+@PyDoc["A file-qualified source anchor: syntax range, kind and optional macro expansion."]
 public class PythonBodySource {
     @PyIgnore
     let value: BodySource

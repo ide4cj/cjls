@@ -3,11 +3,15 @@ package project_model
 import std.fs.{FSException, FileInfo, Path, canonicalize, exists}
 import std.process.{ProcessException, executeWithOutput}
 import platform.{executableFile, pathListSeparator}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A Cangjie SDK found, and where from: `std` is in it, and `${CANGJIE_HOME}` expands to it.
  */
-public struct CangjieHome {
+@DerivePython
+@PyDoc["The selected SDK: path, discovery source, compiler version and support channel. Unknown version and channel are None."]
+public struct CangjieHome <: Equatable<CangjieHome> & Hashable & ToString {
     public CangjieHome(
         public let path: String,
         /**
@@ -20,6 +24,37 @@ public struct CangjieHome {
          */
         public let version!: ?String = None
     ) {}
+
+    /**
+     * The exact supported channel, or none when the compiler version is unknown.
+     */
+    @PyDoc["LTS, STS, pinned nightly or out of window; None when the compiler version is unknown."]
+    public prop channel: ?String {
+        get() {
+            version.map { value => sdkWindowChannel(value) }
+        }
+    }
+
+    public operator func ==(other: CangjieHome): Bool {
+        path == other.path && source == other.source && version == other.version
+    }
+
+    public operator func !=(other: CangjieHome): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        hasher.write(path)
+        hasher.write(source)
+        hasher.write(version.isSome())
+        hasher.write(version ?? "")
+        hasher.finish()
+    }
+
+    public func toString(): String {
+        path
+    }
 }
 
 /**

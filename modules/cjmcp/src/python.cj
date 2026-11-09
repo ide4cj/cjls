@@ -18,6 +18,7 @@ import loupe.{
     hoverAt
 }
 import loupe.vfs.{FileId, VfsPath}
+import project_model.CangjieHome
 @When[os == "Linux"]
 import py_interop.*
 @When[os == "Linux"]
@@ -147,6 +148,16 @@ class Workspace {
         }
     }
 
+    /**
+     * The SDK selected while preparing this script's revision, or none if discovery found none.
+     */
+    @PyDoc["The SDK used to prepare this revision, or None when no SDK was found. Reading it never reruns discovery."]
+    public prop sdk: ?CangjieHome {
+        get() {
+            loaded().sdk
+        }
+    }
+
     public prop macros: MacroStatus {
         get() {
             loaded().macroStatus
@@ -261,6 +272,8 @@ class Workspace {
 
 @When[os == "Linux"]
 @DerivePython
+@PyName["Location"]
+@PyDoc["A definition target: source path, full declaration range and selection range in UTF-8 bytes."]
 struct PythonLocation {
     PythonLocation(
         public let path: String,

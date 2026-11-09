@@ -136,9 +136,29 @@ public struct InactiveFile {
 /**
  * A native linker name and its search directory. It supplies no Cangjie declarations.
  */
-@Derive[Equatable]
-public struct NativeLibrary {
+@DerivePython
+@PyDoc["A native linker name and search directory; it supplies no Cangjie declarations."]
+public struct NativeLibrary <: Equatable<NativeLibrary> & Hashable & ToString {
     public NativeLibrary(public let name: String, public let dir: VfsPath) {}
+
+    public operator func ==(other: NativeLibrary): Bool {
+        name == other.name && dir == other.dir
+    }
+
+    public operator func !=(other: NativeLibrary): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        hasher.write(name)
+        hasher.write(dir.hashCode())
+        hasher.finish()
+    }
+
+    public func toString(): String {
+        "${name}: ${dir}"
+    }
 }
 
 /**

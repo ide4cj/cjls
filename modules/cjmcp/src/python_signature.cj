@@ -12,6 +12,8 @@ import py_interop.internal_macros.DerivePython
  */
 @When[os == "Linux"]
 @DerivePython
+@PyName["SignatureSourceMap"]
+@PyDoc["Maps signature type-reference IDs to optional UTF-8 source ranges."]
 class PythonSignatureSourceMap {
     private let value: SignatureSourceMap
 
@@ -42,6 +44,8 @@ class PythonSignatureSourceMap {
  */
 @When[os == "Linux"]
 @DerivePython
+@PyName["LoweredSignature"]
+@PyDoc["A native written signature and the source ranges of its type references."]
 class PythonLoweredSignature {
     @PyIgnore
     init(value: LoweredSignature) {
