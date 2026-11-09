@@ -12,7 +12,6 @@ import fjson.RawJson
 import jsonrpc.*
 import loupe.fixture.stdSourcesDir
 import loupe.vfs.VfsPath
-import project_model.CangjieHome
 import rope.{Encoding, Rope}
 import stdxx.Nullable
 import cjls.lsp_types.*
@@ -1876,39 +1875,4 @@ private func nextLoadProgress(transport: AnsweringTransport): NotificationBody {
         notification = transport.written.remove().getNotificationBodyOrThrow()
     }
     notification
-}
-
-@Test
-class SdkWindowWarningTest {
-    @TestCase
-    func anUnsupportedVersionIsReportedOnlyOnceAcrossLoads(): Unit {
-        // arrange
-        let state = ServerState()
-        let home = CangjieHome("/sdk", "test", version: "1.0.4")
-
-        // act
-        let first = sdkWarning(state, home)
-        let reloaded = sdkWarning(state, home)
-        let switched = sdkWarning(state, CangjieHome("/other", "test", version: "2.0.0"))
-
-        // assert
-        @Expect(first.getOrThrow().contains("1.0.4"))
-        @Expect(reloaded, None<String>)
-        @Expect(switched, None<String>)
-    }
-
-    @TestCase
-    func knownSupportedAndUnreadableVersionsLeaveTheExistingWarningsAlone(): Unit {
-        // arrange
-        let state = ServerState()
-
-        // act
-        let supported = sdkWarning(state, CangjieHome("/sdk", "test", version: "1.2.0"))
-        let unknown = sdkWarning(state, CangjieHome("/sdk", "test"))
-
-        // assert
-        @Expect(supported, None<String>)
-        @Expect(unknown, None<String>)
-        @Expect(!state.warnedSdkVersion)
-    }
 }

@@ -117,6 +117,9 @@ func fetchSrc(
     code
 }
 
+/**
+ * Fetches the selected SDK's sources, reusing a known version before invoking its compiler.
+ */
 func fetchSrcTo(
     home: Path,
     dir: Path,

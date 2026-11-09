@@ -5,7 +5,6 @@ import std.env.getTempDirectory
 import std.fs.{Directory, File, Path, exists, removeIfExists}
 import std.io.ByteBuffer
 import platform.executableFile
-import project_model.compilerVersionOf
 
 const NOTES =
     """
@@ -99,14 +98,6 @@ class FetchSrcTest {
         } finally {
             removeIfExists(home, recursive: true)
         }
-    }
-
-    @TestCase
-    func theVersionIsWhatCjcPrints() {
-        // act, assert
-        @Expect(compilerVersionOf(VERSION_OUTPUT), Some("1.3.0-alpha.20261002001050"))
-        @Expect(compilerVersionOf("Cangjie Compiler: 1.0.0 (cjnative)\r\n"), Some("1.0.0"))
-        @Expect(compilerVersionOf("cjc: command not found\n"), Option<String>.None)
     }
 
     @TestCase

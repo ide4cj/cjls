@@ -226,7 +226,7 @@ public class ServerState <: FromContext<ServerState> {
     /**
      * Reloads keep logging unsupported SDKs without repeating the user notification.
      */
-    public var warnedSdkVersion = false
+    protected var hasWarnedSdkVersion: Bool = false
 
     /**
      * The files of the project, as last set: made anew each time, for a set built from an array

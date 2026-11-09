@@ -125,14 +125,8 @@ func fetchSrcCommand(dir: ?Path, out: OutputStream, err: OutputStream): Int64 {
                 err.flush()
                 return 1
         }
-    fetchSrc(
-        Path(home.path),
-        dir ?? Path(home.path).join("src"),
-        SystemSrcHost(),
-        out,
-        err,
-        version: home.version
-    )
+    let path = Path(home.path)
+    fetchSrc(path, dir ?? path.join("src"), SystemSrcHost(), out, err, version: home.version)
 }
 
 func nonemptyDirectory(raw: String): String {

@@ -1,6 +1,6 @@
 package project_model
 
-import std.fs.*
+import std.fs.{FSException, FileInfo, Path, canonicalize, exists}
 import std.process.{ProcessException, executeWithOutput}
 import platform.{executableFile, pathListSeparator}
 
@@ -30,7 +30,8 @@ public struct CangjieHome {
  * itself, and `~/.local` is no SDK. `None` if none is: an editor launches the server with the
  * environment of the desktop, which `envsetup.sh` never touched.
  *
- * `env` gives the value of an environment variable.
+ * `env` gives the value of an environment variable. `compilerOutput` reads only the selected
+ * compiler; unavailable or unrecognized output leaves its version unknown and keeps the SDK.
  */
 public func findCangjieHome(
     option: ?String,
@@ -187,9 +188,9 @@ func isDirectory(path: String): Bool {
  * a nightly's is its tag.
  */
 public func compilerVersionOf(output: String): ?String {
-    let prefix = "Cangjie Compiler: "
-    for (line in output.lines() where line.startsWith(prefix)) {
-        let version = line[prefix.size..].trimAscii()
+    const PREFIX = "Cangjie Compiler: "
+    for (line in output.lines() where line.startsWith(PREFIX)) {
+        let version = line[PREFIX.size..].trimAscii()
         let end = version.indexOf(" ") ?? version.size
         if (end > 0) {
             let token = version[..end]

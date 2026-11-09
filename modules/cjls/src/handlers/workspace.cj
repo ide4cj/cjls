@@ -655,11 +655,12 @@ func openFirst(paths: Array<VfsPath>, open: Array<VfsPath>): Array<VfsPath> {
 func sdkWarning(state: ServerState, home: ?CangjieHome): ?String {
     let contentsWarning = sdkContentsWarning(state, home)
     if (let Some(version) <- home.flatMap { selected => selected.version }) {
-        if (sdkWindowChannel(version) == "out of window" && !state.warnedSdkVersion) {
-            state.warnedSdkVersion = true
+        if (sdkWindowChannel(version) == "out of window" && !state.hasWarnedSdkVersion) {
+            state.hasWarnedSdkVersion = true
             let windowWarning =
                 "Cangjie SDK ${version} is outside this cjls release's supported SDK window. The server will continue loading available binary packages; see its log for the selected SDK."
-            return windowWarning + (contentsWarning.map { warning => " ${warning}" } ?? "")
+            let suffix = contentsWarning.map { warning => " ${warning}" } ?? ""
+            return "${windowWarning}${suffix}"
         }
     }
     contentsWarning

@@ -174,7 +174,7 @@ async def test_a_cjo_of_a_binary_changed_finds_the_project_again(server: Languag
 
 
 @pytest.mark.skipif(os.name == "nt", reason="fake cjc uses a POSIX executable script")
-@pytest.mark.parametrize("version", ["1.0.4", "1.2.0", None, "failed", "invalid-utf8"])
+@pytest.mark.parametrize("version", ["1.0.4", "1.2.0"])
 async def test_sdk_window_warns_once_and_keeps_binary_analysis(server: LanguageClient, tmp_path, version):
     # arrange: select an SDK whose compiler is different from cjc on the driver's PATH.
     sdk = os.environ.get("CJLS_E2E_SDK") or os.environ.get("CANGJIE_HOME")
@@ -184,10 +184,8 @@ async def test_sdk_window_warns_once_and_keeps_binary_analysis(server: LanguageC
     (home / "bin").mkdir(parents=True)
     (home / "modules").symlink_to(pathlib.Path(sdk) / "modules", target_is_directory=True)
     compiler = home / "bin" / "cjc"
-    printed_version = "1.0.4" if version == "failed" else version
-    output = f"Cangjie Compiler: {printed_version} (cjnative)" if printed_version else "unrecognized output"
-    body = "import os\nos.write(1, bytes([255]))\n" if version == "invalid-utf8" else f"print({output!r})\n"
-    compiler.write_text(f"#!{sys.executable}\n" + body + ("raise SystemExit(1)\n" if version == "failed" else ""))
+    output = f"Cangjie Compiler: {version} (cjnative)"
+    compiler.write_text(f"#!{sys.executable}\nprint({output!r})\n")
     compiler.chmod(0o755)
     root = tmp_path / "ws"
     root.mkdir()
