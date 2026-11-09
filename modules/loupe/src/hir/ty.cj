@@ -294,6 +294,7 @@ public enum UnknownReason <: ToString & Equatable<UnknownReason> & Hashable {
             case (UnknownReason.NotInferred, UnknownReason.NotInferred) => true
             case (UnknownReason.NoStd, UnknownReason.NoStd) => true
             case (UnknownReason.GenericBoundsLimit, UnknownReason.GenericBoundsLimit) => true
+            case (UnknownReason.LambdaCandidatesLimit, UnknownReason.LambdaCandidatesLimit) => true
             case _ => false
         }
     }
@@ -309,6 +310,7 @@ public enum UnknownReason <: ToString & Equatable<UnknownReason> & Hashable {
             case UnknownReason.NotInferred => hasher.write(1)
             case UnknownReason.NoStd => hasher.write(2)
             case UnknownReason.GenericBoundsLimit => hasher.write(3)
+            case UnknownReason.LambdaCandidatesLimit => hasher.write(4)
         }
         hasher.finish()
     }
