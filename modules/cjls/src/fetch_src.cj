@@ -4,6 +4,7 @@ import std.fs.{Directory, FSException, File, FileInfo, Path, exists, removeIfExi
 import std.io.OutputStream
 import std.process.{ProcessException, executeWithOutput}
 import platform.executableFile
+import project_model.compilerVersionOf
 
 /**
  * Where a nightly's release notes are read, by its tag (the version `cjc --version` prints): the
@@ -99,8 +100,15 @@ class SystemSrcHost <: SrcHost {
  * @return the exit code: `1` if the SDK's version or its commit is not found, the download or the
  * unpacking fails, or `dir` holds something else
  */
-func fetchSrc(home: Path, dir: Path, host: SrcHost, out: OutputStream, err: OutputStream): Int64 {
-    let code = fetchSrcTo(home, dir, host, err)
+func fetchSrc(
+    home: Path,
+    dir: Path,
+    host: SrcHost,
+    out: OutputStream,
+    err: OutputStream,
+    version!: ?String = None
+): Int64 {
+    let code = fetchSrcTo(home, dir, host, err, knownVersion: version)
     if (code == 0) {
         out.write("${dir}\n".toArray())
     }
@@ -109,11 +117,26 @@ func fetchSrc(home: Path, dir: Path, host: SrcHost, out: OutputStream, err: Outp
     code
 }
 
-func fetchSrcTo(home: Path, dir: Path, host: SrcHost, err: OutputStream): Int64 {
+/**
+ * Fetches the selected SDK's sources, reusing a known version before invoking its compiler.
+ */
+func fetchSrcTo(
+    home: Path,
+    dir: Path,
+    host: SrcHost,
+    err: OutputStream,
+    knownVersion!: ?String = None
+): Int64 {
     let say = { line: String => err.write("${line}\n".toArray()) }
     let cjc = home.join("bin").join(executableFile("cjc"))
     let version =
-        match (host.compilerVersion(cjc).flatMap { it => compilerVersionOf(it) }) {
+        match (
+            if (knownVersion.isSome()) {
+                knownVersion
+            } else {
+                host.compilerVersion(cjc).flatMap { it => compilerVersionOf(it) }
+            }
+        ) {
             case Some(version) => version
             case None =>
                 say("${cjc}: no version: is ${home} an SDK?")
@@ -171,22 +194,6 @@ func fetchSrcTo(home: Path, dir: Path, host: SrcHost, err: OutputStream): Int64 
             removeIfExists(part, recursive: true)
         } catch (_: FSException) {}
     }
-}
-
-/**
- * The version `cjc --version` prints (`Cangjie Compiler: 1.3.0-alpha.20261002001050 (cjnative)`):
- * a nightly's is its tag.
- */
-func compilerVersionOf(output: String): ?String {
-    let prefix = "Cangjie Compiler: "
-    for (line in output.lines() where line.startsWith(prefix)) {
-        let version = line[prefix.size..].trimAscii()
-        let end = version.indexOf(" ") ?? version.size
-        if (end > 0) {
-            return version[..end]
-        }
-    }
-    None
 }
 
 /**

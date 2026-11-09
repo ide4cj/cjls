@@ -196,6 +196,10 @@ when declared in the manifest (for example, `path-option = ["${CANGJIE_STDX_PATH
 in the target's `bin-dependencies`). No SDK-relative stdx path is assumed.
 Changing this setting reloads projects. Missing variables are reported by path
 expansion. Macro builds use the resulting binary paths from the analysis model.
+The selected SDK's `bin/cjc --version` supplies its version and exact LTS, STS or
+pinned-nightly classification. An unavailable or unrecognized compiler leaves the
+version unknown and does not discard the SDK. Each workspace load logs the version
+and channel; an unsupported version produces one user warning per server session.
 Missing std sources reduce navigation, not binary analysis. Runtime discovery is
 distinct from the build shell's [pinned SDK setup](../../docs/development.md#select-the-pinned-sdk).
 

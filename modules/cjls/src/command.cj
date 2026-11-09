@@ -119,13 +119,14 @@ func fetchSrcCommand(dir: ?Path, out: OutputStream, err: OutputStream): Int64 {
     let env = { name: String => getVariable(name) }
     let home =
         match (findCangjieHome(None, env: env)) {
-            case Some(home) => Path(home.path)
+            case Some(home) => home
             case None =>
                 err.write("no SDK found: set CANGJIE_HOME\n".toArray())
                 err.flush()
                 return 1
         }
-    fetchSrc(home, dir ?? home.join("src"), SystemSrcHost(), out, err)
+    let path = Path(home.path)
+    fetchSrc(path, dir ?? path.join("src"), SystemSrcHost(), out, err, version: home.version)
 }
 
 func nonemptyDirectory(raw: String): String {
