@@ -33,6 +33,7 @@ public class MacroHost <: MacroWork {
     // the host's thread alone
     private var servers: ?MacroServers = None
     private var timeout = Duration.Zero
+    private var nativeDirectories = Array<Path>()
     private var sdk: ?MacroSdk = None
     private var sdkOf = ""
     // by the package, not its name, which two projects may share
@@ -195,7 +196,13 @@ public class MacroHost <: MacroWork {
     ): ?(Int64, Int64, Int64) {
         let db = snapshot.analysis
         let sdk = sdkFor(settings) ?? return None
-        let expander = serversOf(sdk, Duration.second * settings.macroCallTimeout)
+        let seenNative = HashSet<Path>()
+        let dirs =
+            macroBuildPlan(db)
+                .flatMap { unit => unit.nativeLibraries }
+                .filterMap { lib => lib.dir.filePath }
+                .filter { dir => seenNative.add(dir) }
+        let expander = serversOf(sdk, Duration.second * settings.macroCallTimeout, dirs)
         let requests = sendableRequests(
             db,
             files,
@@ -234,12 +241,13 @@ public class MacroHost <: MacroWork {
     /**
      * The servers of `sdk` whose calls have the deadline `wanted`: those running, else new ones.
      */
-    private func serversOf(sdk: MacroSdk, wanted: Duration): MacroServers {
-        if (let Some(running) <- servers && timeout == wanted) {
+    private func serversOf(sdk: MacroSdk, wanted: Duration, dirs: Array<Path>): MacroServers {
+        if (let Some(running) <- servers && timeout == wanted && nativeDirectories == dirs) {
             return running
         }
         servers?.close()
-        let started = MacroServers(sdk.paths, wanted, logger)
+        let started = MacroServers(sdk.paths, wanted, logger, nativeDirectories: dirs)
+        nativeDirectories = dirs
         servers = started
         timeout = wanted
         started

@@ -1,6 +1,7 @@
 package macro_host
 
 import std.collection.*
+import std.fs.Path
 import std.sync.*
 import std.time.MonoTime
 import stdx.log.Logger
@@ -208,21 +209,23 @@ class Watchdog <: Deadlines {
  */
 public class GuardedServer <: Expander {
     private var process: ?MacroServerProcess = None
-    private let paths: MacroServerPaths
-    private let timeout: Duration
-    private let logger: Logger
-    private let deadlines: Deadlines
 
-    public init(paths: MacroServerPaths, timeout: Duration, logger: Logger) {
-        this(paths, timeout, logger, Watchdog(logger))
+    public init(
+        paths: MacroServerPaths,
+        timeout: Duration,
+        logger: Logger,
+        nativeDirectories!: Array<Path> = []
+    ) {
+        this(paths, timeout, logger, Watchdog(logger), nativeDirectories: nativeDirectories)
     }
 
-    init(paths: MacroServerPaths, timeout: Duration, logger: Logger, deadlines: Deadlines) {
-        this.paths = paths
-        this.timeout = timeout
-        this.logger = logger
-        this.deadlines = deadlines
-    }
+    GuardedServer(
+        private let paths: MacroServerPaths,
+        private let timeout: Duration,
+        private let logger: Logger,
+        private let deadlines: Deadlines,
+        private let nativeDirectories!: Array<Path> = []
+    ) {}
 
     public func expand(call: MacroCallData): CallOutcome {
         let server =
@@ -230,7 +233,7 @@ public class GuardedServer <: Expander {
                 case Some(running) => running
                 case None =>
                     try {
-                        let started = startMacroServer(paths)
+                        let started = startMacroServer(paths, nativeDirectories: nativeDirectories)
                         process = started
                         started
                     } catch (e: Exception) {
@@ -301,9 +304,14 @@ public class MacroServers <: Expander {
     let workspace: GuardedServer
     private let workspaceLock = Mutex()
 
-    public MacroServers(paths: MacroServerPaths, timeout: Duration, logger: Logger) {
+    public MacroServers(
+        paths: MacroServerPaths,
+        timeout: Duration,
+        logger: Logger,
+        nativeDirectories!: Array<Path> = []
+    ) {
         std = GuardedServer(paths, timeout, logger)
-        workspace = GuardedServer(paths, timeout, logger)
+        workspace = GuardedServer(paths, timeout, logger, nativeDirectories: nativeDirectories)
     }
 
     public func expand(call: MacroCallData): CallOutcome {

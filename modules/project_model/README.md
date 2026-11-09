@@ -126,6 +126,31 @@ cjpm `config/target.cj` and `implement/dep_model.cj` at
 `ab9ceee08d3e3f98e44d201c9c81b4471fcab7ae`; compiler probes use the repository's
 pinned SDK.
 
+`ffi.c.<name>.path` describes a native linker library, never an importable
+Cangjie module or `.cjo` search path. Source analysis reads the Cangjie `foreign`
+declarations without opening native libraries; missing libraries therefore do not
+prevent project discovery. Macro compilation needs them: module `nativeLibraries`
+retains linker names and resolved directories, including workspace inheritance,
+and the macro plan includes the native inputs of transitive source imports.
+The JSON projection preserves this name-to-directory map through a round trip.
+
+Native paths follow common, host target, then selected debug/release profile
+precedence per name. Workspace settings fill names absent from a member; paths
+are relative to the declaring manifest and use the loading environment's normal
+expansion. The host target applies even when analysis selects another compilation
+target, because these inputs serve the host macro compiler. This follows cjpm's
+separate `ffi`/`crossFfi` handling and `buildCheckFfi` in `config/workspace.cj` at
+[`ab9ceee0`](https://github.com/cangjielanguage/cangjie_tools/tree/ab9ceee08d3e3f98e44d201c9c81b4471fcab7ae/cjpm/src).
+
+Package and dependency `output-type` settings select build artifacts, not source
+imports or type checking, so the analysis model deliberately omits them. The
+macro host retains D104's separate build policy: source runtime dependencies are
+compiled as static libraries, and macro packages with `--compile-macro`, even if
+the application manifest requests dynamic or executable output. Discovery does
+not run the application's build, scripts or native compilation; the native
+artifacts must already exist when a macro needs to link them. Missing or
+incompatible libraries surface as recoverable macro build failures.
+
 Membership is explicit in the model. Loose-file loading has a byte budget and
 prioritizes open documents; a partial result records that fact so the server does
 not mistake an omitted file for an independent project (D80). A document truly

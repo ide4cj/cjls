@@ -27,6 +27,21 @@ Source macro dependencies are built and included in stamps, but are not passed
 to the linker as runtime libraries: cjc loads them during compilation. Runtime
 source dependencies remain statically linked into macro libraries.
 
+Native libraries from the module model and transitive source imports are linked
+with `-L`/`-l` when building a macro library; they never become Cangjie import
+paths. Their selection and matching artifact names, sizes and modification times
+participate in build stamps. Conflicting search directories for one native name
+report a macro build failure instead of silently selecting one linker search path.
+Their directories also enter the compiler's and workspace macro server's native
+library search environment, after the selected SDK's runtime. This lets shared
+native libraries load while a macro runs or is imported by another package.
+The server watches their directories, including
+directory replacement, so an updated or newly built native library schedules a
+new build. These are linker inputs already built by the user's build system;
+the macro host does not compile C sources or honor application `output-type`
+overrides. Native configuration selection is documented in
+[project_model](../project_model/README.md#discovery-and-partial-loads).
+
 Calls record input text in a `WireLayout` so answer positions map back to original
 sources ([D98](../../docs/adr/0098-workspace-expansions-are-an-input-of-their-file.md)).
 Only libraries built at the analysis snapshot's stamp, or shipped std libraries,

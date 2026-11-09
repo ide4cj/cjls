@@ -15,6 +15,7 @@ struct Manifest {
         @Serde[rename: "package"]
         let pkg!: ?ManifestPackage = None,
         let workspace!: ?Workspace = None,
+        let ffi!: ?ForeignInterfaces = None,
         let dependencies!: ?HashMap<String, Dependency> = None,
         let replace!: ?HashMap<String, Dependency> = None,
         @Serde[rename: "test-dependencies"]
@@ -78,6 +79,7 @@ struct DependencyTable {
 @DeriveExt[FromToml]
 struct Target {
     Target(
+        let ffi!: ?ForeignInterfaces = None,
         let debug!: ?TargetMode = None,
         let release!: ?TargetMode = None,
         let dependencies!: ?HashMap<String, Dependency> = None,
@@ -91,6 +93,7 @@ struct Target {
 @DeriveExt[FromToml]
 struct TargetMode {
     TargetMode(
+        let ffi!: ?ForeignInterfaces = None,
         let dependencies!: ?HashMap<String, Dependency> = None,
         @Serde[rename: "test-dependencies"]
         let testDependencies!: ?HashMap<String, Dependency> = None,
@@ -123,4 +126,17 @@ struct CjpmDirectory {
 @Derive[Hashable, Equatable]
 struct CjpmSelection {
     CjpmSelection(let name: String, let isScript!: Bool) {}
+}
+
+/**
+ * Native linker inputs, independent of Cangjie source and binary dependencies.
+ */
+@DeriveExt[FromToml]
+struct ForeignInterfaces {
+    ForeignInterfaces(let c!: ?HashMap<String, CLibrary> = None) {}
+}
+
+@DeriveExt[FromToml]
+struct CLibrary {
+    CLibrary(let path!: String = "") {}
 }
