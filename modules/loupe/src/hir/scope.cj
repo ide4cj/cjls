@@ -15,6 +15,7 @@ import loupe.vfs.FileId
  * visibility it re-exports with.
  */
 @DerivePython
+@PyDoc["The path of an import a name came by: its file, its import, the path's index in it, and the visibility it re-exports with."]
 public struct ImportSite <: Equatable<ImportSite> {
     public ImportSite(
         public let file: ItemFile,
@@ -36,6 +37,7 @@ public struct ImportSite <: Equatable<ImportSite> {
  * What a name of a scope stands for: a declaration, or a package imported by its name (N7, N43).
  */
 @DerivePython
+@PyDoc["What a name of a scope stands for: a declaration, or a package imported by its name (N7, N43)."]
 public enum ScopeTarget <: ToString & Equatable<ScopeTarget> & Hashable {
     | OfDecl(DefId)
     | OfPackage(PackageRef)
@@ -77,6 +79,7 @@ public enum ScopeTarget <: ToString & Equatable<ScopeTarget> & Hashable {
  * A name an import brings, and the path it came by; `None` for the prelude.
  */
 @DerivePython
+@PyDoc["A name an import brings, and the path it came by; `None` for the prelude."]
 public struct Imported <: Equatable<Imported> {
     public Imported(public let target: ScopeTarget, public let site: ?ImportSite) {}
 
@@ -93,12 +96,14 @@ public struct Imported <: Equatable<Imported> {
  * An import of every name of a package, kept as the package: its names are read at a lookup.
  */
 @DerivePython
+@PyDoc["An import of every name of a package, kept as the package: its names are read at a lookup."]
 public struct Glob <: Equatable<Glob> {
     public Glob(
         public let pkg: PackageRef,
         /**
          * How the importer stands to it, for what it sees (N2–N4).
          */
+        @PyDoc["How the importer stands to it, for what it sees (N2–N4)."]
         public let relation: PackageRelation,
         public let level: Visibility,
         public let site: ?ImportSite
@@ -408,6 +413,7 @@ public func importsAt(
  * leaves `@Derive` the imported macro).
  */
 @DerivePython
+@PyDoc["Where a name is used: as a type, or as a value (N41), or as the macro of a call. A type does not see functions or variables; neither sees a macro, nor a macro anything else (a function `Derive` leaves `@Derive` the imported macro)."]
 public enum Namespace <: Equatable<Namespace> & Hashable {
     | Types
     | Values
@@ -441,6 +447,7 @@ public enum Namespace <: Equatable<Namespace> & Hashable {
  * What a name means in a file's scope.
  */
 @DerivePython
+@PyDoc["What a name means in a file's scope."]
 public enum Resolution <: ToString & Equatable<Resolution> {
     /**
      * One declaration, or functions overloading one another (N5, N14, N42).

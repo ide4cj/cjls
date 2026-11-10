@@ -35,6 +35,8 @@ Capture a = workspace.analysis() in each call. Core queries:
 - a.declarations(path) -> DefIds; a.item(defId), a.infer(defId), a.typeText(ty).
 - s = a.semantic() -> snapshot views; s.at(fileId, offset), s.project(), s.syntaxAt(fileId).
   Compose occurrence.resolution(), contextualFile() and object relationships; retain gaps.
+- workspace.sdk -> selected SDK path/source/version/channel, or None, for this revision.
+  s.project().modules(): module.nativeLibraries() gives linker names/search directories.
 
 Select declarations/members before returning source:
 result = source_excerpts(a, [(path, symbol.range)], max_bytes=12000)

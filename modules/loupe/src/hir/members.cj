@@ -12,6 +12,7 @@ import loupe.db.{AnalysisDatabase, Package, SourceFile}
  * A type an `extend` extends: one declared, or a type of the language by its keyword (`Int64`).
  */
 @DerivePython
+@PyDoc["A type an `extend` extends: one declared, or a type of the language by its keyword (`Int64`)."]
 public enum ExtendedType <: ToString & Equatable<ExtendedType> & Hashable {
     | DeclType(DefId)
     | PrimType(String)
@@ -162,6 +163,7 @@ public func enclosingTypeOf(db: AnalysisDatabase, def: DefId): ?ExtendedType {
  * parameter of its primary constructor (N69).
  */
 @DerivePython
+@PyDoc["What a name of the type a body is in stands for: a declaration among its members, or a member parameter of its primary constructor (N69)."]
 public enum MemberTarget <: ToString & Equatable<MemberTarget> & Hashable {
     | MemberDecl(DefId)
     /**

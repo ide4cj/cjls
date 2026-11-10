@@ -15,6 +15,7 @@ import loupe.vfs.FileId
  * What a fold is: LSP names the first two, the others are for whoever tells folds apart.
  */
 @DerivePython
+@PyDoc["What a fold is: LSP names the first two, the others are for whoever tells folds apart."]
 public enum FoldKind <: ToString & Equatable<FoldKind> {
     // a block comment, or line comments one under the other
     | Comment
@@ -65,6 +66,7 @@ public enum FoldKind <: ToString & Equatable<FoldKind> {
  * covers the delimiters, `{` to `}`: what is left visible is the client's to choose.
  */
 @DerivePython
+@PyDoc["A part of a file over more than one line an editor may fold. `range` is in UTF-8 bytes (A6) and covers the delimiters, `{` to `}`: what is left visible is the client's to choose."]
 public struct Fold <: ToString & Equatable<Fold> {
     public Fold(public let range: TextRange, public let kind: FoldKind) {}
 
