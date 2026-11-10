@@ -25,7 +25,6 @@ extend SemanticAnalysis {
      * The single merged loaded project, or none before project inputs are installed.
      * Original workspace-root grouping is not retained by the merged input.
      */
-    @PyDoc["The single merged loaded project, or none before project inputs are installed. Original workspace-root grouping is not retained by the merged input."]
     public func project(): ?SemanticProject {
         db.unwindIfCancelled()
         db.project().map { _ => SemanticProject(this) }
@@ -37,7 +36,6 @@ extend SemanticAnalysis {
  * Array filtering. All methods use the originating snapshot and cancel after input changes.
  */
 @DerivePython
-@PyDoc["Traversal of loaded inputs only. Collections preserve input order and support ordinary Array filtering. All methods use the originating snapshot and cancel after input changes."]
 public class SemanticProject {
     private let analysis: SemanticAnalysis
 
@@ -60,7 +58,6 @@ public class SemanticProject {
     /**
      * Source, binary and detached attached-source contexts, each identity once.
      */
-    @PyDoc["Source, binary and detached attached-source contexts, each identity once."]
     public func packages(): Array<SemanticPackage> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -96,7 +93,6 @@ public class SemanticProject {
     /**
      * Selected loaded binary models; never enumerates their paths on disk.
      */
-    @PyDoc["Selected loaded binary models; never enumerates their paths on disk."]
     public func binaries(): Array<BinaryModel> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -127,7 +123,6 @@ public class SemanticProject {
  * follow CfgExpr's false default, not proof that the compiler was invoked without them.
  */
 @DerivePython
-@PyDoc["Effective analysis conditions, not an exact compiler invocation. The loader does not retain profile/feature/flag completeness, selection provenance, source-set names or load diagnostics in database inputs. Unavailable metadata is separate from a known empty result. Missing @When comparison keys remain unknown/active; absent debug/test flags currently follow CfgExpr's false default, not proof that the compiler was invoked without them."]
 public struct SemanticConfiguration {
     SemanticConfiguration(public let cfg: Cfg) {}
 
@@ -161,7 +156,6 @@ public struct SemanticConfiguration {
  * A dependency permission, not evidence of an import statement.
  */
 @DerivePython
-@PyDoc["A dependency permission, not evidence of an import statement."]
 public struct SemanticDependency {
     SemanticDependency(
         public let source: SemanticModule,
@@ -175,7 +169,6 @@ public struct SemanticDependency {
     /**
      * False distinguishes a missing selected target from an empty package collection.
      */
-    @PyDoc["False distinguishes a missing selected target from an empty package collection."]
     public prop isResolved: Bool {
         get() {
             !modules.isEmpty() || !binaries.isEmpty()
@@ -187,7 +180,6 @@ public struct SemanticDependency {
  * Module identity includes its independent resolution scope, including script selections.
  */
 @DerivePython
-@PyDoc["Module identity includes its independent resolution scope, including script selections."]
 public class SemanticModule {
     private let analysis: SemanticAnalysis
     public let identity: Module
@@ -213,7 +205,6 @@ public class SemanticModule {
     /**
      * Native linker inputs selected for this module; these are separate from Cangjie dependencies.
      */
-    @PyDoc["Return this module's selected native linker names and search directories."]
     public func nativeLibraries(): Array<NativeLibrary> {
         analysis.db.unwindIfCancelled()
         identity.nativeLibraries(analysis.db)
@@ -255,7 +246,6 @@ public class SemanticModule {
     /**
      * Source-set exclusions retained by the loader, even when their text was not loaded.
      */
-    @PyDoc["Source-set exclusions retained by the loader, even when their text was not loaded."]
     public func inactiveFiles(): Array<InactiveSourceFile> {
         analysis.db.unwindIfCancelled()
         identity.inactive(analysis.db)
@@ -265,7 +255,6 @@ public class SemanticModule {
      * Direct ordinary and additional test-only edges, plus implicit std. Script edges retain
      * their module's resolutionScope; downstream modules do not inherit test-only permissions.
      */
-    @PyDoc["Direct ordinary and additional test-only edges, plus implicit std. Script edges retain their module's resolutionScope; downstream modules do not inherit test-only permissions."]
     public func dependencies(): Array<SemanticDependency> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -311,7 +300,6 @@ public class SemanticModule {
  * Loaded origin, independent of a declaration's navigation source.
  */
 @DerivePython
-@PyDoc["Loaded origin, independent of a declaration's navigation source."]
 public enum SemanticPackageOrigin <: Equatable<SemanticPackageOrigin> {
     | WorkspacePackage
     | DependencyPackage
@@ -345,7 +333,6 @@ public enum SemanticPackageOrigin <: Equatable<SemanticPackageOrigin> {
  * A contextual package. Attached source retains its detached identity, not its binary's.
  */
 @DerivePython
-@PyDoc["A contextual package. Attached source retains its detached identity, not its binary's."]
 public class SemanticPackage {
     @PyIgnore
     let analysis: SemanticAnalysis
@@ -417,7 +404,6 @@ public class SemanticPackage {
     /**
      * Detached source contexts attached to this binary; empty without loaded attachments.
      */
-    @PyDoc["Detached source contexts attached to this binary; empty without loaded attachments."]
     public func attachedSources(): Array<SemanticPackage> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -437,7 +423,6 @@ public class SemanticPackage {
      * Contextual files with loaded text; binaries expose their item-file identities.
      * Attached source enumerates its own files, never the editor-preferred physical context.
      */
-    @PyDoc["Contextual files with loaded text; binaries expose their item-file identities. Attached source enumerates its own files, never the editor-preferred physical context."]
     public func files(): Array<SemanticFile> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -453,7 +438,6 @@ public class SemanticPackage {
     /**
      * Source identities whose text is not loaded; empty for binaries.
      */
-    @PyDoc["Source identities whose text is not loaded; empty for binaries."]
     public func unavailableFiles(): Array<FileId> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -468,7 +452,6 @@ public class SemanticPackage {
      * Packages permitted in this context, including self and std; these are not written
      * imports. Selection uses the same package index as semantic lookup.
      */
-    @PyDoc["Packages permitted in this context, including self and std; these are not written imports. Selection uses the same package index as semantic lookup."]
     public func permittedPackages(ofTests!: Bool = false): Array<SemanticPackage> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -483,7 +466,6 @@ public class SemanticPackage {
      * Conservative candidates allowed to depend on this package, including self and test
      * permissions. No claim about written imports or transitive use is made.
      */
-    @PyDoc["Conservative candidates allowed to depend on this package, including self and test permissions. No claim about written imports or transitive use is made."]
     public func potentialDependents(): Array<SemanticPackage> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -510,7 +492,6 @@ public class SemanticPackage {
      * Missing binary source import graphs are recorded in unavailablePackages, not
      * treated as no imports. Attached sources contribute only the loaded source evidence.
      */
-    @PyDoc["Written paths with this resolved package target, even if a name is inaccessible. Missing binary source import graphs are recorded in unavailablePackages, not treated as no imports. Attached sources contribute only the loaded source evidence."]
     public func writtenImporters(stage!: ScopeStage = ScopeStage.Written): SemanticImporters {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -539,7 +520,6 @@ public class SemanticPackage {
      * Imports in loaded source text; unavailableFiles reports any omitted source inputs.
      * None for binary syntax, empty for loaded source with no active imports.
      */
-    @PyDoc["Imports in loaded source text; unavailableFiles reports any omitted source inputs. None for binary syntax, empty for loaded source with no active imports."]
     public func imports(stage!: ScopeStage = ScopeStage.Written): ?Array<SemanticImport> {
         analysis.db.unwindIfCancelled()
         if (let Binary(_) <- identity) {
@@ -551,7 +531,6 @@ public class SemanticPackage {
     /**
      * Exports include re-export visibility. Cycles are explicit, not an empty success.
      */
-    @PyDoc["Exports include re-export visibility. Cycles are explicit, not an empty success."]
     public func exports(stage!: ScopeStage = ScopeStage.Expanded): SemanticExports {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -641,7 +620,6 @@ public class SemanticPackage {
  * Reverse written-import evidence with explicit missing-source and binary graph gaps.
  */
 @DerivePython
-@PyDoc["Reverse written-import evidence with explicit missing-source and binary graph gaps."]
 public struct SemanticImporters {
     SemanticImporters(
         public let entries: Array<SemanticImport>,
@@ -654,7 +632,6 @@ extend SemanticObject {
     /**
      * Context of the identity itself; never reconstructed through its navigation location.
      */
-    @PyDoc["Context of the identity itself; never reconstructed through its navigation location."]
     public func contextualPackage(): ?SemanticPackage {
         let db = analysis.db
         db.unwindIfCancelled()

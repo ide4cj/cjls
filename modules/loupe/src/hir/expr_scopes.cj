@@ -11,7 +11,6 @@ import loupe.db.AnalysisDatabase
  * A scope of a body, by its place among the body's scopes.
  */
 @DerivePython
-@PyDoc["A scope of a body, by its place among the body's scopes."]
 public struct ScopeId <: Equatable<ScopeId> & Hashable & ToString {
     public ScopeId(public let index: Int64) {}
 
@@ -39,7 +38,6 @@ public struct ScopeId <: Equatable<ScopeId> & Hashable & ToString {
  * parameters.
  */
 @DerivePython
-@PyDoc["A scope: the one around it, and the locals it adds; a local function's own has its type parameters."]
 public struct ScopeData <: Equatable<ScopeData> {
     public ScopeData(
         public let parent: ?ScopeId,
@@ -47,7 +45,6 @@ public struct ScopeData <: Equatable<ScopeData> {
         /**
          * The local function whose type parameters these are.
          */
-        @PyDoc["The local function whose type parameters these are."]
         public let genericsOf!: ?Int64 = None,
         public let generics!: Array<String> = []
     ) {}
@@ -70,7 +67,6 @@ public struct ScopeData <: Equatable<ScopeData> {
  * (N59); here they nest, which answers a lookup the same.
  */
 @DerivePython
-@PyDoc["The scopes of a body, rust-analyzer's `ExprScopes`: a tree, and where each expression and type is, the scope it sees. A declaration opens a scope for what follows it, its initializer not in it: what comes before a local, and the local's own initializer, see what is around it (N60, N61). A block and the bindings before it are one scope in cjc, which only says so for a redefinition (N59); here they nest, which answers a lookup the same."]
 public struct ExprScopes <: Equatable<ExprScopes> {
     public ExprScopes(
         public let scopes!: Array<ScopeData> = [],
@@ -85,7 +81,6 @@ public struct ExprScopes <: Equatable<ExprScopes> {
     /**
      * The scope `expr` sees, `None` for one of no body.
      */
-    @PyDoc["The scope `expr` sees, `None` for one of no body."]
     public func scopeOf(expr: ExprId): ?ScopeId {
         exprScopes.get(expr.index) ?? None
     }
@@ -98,7 +93,6 @@ public struct ExprScopes <: Equatable<ExprScopes> {
     /**
      * The scopes from `scope` out, it first.
      */
-    @PyDoc["The scopes from `scope` out, it first."]
     public func chain(scope: ?ScopeId): Array<ScopeId> {
         let found = ArrayList<ScopeId>()
         var current = scope

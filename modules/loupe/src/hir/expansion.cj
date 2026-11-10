@@ -20,7 +20,6 @@ import loupe.syntax.parse
  * written. What a call on an item adds is `ItemFile.Expansion` of it.
  */
 @DerivePython[opaque]
-@PyDoc["A macro called in a source file, interned: the file and the item, and which of its calls. On the item (#175), the macro among those called on it, outermost first (`index` in `Item.macros`), or on one of its parameters, after those (`macroCallChainsOf`, D119), `inBody` `None`. In it, in a body or an initializer (D117), the macro's name as written (`inBody`) and its ordinal among the calls of that name there (`index`), in the order their `@`s are written. What a call on an item adds is `ItemFile.Expansion` of it."]
 @CalcaInterned
 public struct MacroCallId {
     public let file: SourceFile
@@ -34,7 +33,6 @@ public struct MacroCallId {
  * of it.
  */
 @DerivePython
-@PyDoc["What written in a macro call an item of its expansion comes from, where go to definition goes for it or a member of it."]
 public enum ExpansionOrigin <: Equatable<ExpansionOrigin> {
     /**
      * The interface of `@Derive[...]` at this index there.
@@ -77,7 +75,6 @@ public enum ExpansionOrigin <: Equatable<ExpansionOrigin> {
  * and says where each of its tokens comes from by `spans` instead of `origins`.
  */
 @DerivePython
-@PyDoc["What a macro call adds after its item, as text cjsyntax parses: declarations, signatures alone, each body a comment (`stubBody`); for each item of it in order, what written in the call it comes from; and whether it replaces the item the call is on, which then declares nothing (`@Strategy`'s function, whose body stays in a lambda of the `let` it becomes). One the macro server ran (#176), of the workspace or of std, is its whole output, replacing the item, and says where each of its tokens comes from by `spans` instead of `origins`."]
 public struct Expansion <: Equatable<Expansion> {
     public Expansion(
         public let text: String,
@@ -374,7 +371,6 @@ public func macroExpansion(db: AnalysisDatabase, call: MacroCallId): Expansion {
  * What the output of a macro call is parsed as, by where the call stands (D117): rust-analyzer's `ExpandTo`.
  */
 @DerivePython
-@PyDoc["What the output of a macro call is parsed as, by where the call stands (D117): rust-analyzer's `ExpandTo`."]
 public enum ExpandTo <: ToString & Equatable<ExpandTo> {
     /**
      * Declarations, as a file holds them (`parse`): a call on an item.

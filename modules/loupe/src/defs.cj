@@ -24,7 +24,6 @@ import loupe.hir.*
  * name by.
  */
 @DerivePython
-@PyDoc["What a name means, rust-analyzer's `Definition`: what go to definition goes to, and what highlighting tells a name by."]
 public enum Definition <: ToString & Equatable<Definition> {
     /**
      * A declaration, of a source or of a package compiled already.

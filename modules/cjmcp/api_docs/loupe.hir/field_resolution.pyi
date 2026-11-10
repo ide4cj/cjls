@@ -2,7 +2,9 @@ from typing import Literal
 
 class Receiver:
     """
+
     What the left of a `.` in a body stands for, as far as names tell (N75–N79).
+
     """
     def __repr__(self) -> str:
         ...
@@ -43,7 +45,9 @@ class Receiver:
             ...
 class FieldResolution:
     """
+
     What the name after a `.` in a body means.
+
     """
     def __repr__(self) -> str:
         ...

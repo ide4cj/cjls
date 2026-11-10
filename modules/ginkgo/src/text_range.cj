@@ -7,7 +7,6 @@ import py_interop.internal_macros.DerivePython
  * A half-open range `[start, end)` of UTF-8 byte offsets into the text a tree was built from.
  */
 @DerivePython
-@PyDoc["A half-open range `[start, end)` of UTF-8 byte offsets into the text a tree was built from."]
 public struct TextRange <: Equatable<TextRange> & Hashable & ToString {
     /**
      * @throws IllegalArgumentException - if `start` is negative or past `end`
@@ -48,7 +47,6 @@ public struct TextRange <: Equatable<TextRange> & Hashable & ToString {
      * Whether `offset` is inside, `end` excluded.
      */
     @Frozen
-    @PyDoc["Whether `offset` is inside, `end` excluded."]
     public func contains(offset: Int64): Bool {
         start <= offset && offset < end
     }
@@ -57,7 +55,6 @@ public struct TextRange <: Equatable<TextRange> & Hashable & ToString {
      * Whether `offset` is inside, `end` included.
      */
     @Frozen
-    @PyDoc["Whether `offset` is inside, `end` included."]
     public func containsInclusive(offset: Int64): Bool {
         start <= offset && offset <= end
     }
@@ -72,7 +69,6 @@ public struct TextRange <: Equatable<TextRange> & Hashable & ToString {
      * The common part: empty when the two only touch, `None` when they are apart.
      */
     @Frozen
-    @PyDoc["The common part: empty when the two only touch, `None` when they are apart."]
     public func intersect(other: TextRange): ?TextRange {
         let s = max(start, other.start)
         let e = min(end, other.end)
@@ -83,7 +79,6 @@ public struct TextRange <: Equatable<TextRange> & Hashable & ToString {
      * The smallest range containing both.
      */
     @Frozen
-    @PyDoc["The smallest range containing both."]
     public func cover(other: TextRange): TextRange {
         TextRange(min(start, other.start), max(end, other.end))
     }

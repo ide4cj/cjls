@@ -25,7 +25,6 @@ import loupe.db.{AnalysisDatabase, BinaryPackageFile}
  * A type and its bounds, `T <: A & B` of a `where`, as types.
  */
 @DerivePython
-@PyDoc["A type and its bounds, `T <: A & B` of a `where`, as types."]
 public struct TyBound <: Equatable<TyBound> {
     public TyBound(public let ty: Ty, public let bounds: Array<Ty>) {}
 
@@ -42,7 +41,6 @@ public struct TyBound <: Equatable<TyBound> {
  * Why a type of a signature is an error, as cjc says it.
  */
 @DerivePython
-@PyDoc["Why a type of a signature is an error, as cjc says it."]
 public enum TyErrorKind <: Equatable<TyErrorKind> {
     /**
      * A path whose name is no type of the scope (N89), an alias's own in its type (N93).
@@ -93,7 +91,6 @@ public enum TyErrorKind <: Equatable<TyErrorKind> {
  * A type of a signature that is an error: the type, by its id in the signature, and why.
  */
 @DerivePython
-@PyDoc["A type of a signature that is an error: the type, by its id in the signature, and why."]
 public struct TyError <: Equatable<TyError> {
     public TyError(public let at: TypeRefId, public let kind: TyErrorKind) {}
 
@@ -121,15 +118,10 @@ public struct TyError <: Equatable<TyError> {
 }
 
 /**
- * A declaration's signature as types (D54): what `Signature` writes, each `TypeRef` lowered to a
- * `Ty`, or what a `.cjo` resolved. One query of each declaration, as `signature` is.
- */
-/**
  * What each segment of the path of a type names, as lowering it resolved it: what highlighting and go to definition
  * read, not resolving it again.
  */
 @DerivePython
-@PyDoc["What each segment of the path of a type names, as lowering it resolved it: what highlighting and go to definition read, not resolving it again."]
 public struct TypePathTarget <: ByIndex & Equatable<TypePathTarget> {
     public TypePathTarget(public let ty: TypeRefId, public let resolution: Array<PathResolution>) {}
 
@@ -148,38 +140,33 @@ public struct TypePathTarget <: ByIndex & Equatable<TypePathTarget> {
 }
 
 /**
- * Resolved signature types, generic parameters, named/default arguments, supertypes, bounds and type errors.
+ * A declaration's signature as types (D54): what `Signature` writes, each `TypeRef` lowered to a
+ * `Ty`, or what a `.cjo` resolved. One query of each declaration, as `signature` is.
  */
 @DerivePython
-@PyDoc["Resolved signature types, generic parameters, named/default arguments, supertypes, bounds and type errors."]
 public struct SignatureTypes <: Equatable<SignatureTypes> {
     public SignatureTypes(
         /**
          * Its type parameters by name, in order: a `ParamTy` of it is by its place among them.
          */
-        @PyDoc["Its type parameters by name, in order: a `ParamTy` of it is by its place among them."]
         public let generics!: Array<String> = [],
         /**
          * Those of its parameters, of every list in order; an enum constructor's.
          */
-        @PyDoc["Those of its parameters, of every list in order; an enum constructor's."]
         public let params!: Array<Ty> = [],
         /**
          * The name each of its parameters is passed by, `None` for one passed by place; as many as
          * `params`, or none if none is named.
          */
-        @PyDoc["The name each of its parameters is passed by, `None` for one passed by place; as many as `params`, or none if none is named."]
         public let paramNames!: Array<?String> = [],
         /**
          * Whether each of its parameters has a default value; as many as `paramNames`.
          */
-        @PyDoc["Whether each of its parameters has a default value; as many as `paramNames`."]
         public let paramDefaults!: Array<Bool> = [],
         /**
          * Whether, a `foreign` function's, it takes any number of arguments more after `params`:
          * its `...`; of a source.
          */
-        @PyDoc["Whether, a `foreign` function's, it takes any number of arguments more after `params`: its `...`; of a source."]
         public let isCVariadic!: Bool = false,
         /**
          * What a declaration is a value or a type of: a function's return type, a variable's or
@@ -187,35 +174,29 @@ public struct SignatureTypes <: Equatable<SignatureTypes> {
          * its parameters its arguments (`C<T>`); a constructor's, an `init`'s or an enum
          * constructor's, its type's. `None` where it is not written: inference's.
          */
-        @PyDoc["What a declaration is a value or a type of: a function's return type, a variable's or property's type, the type an `extend` extends, what an alias expands to; a type's own, its parameters its arguments (`C<T>`); a constructor's, an `init`'s or an enum constructor's, its type's. `None` where it is not written: inference's."]
         public let ty!: ?Ty = None,
         /**
          * The types after `<:`: a type's supertypes, an `extend`'s interfaces; a class's superclass
          * first, `Object` if it names none, as cjc adds it.
          */
-        @PyDoc["The types after `<:`: a type's supertypes, an `extend`'s interfaces; a class's superclass first, `Object` if it names none, as cjc adds it."]
         public let supers!: Array<Ty> = [],
         /**
          * Its `where`, as written: not the bounds cjc adds to an `extend` of a generic type.
          */
-        @PyDoc["Its `where`, as written: not the bounds cjc adds to an `extend` of a generic type."]
         public let bounds!: Array<TyBound> = [],
         /**
          * The types of its source that are errors; none of a `.cjo`, which cjc checked.
          */
-        @PyDoc["The types of its source that are errors; none of a `.cjo`, which cjc checked."]
         public let errors!: Array<TyError> = [],
         /**
          * What each segment of each path of its types names, by the type; none of a `.cjo`.
          */
-        @PyDoc["What each segment of each path of its types names, by the type; none of a `.cjo`."]
         public let typePaths!: Array<TypePathTarget> = []
     ) {}
 
     /**
      * What each segment of the path of the type `ty` of the signature names, if it is one.
      */
-    @PyDoc["What each segment of the path of the type `ty` of the signature names, if it is one."]
     public func pathOf(ty: TypeRefId): ?Array<PathResolution> {
         match (findByIndex(typePaths, ty.index)) {
             case Some(one) => one.resolution

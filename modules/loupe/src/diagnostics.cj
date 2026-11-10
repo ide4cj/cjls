@@ -26,7 +26,6 @@ import loupe.vfs.FileId
  * Diagnostic severity: Error, Warning, or informational Hint.
  */
 @DerivePython
-@PyDoc["Diagnostic severity: Error, Warning, or informational Hint."]
 public enum Severity <: Equatable<Severity> {
     | Error
     | Warning
@@ -53,7 +52,6 @@ public enum Severity <: Equatable<Severity> {
  * out, which an editor shows faded.
  */
 @DerivePython
-@PyDoc[#"Something wrong in a file, or worth knowing of it. `range` is where its source put it, empty ones included, as "expected `}`" at the end of a file (A12). `unnecessary` for code a build leaves out, which an editor shows faded."#]
 public struct Diagnostic <: Equatable<Diagnostic> {
     public Diagnostic(
         public let range: TextRange,

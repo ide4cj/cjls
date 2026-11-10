@@ -2,7 +2,9 @@ from typing import Literal
 
 class HierarchyCalls:
     """
+
     One caller or callee, grouping its call sites. Ranges always belong to the caller's file.
+
     """
     def __init__(self, __item: CallHierarchyEntry, __ranges: list[TextRange]):
         """
@@ -20,7 +22,10 @@ class HierarchyCalls:
         ...
 class CallHierarchyEntry:
     """
-    A callable with source locations, independent of protocol positions. Without attached sources, a binary callable uses the referring name's location; `definition` still identifies its overload.
+
+    A callable with source locations, independent of protocol positions. Without attached sources,
+    a binary callable uses the referring name's location; `definition` still identifies its overload.
+
     """
     def __init__(self, __name: str, __kind: StructureKind, __target: NavigationTarget, *, definition: DefId | None = ...):
         """
@@ -47,7 +52,9 @@ class CallHierarchyEntry:
     @property
     def definition(self) -> DefId | None:
         """
+
         Canonical binary identity, including when `target` is an attached source declaration.
+
          for type DefId, see 'loupe.hir/def_map.pyi'
         """
         ...

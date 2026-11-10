@@ -1,53 +1,43 @@
 from typing import Literal
 
-class ScopeProblemAt:
+class ScopeDiagnostic:
     """
-    Where a problem is: a path of an import, or a name of a declaration.
+
+    A scope-resolution problem paired with the import, declaration or file site that caused it.
+
     """
-    def __eq__(self, __other: ScopeProblemAt) -> bool:
+    def __init__(self, __at: ScopeProblemAt, __problem: ScopeProblem):
         ...
-    def __ne__(self, __other: ScopeProblemAt) -> bool:
+    @property
+    def at(self) -> ScopeProblemAt:
         ...
-    kind: Literal['AtImport', 'AtDecl']
-    class AtImport(ScopeProblemAt):
-        kind: Literal['AtImport'] = 'AtImport'
-        def __init__(self, __p1: ImportSite):
-            """
-             for type ImportSite, see 'loupe.hir/scope.pyi'
-            """
-            ...
-        @property
-        def field0(self) -> ImportSite:
-            ...
-        __match_args__ = ('field0')
-    class AtDecl(ScopeProblemAt):
-        kind: Literal['AtDecl'] = 'AtDecl'
-        def __init__(self, __p1: DefId, __p2: str):
-            """
-             for type DefId, see 'loupe.hir/def_map.pyi'
-            """
-            ...
-        @property
-        def field0(self) -> DefId:
-            ...
-        @property
-        def field1(self) -> str:
-            ...
-        __match_args__ = ('field0', 'field1')
+    @property
+    def problem(self) -> ScopeProblem:
+        ...
+    def __eq__(self, __other: ScopeDiagnostic) -> bool:
+        ...
+    def __ne__(self, __other: ScopeDiagnostic) -> bool:
+        ...
 class ScopeProblem:
     """
+
     What is wrong with a file's scope, as cjc and cjpm report it.
+
     """
     def __repr__(self) -> str:
         ...
     def isWarning(self) -> bool:
         """
+
         Whether cjc reports it as a warning, not an error.
+
         """
         ...
     def message(self) -> str:
         """
+
         What cjc says of it.
+
         """
         ...
     def __eq__(self, __other: ScopeProblem) -> bool:
@@ -93,19 +83,39 @@ class ScopeProblem:
         def field1(self) -> str:
             ...
         __match_args__ = ('field0', 'field1')
-class ScopeDiagnostic:
+class ScopeProblemAt:
     """
-    A scope-resolution problem paired with the import, declaration or file site that caused it.
+
+    Where a problem is: a path of an import, or a name of a declaration.
+
     """
-    def __init__(self, __at: ScopeProblemAt, __problem: ScopeProblem):
+    def __eq__(self, __other: ScopeProblemAt) -> bool:
         ...
-    @property
-    def at(self) -> ScopeProblemAt:
+    def __ne__(self, __other: ScopeProblemAt) -> bool:
         ...
-    @property
-    def problem(self) -> ScopeProblem:
-        ...
-    def __eq__(self, __other: ScopeDiagnostic) -> bool:
-        ...
-    def __ne__(self, __other: ScopeDiagnostic) -> bool:
-        ...
+    kind: Literal['AtImport', 'AtDecl']
+    class AtImport(ScopeProblemAt):
+        kind: Literal['AtImport'] = 'AtImport'
+        def __init__(self, __p1: ImportSite):
+            """
+             for type ImportSite, see 'loupe.hir/scope.pyi'
+            """
+            ...
+        @property
+        def field0(self) -> ImportSite:
+            ...
+        __match_args__ = ('field0')
+    class AtDecl(ScopeProblemAt):
+        kind: Literal['AtDecl'] = 'AtDecl'
+        def __init__(self, __p1: DefId, __p2: str):
+            """
+             for type DefId, see 'loupe.hir/def_map.pyi'
+            """
+            ...
+        @property
+        def field0(self) -> DefId:
+            ...
+        @property
+        def field1(self) -> str:
+            ...
+        __match_args__ = ('field0', 'field1')

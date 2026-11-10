@@ -9,7 +9,6 @@ import py_interop.internal_macros.DerivePython
  * A replacement in UTF-8 byte offsets into the original text, with an exclusive end.
  */
 @DerivePython
-@PyDoc["A replacement in UTF-8 byte offsets into the original text, with an exclusive end."]
 public struct TextEdit <: Equatable<TextEdit> & ToString {
     public TextEdit(public let range: TextRange, public let text: String) {}
 

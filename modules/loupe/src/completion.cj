@@ -125,7 +125,6 @@ let PRIM_TYPE_NAMES =
  * What a completion item is, for the client to show it as one.
  */
 @DerivePython
-@PyDoc["What a completion item is, for the client to show it as one."]
 public enum CompletionKind <: Equatable<CompletionKind> & ToString {
     | LocalItem
     | ParamItem
@@ -193,7 +192,6 @@ public enum CompletionKind <: Equatable<CompletionKind> & ToString {
  * constructor; nothing, for a keyword or a package.
  */
 @DerivePython
-@PyDoc["What a completion item stands for, for its detail and documentation when a client asks for them (`completionDetails`): a declaration, as a member of a value of a type if one's; a group of overloads with their receiver types; a local of a body; a member parameter of a primary constructor; nothing, for a keyword or a package."]
 public enum CompletionSource <: Equatable<CompletionSource> {
     | DeclSource(DefId, ?Ty)
     | OverloadSource(Array<CompletionOverload>)
@@ -233,7 +231,6 @@ public enum CompletionSource <: Equatable<CompletionSource> {
  * One completion candidate: label, kind, ranking relevance and source for deferred details.
  */
 @DerivePython
-@PyDoc["One completion candidate: label, kind, ranking relevance and source for deferred details."]
 public struct CompletionItem <: Equatable<CompletionItem> {
     public CompletionItem(
         public let label: String,
@@ -242,7 +239,6 @@ public struct CompletionItem <: Equatable<CompletionItem> {
          * Higher first: a local before a member before the file's scope before a keyword; the
          * client's own match against what was typed comes on top of it.
          */
-        @PyDoc["Higher first: a local before a member before the file's scope before a keyword; the client's own match against what was typed comes on top of it."]
         public let relevance: Int64,
         public let source: CompletionSource
     ) {}
@@ -250,7 +246,6 @@ public struct CompletionItem <: Equatable<CompletionItem> {
     /**
      * How many declarations this item offers; counting a group needs no signature query.
      */
-    @PyDoc["How many declarations this item offers; counting a group needs no signature query."]
     public prop overloadCount: Int64 {
         get() {
             match (source) {
@@ -275,7 +270,6 @@ public struct CompletionItem <: Equatable<CompletionItem> {
  * cursor, and the items, the most relevant first.
  */
 @DerivePython
-@PyDoc["The completions at a cursor: what the item inserted replaces, the name typed so far before the cursor, and the items, the most relevant first."]
 public struct CompletionResult <: Equatable<CompletionResult> {
     public CompletionResult(public let range: TextRange, public let items: Array<CompletionItem>) {}
 

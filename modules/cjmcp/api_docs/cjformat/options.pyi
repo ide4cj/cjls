@@ -2,7 +2,9 @@ from typing import Literal
 
 class SimpleIf:
     """
+
     Layout of an if expression with one expression in each branch and no comments.
+
     """
     @staticmethod
     def fromToml(__v: FtValue) -> SimpleIf:
@@ -18,7 +20,9 @@ class SimpleIf:
             ...
 class FormatOptions:
     """
+
     Formatting policy. Width counts Unicode scalars; indentation always uses spaces.
+
     """
     def __init__(self, *, lineWidth: int = ..., indentWidth: int = ..., simpleIf: SimpleIf = ...):
         """

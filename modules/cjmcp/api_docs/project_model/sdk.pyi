@@ -12,13 +12,18 @@ class CangjieHome:
     @property
     def source(self) -> str:
         """
-        What named it, for the log: `initializationOptions.cangjieHome`, `CANGJIE_HOME`, cjsdk's default toolchain, or `cjc` on `PATH`.
+
+        What named it, for the log: `initializationOptions.cangjieHome`, `CANGJIE_HOME`, cjsdk's
+        default toolchain, or `cjc` on `PATH`.
+
         """
         ...
     @property
     def version(self) -> str | None:
         """
+
         The selected compiler's version; absent when it cannot run or its output is unrecognized.
+
         """
         ...
     @property

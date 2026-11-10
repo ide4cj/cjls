@@ -2,7 +2,10 @@ from typing import Literal
 
 class Definition:
     """
-    What a name means, rust-analyzer's `Definition`: what go to definition goes to, and what highlighting tells a name by.
+
+    What a name means, rust-analyzer's `Definition`: what go to definition goes to, and what highlighting tells a
+    name by.
+
     """
     def __repr__(self) -> str:
         ...

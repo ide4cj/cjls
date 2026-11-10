@@ -17,7 +17,6 @@ import source_change.{FileChange, SourceChange, applyEdits}
  */
 @When[os == "Linux"]
 @DerivePython
-@PyDoc["Application report using zero-based operation indices in the supplied SourceChange. Preflight failures have no applied operations and no failed index. An I/O failure stops at failed; that operation may have changed disk. Nothing is rolled back. revision remains the script's original analysis revision, including after success."]
 struct ApplyChangeResult {
     ApplyChangeResult(
         public let revision: Int64,

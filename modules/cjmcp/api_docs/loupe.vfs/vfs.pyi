@@ -2,7 +2,10 @@ from typing import Literal
 
 class FileId:
     """
-    A file, by the index its path was given when first seen. Cheap to keep, compare and hash, and the one handle the layers above know a file by; `Vfs` says which path it stands for.
+
+    A file, by the index its path was given when first seen. Cheap to keep, compare and hash, and
+    the one handle the layers above know a file by; `Vfs` says which path it stands for.
+
     """
     def __init__(self, __index: int):
         ...

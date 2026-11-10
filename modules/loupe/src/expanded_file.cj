@@ -17,7 +17,6 @@ import loupe.vfs.FileId
  * those of the text the macro wrote (`expandedMacro`), in order: that is how an offset goes from one to the other.
  */
 @DerivePython
-@PyDoc["The text of an expansion as a reader is shown it: formatted by cjformat, which changes whitespace only (D150), its trailing whitespace left out; as the macro wrote it if it does not format. Its bytes that are not whitespace are those of the text the macro wrote (`expandedMacro`), in order: that is how an offset goes from one to the other."]
 public class ShownExpansion {
     private ShownExpansion(
         public let text: String,
@@ -41,7 +40,6 @@ public class ShownExpansion {
     /**
      * The offset of the written text that `offset` of the shown text is at.
      */
-    @PyDoc["The offset of the written text that `offset` of the shown text is at."]
     public func toWritten(offset: Int64): Int64 {
         across(offset, shownMarks, writtenMarks)
     }
@@ -49,7 +47,6 @@ public class ShownExpansion {
     /**
      * The offset of the shown text that `offset` of the written text is at.
      */
-    @PyDoc["The offset of the shown text that `offset` of the written text is at."]
     public func fromWritten(offset: Int64): Int64 {
         across(offset, writtenMarks, shownMarks)
     }
@@ -107,7 +104,6 @@ func across(offset: Int64, from: Array<Int64>, to: Array<Int64>): Int64 {
  * Where a piece of an expanded file (`expandFile`) comes from.
  */
 @DerivePython
-@PyDoc["Where a piece of an expanded file (`expandFile`) comes from."]
 public enum ExpandedOrigin {
     /**
      * The analysis wrote it: the header, a line naming a call.
@@ -127,7 +123,6 @@ public enum ExpandedOrigin {
  * A UTF-8 range in expanded text and the source or expansion that contributed it.
  */
 @DerivePython
-@PyDoc["A UTF-8 range in expanded text and the source or expansion that contributed it."]
 public struct ExpandedSegment {
     public ExpandedSegment(public let range: TextRange, public let origin: ExpandedOrigin) {}
 }
@@ -137,7 +132,6 @@ public struct ExpandedSegment {
  * (`expandedMacro`).
  */
 @DerivePython
-@PyDoc["What an offset of an expanded file is at: an offset of its source file, or one of the text of an expansion (`expandedMacro`)."]
 public enum ExpandedPlace {
     | InSource(Int64)
     | InExpansion(MacroCallId, Int64)
@@ -148,14 +142,12 @@ public enum ExpandedPlace {
  * its pieces comes from.
  */
 @DerivePython
-@PyDoc["A source file with its macro calls expanded, as cjc's `--debug-macro` writes a `.cj.macrocall`; and where each of its pieces comes from."]
 public class ExpandedFile {
     ExpandedFile(public let text: String, public let segments: Array<ExpandedSegment>) {}
 
     /**
      * What `offset` is at: the piece it is in, or the one it ends; `None` in what the analysis wrote.
      */
-    @PyDoc["What `offset` is at: the piece it is in, or the one it ends; `None` in what the analysis wrote."]
     public func placeOf(offset: Int64): ?ExpandedPlace {
         for (
             segment in segments where segment.range.start <= offset && offset <= segment.range.end
@@ -186,7 +178,6 @@ public class ExpandedFile {
     /**
      * Where `range` of the source file is here, if it was copied whole into one piece.
      */
-    @PyDoc["Where `range` of the source file is here, if it was copied whole into one piece."]
     public func fromSource(range: TextRange): ?TextRange {
         for (segment in segments) {
             if (
@@ -202,7 +193,6 @@ public class ExpandedFile {
     /**
      * Where `range` of the text of the expansion of `call` (`expandedMacro`) is here, if the file shows it.
      */
-    @PyDoc["Where `range` of the text of the expansion of `call` (`expandedMacro`) is here, if the file shows it."]
     public func fromExpansion(call: MacroCallId, range: TextRange): ?TextRange {
         for (segment in segments) {
             if (let Shown(one, shown) <- segment.origin && one == call) {
@@ -215,7 +205,6 @@ public class ExpandedFile {
     /**
      * Where the expansion of `call` is here, if the file shows it.
      */
-    @PyDoc["Where the expansion of `call` is here, if the file shows it."]
     public func expansionOf(call: MacroCallId): ?TextRange {
         for (segment in segments) {
             if (let Shown(one, _) <- segment.origin && one == call) {

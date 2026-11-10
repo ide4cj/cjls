@@ -32,7 +32,6 @@ class PythonSignatureSourceMap {
     /**
      * The first type reference written at exactly this range, or None.
      */
-    @PyDoc["The first type reference written at exactly this range, or None."]
     public func typeAtRange(range: TextRange): ?TypeRefId {
         for (i in 0..value.ptrs.size where value.ptrs[i].map { ptr => ptr.range } == Some(range)) {
             return TypeRefId(i)

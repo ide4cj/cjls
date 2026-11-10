@@ -44,7 +44,6 @@ import loupe.vfs.FileId
  * Explicit initializers retain their own declaration identity independently of navigation.
  */
 @DerivePython
-@PyDoc["An identity within one database revision. Body indices carry their declaration owner; signature and body types occupy different arenas. Do not reuse after edits/reloads or in another database. Keep SemanticObject when composing queries: it retains the snapshot. Local definitions are normalized to LocalIdentity, including when reached through resolution. Explicit initializers retain their own declaration identity independently of navigation."]
 public enum SemanticIdentity <: Equatable<SemanticIdentity> {
     | NamedIdentity(Definition)
     | ExpressionIdentity(DefId, ExprId)
@@ -90,7 +89,6 @@ public enum SemanticIdentity <: Equatable<SemanticIdentity> {
  * Source text may be physical workspace/dependency text, a checked attachment, or macro output.
  */
 @DerivePython
-@PyDoc["Source text may be physical workspace/dependency text, a checked attachment, or macro output."]
 public enum SemanticSourceKind <: Equatable<SemanticSourceKind> {
     | PhysicalSource
     | AttachedSource
@@ -114,7 +112,6 @@ public enum SemanticSourceKind <: Equatable<SemanticSourceKind> {
  * Exact syntax, synthetic HIR and unavailable source are distinct, including for binaries.
  */
 @DerivePython
-@PyDoc["Exact syntax, synthetic HIR and unavailable source are distinct, including for binaries."]
 public enum SemanticOrigin {
     | SourceOrigin(SemanticLocation)
     | SyntheticOrigin
@@ -128,7 +125,6 @@ public enum SemanticOrigin {
  * and identities describe only the originating revision.
  */
 @DerivePython
-@PyDoc["Analysis pinned to db's current revision, used from one thread at a time. All object, location, type and text operations use this snapshot and throw CancelledException after an input write or request cancellation. No operation reopens disk. Copied text, coordinates and identities describe only the originating revision."]
 public class SemanticAnalysis {
     @PyIgnore
     let db: AnalysisDatabase
@@ -141,7 +137,6 @@ public class SemanticAnalysis {
     /**
      * UTF-8 byte offset in the editor's preferred context; none for an unavailable file.
      */
-    @PyDoc["UTF-8 byte offset in the editor's preferred context; none for an unavailable file."]
     public func at(fileId: FileId, offset: Int64): ?SemanticOccurrence {
         db.unwindIfCancelled()
         let file = db.sourceFile(fileId) ?? return None
@@ -155,7 +150,6 @@ public class SemanticAnalysis {
      * return none. File identities must belong to this database and revision. Source macro arguments
      * do not descend into expansions (#370).
      */
-    @PyDoc["Preserves explicit source context/expansion. At a boundary prefers right name, left name, right operator, left operator; otherwise the right token (last token at EOF). Selects the nearest mapped ancestor of each HIR category, before desugaring. Out-of-range offsets return none. File identities must belong to this database and revision. Source macro arguments do not descend into expansions (#370)."]
     public func inFile(file: ItemFile, offset: Int64): ?SemanticOccurrence {
         db.unwindIfCancelled()
         let (root, _) = syntaxOf(db, file) ?? return None
@@ -260,7 +254,6 @@ public class SemanticAnalysis {
  * the nearest mapped node of each HIR category. Written type references retain their own identity.
  */
 @DerivePython
-@PyDoc["Occurrence and targets are distinct. Definitions preserves zero/one/many meanings: none is unavailable/inapplicable classification, an empty array a known empty result. Objects contains the nearest mapped node of each HIR category. Written type references retain their own identity."]
 public class SemanticOccurrence {
     @PyIgnore
     let analysis: SemanticAnalysis
@@ -289,7 +282,6 @@ public class SemanticOccurrence {
  * A semantic object bound to its originating snapshot, independently of navigation targets.
  */
 @DerivePython
-@PyDoc["A semantic object bound to its originating snapshot, independently of navigation targets."]
 public class SemanticObject {
     @PyIgnore
     let analysis: SemanticAnalysis
@@ -305,7 +297,6 @@ public class SemanticObject {
      * Exact syntax origins. A package can have several headers; binary source must pass the
      * existing identity check. Generated syntax stays in its expansion, never an approximate head.
      */
-    @PyDoc["Exact syntax origins. A package can have several headers; binary source must pass the existing identity check. Generated syntax stays in its expansion, never an approximate head."]
     public func origins(): Array<SemanticOrigin> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -425,7 +416,6 @@ public class SemanticObject {
      * Inferred/resolved type bound to this object's snapshot, retaining structured unknown/error
      * reasons; none when inapplicable. Child types and definitions use the same context.
      */
-    @PyDoc["Inferred/resolved type bound to this object's snapshot, retaining structured unknown/error reasons; none when inapplicable. Child types and definitions use the same context."]
     public func semanticType(): ?SemanticType {
         resolvedType().map { ty => SemanticType(analysis, ty) }
     }
@@ -449,7 +439,6 @@ public class SemanticObject {
     /**
      * Type display from this object's revision; none when it has no type.
      */
-    @PyDoc["Type display from this object's revision; none when it has no type."]
     public func typeDisplay(): ?String {
         semanticType().map { ty => ty.display() }
     }
@@ -460,7 +449,6 @@ public class SemanticObject {
  * bytes. Expansion text and attached source retain their distinct ItemFile identity.
  */
 @DerivePython
-@PyDoc["Contextual source/expansion location bound to the snapshot. Ranges are end-exclusive UTF-8 bytes. Expansion text and attached source retain their distinct ItemFile identity."]
 public class SemanticLocation {
     @PyIgnore
     let analysis: SemanticAnalysis
@@ -479,7 +467,6 @@ public class SemanticLocation {
     /**
      * Distinguishes attached source from physical source and generated expansion text.
      */
-    @PyDoc["Distinguishes attached source from physical source and generated expansion text."]
     public func kind(): SemanticSourceKind {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -500,7 +487,6 @@ public class SemanticLocation {
      * Immutable file/expansion text copied from this revision.
      * @throws CancelledException - if inputs changed or analysis was cancelled.
      */
-    @PyDoc["Immutable file/expansion text copied from this revision. @throws CancelledException - if inputs changed or analysis was cancelled."]
     public func sourceText(): ?String {
         text()?.toString()
     }
@@ -509,7 +495,6 @@ public class SemanticLocation {
      * Zero-based line and UTF-8 byte column of the focus start.
      * @throws CancelledException - if inputs changed or analysis was cancelled.
      */
-    @PyDoc["Zero-based line and UTF-8 byte column of the focus start. @throws CancelledException - if inputs changed or analysis was cancelled."]
     public func coordinates(): ?(Int64, Int64) {
         position().map { value => (value.line, value.column) }
     }
@@ -526,7 +511,6 @@ public class SemanticLocation {
     /**
      * Exact focus text (or full syntax with full: true), read from the same snapshot.
      */
-    @PyDoc["Exact focus text (or full syntax with full: true), read from the same snapshot."]
     public func excerpt(full!: Bool = false): ?String {
         let text = this.text() ?? return None
         let range = if (full) { fullRange } else { focusRange }
@@ -544,7 +528,6 @@ public class SemanticLocation {
     /**
      * Compact zero-based line:UTF-8-byte-column.
      */
-    @PyDoc["Compact zero-based line:UTF-8-byte-column."]
     public func compact(): ?String {
         position().map { at => at.toString() }
     }
@@ -552,7 +535,6 @@ public class SemanticLocation {
     /**
      * Physical/attached source or an exact copied expansion span; none for generated text.
      */
-    @PyDoc["Physical/attached source or an exact copied expansion span; none for generated text."]
     public func source(): ?SemanticLocation {
         let db = analysis.db
         db.unwindIfCancelled()

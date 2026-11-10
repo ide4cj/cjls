@@ -2,7 +2,11 @@ from typing import Literal
 
 class ScopeStage:
     """
-    What a package's scope is read at (#175): what its files write, or that and what the macro calls in them add. A macro's name is looked up in the first, since no macro is ever generated and what is expanded depends on it: the second is a function of the first, and never a cycle of queries.
+
+    What a package's scope is read at (#175): what its files write, or that and what the macro calls
+    in them add. A macro's name is looked up in the first, since no macro is ever generated and what
+    is expanded depends on it: the second is a function of the first, and never a cycle of queries.
+
     """
     def __eq__(self, __other: ScopeStage) -> bool:
         ...
@@ -38,18 +42,21 @@ class Redefinition:
     def __ne__(self, __other: Redefinition) -> bool:
         ...
 class CalcaFields_DefId:
-    """
-    An item across files: its file and its id there, interned, so that what is keyed by a definition (its signature, its body) is keyed by one number.
-    """
     ...
 class DefId:
     """
-    An item across files: its file and its id there, interned, so that what is keyed by a definition (its signature, its body) is keyed by one number.
+
+    An item across files: its file and its id there, interned, so that what is keyed by a
+    definition (its signature, its body) is keyed by one number.
+
     """
     ...
 class PackageRef:
     """
-    A package of either kind, as name resolution takes it: one of the project's sources, or one compiled already (D38). What resolves in it does not ask which.
+
+    A package of either kind, as name resolution takes it: one of the project's sources, or one
+    compiled already (D38). What resolves in it does not ask which.
+
     """
     def __eq__(self, __other: PackageRef) -> bool:
         ...
@@ -84,7 +91,10 @@ class PackageRef:
         __match_args__ = ('field0')
 class Visibility:
     """
-    Who sees a declaration (N1–N4): `private` its file, `internal` its package and those under it by name, `protected` the packages of its first segment, `public` anyone.
+
+    Who sees a declaration (N1–N4): `private` its file, `internal` its package and those under it
+    by name, `protected` the packages of its first segment, `public` anyone.
+
     """
     def __repr__(self) -> str:
         ...
@@ -111,7 +121,9 @@ class Visibility:
             ...
 class Def:
     """
+
     A declaration a name of a package's scope stands for, and who sees it.
+
     """
     def __init__(self, __id: DefId, __visibility: Visibility):
         ...

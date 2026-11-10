@@ -11,7 +11,6 @@ import loupe.db.{AnalysisDatabase, Package, SourceFile}
  * What a name used in a body stands for.
  */
 @DerivePython
-@PyDoc["What a name used in a body stands for."]
 public enum ValueTarget <: ToString & Equatable<ValueTarget> {
     /**
      * A local of the body.
@@ -59,7 +58,6 @@ public enum ValueTarget <: ToString & Equatable<ValueTarget> {
  * What a name used in a body means.
  */
 @DerivePython
-@PyDoc["What a name used in a body means."]
 public enum BodyResolution <: ToString & Equatable<BodyResolution> {
     /**
      * A local or a member, or functions overloading one another over the levels: local, then

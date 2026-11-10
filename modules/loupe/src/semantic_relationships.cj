@@ -43,7 +43,6 @@ import loupe.syntax.parse
  * Local named functions and lambdas retain their own body identities.
  */
 @DerivePython
-@PyDoc["A callable owner, or a contextual file when the occurrence is outside a callable. Local named functions and lambdas retain their own body identities."]
 public enum SemanticOwner {
     | ObjectOwner(SemanticObject)
     | FileOwner(ItemFile)
@@ -53,7 +52,6 @@ public enum SemanticOwner {
  * One semantic usage. Contextual locations are intentionally not deduplicated by physical path.
  */
 @DerivePython
-@PyDoc["One semantic usage. Contextual locations are intentionally not deduplicated by physical path."]
 public struct SemanticUsage {
     SemanticUsage(
         public let target: SemanticObject,
@@ -69,7 +67,6 @@ public struct SemanticUsage {
  * macro-origin-usages means generated occurrences are outside the written reference model.
  */
 @DerivePython
-@PyDoc["Written-source usages and explicit coverage omissions. Gaps are stable reason strings; macro-origin-usages means generated occurrences are outside the written reference model."]
 public struct SemanticUsages {
     SemanticUsages(public let entries: Array<SemanticUsage>, public let gaps: Array<String>) {}
 }
@@ -78,7 +75,6 @@ public struct SemanticUsages {
  * A possible immediate call; candidate resolution and conservative dispatch survive composition.
  */
 @DerivePython
-@PyDoc["A possible immediate call; candidate resolution and conservative dispatch survive composition."]
 public struct SemanticCallEdge {
     SemanticCallEdge(
         public let caller: SemanticObject,
@@ -93,7 +89,6 @@ public struct SemanticCallEdge {
  * The original partial-call omission, retaining the caller's contextual source when available.
  */
 @DerivePython
-@PyDoc["The original partial-call omission, retaining the caller's contextual source when available."]
 public struct SemanticCallGap {
     SemanticCallGap(public let reason: String, public let site: ?SemanticLocation) {}
 }
@@ -102,7 +97,6 @@ public struct SemanticCallGap {
  * Immediate possible calls and explicit omissions; absence never proves runtime purity (A39).
  */
 @DerivePython
-@PyDoc["Immediate possible calls and explicit omissions; absence never proves runtime purity (A39)."]
 public struct SemanticCalls {
     SemanticCalls(
         public let edges: Array<SemanticCallEdge>,
@@ -115,7 +109,6 @@ public struct SemanticCalls {
  * records its provenance independently of the type it extends.
  */
 @DerivePython
-@PyDoc["A direct inheritance edge. Owner is the declaration writing the supertype; an extend also records its provenance independently of the type it extends."]
 public struct SemanticHierarchyEdge {
     SemanticHierarchyEdge(
         public let subtype: SemanticObject,
@@ -129,7 +122,6 @@ public struct SemanticHierarchyEdge {
  * An immediate overridden/implemented member, with the implementing member's declaration owner.
  */
 @DerivePython
-@PyDoc["An immediate overridden/implemented member, with the implementing member's declaration owner."]
 public struct SemanticImplementationEdge {
     SemanticImplementationEdge(
         public let implementation: SemanticObject,
@@ -151,7 +143,6 @@ extend SemanticObject {
      * Binaries have no written usages.
      * @throws IllegalArgumentException - if a package belongs to another SemanticAnalysis.
      */
-    @PyDoc["On-demand identity search, reusing reference scopes, aliases and word filtering. None means the object is not a searchable named identity (packages included). Empty entries apply within the returned gaps. Inactive code is excluded. Macro arguments retain written identity; generated usages are currently unavailable, matching findReferences rather than pretending expansion completeness. Explicit inPackages searches those contextual files instead of the default reference scope. It also reads scope aliases, allowing reverse import traversal through renamed re-exports. Binaries have no written usages. @throws IllegalArgumentException - if a package belongs to another SemanticAnalysis."]
     public func usages(inPackages!: ?Array<SemanticPackage> = None): ?SemanticUsages {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -315,7 +306,6 @@ extend SemanticObject {
      * explicitly selected as the owner; declaring them contributes no calls to the outer body.
      * Attached binary bodies are used when checked source is available; otherwise unavailable-body.
      */
-    @PyDoc["Reuses directCalls and every A39 gap. Nested named functions/lambdas are scanned only when explicitly selected as the owner; declaring them contributes no calls to the outer body. Attached binary bodies are used when checked source is available; otherwise unavailable-body."]
     public func outgoingCalls(): SemanticCalls {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -442,7 +432,6 @@ extend SemanticObject {
      * Repeated sites and candidate targets survive. Unavailable callers and callback/value flow
      * are not enumerated; inspect each caller's outgoingCalls gaps before making reachability claims.
      */
-    @PyDoc["Incoming evidence over loaded workspace source contexts, using directCalls' partial model. Repeated sites and candidate targets survive. Unavailable callers and callback/value flow are not enumerated; inspect each caller's outgoingCalls gaps before making reachability claims."]
     public func incomingCalls(): Array<SemanticCallEdge> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -494,7 +483,6 @@ extend SemanticObject {
      * Immediate supertypes, including extensions visible from the declaration context.
      * Every extension keeps its own owner; never returns the transitive closure.
      */
-    @PyDoc["Immediate supertypes, including extensions visible from the declaration context. Every extension keeps its own owner; never returns the transitive closure."]
     public func directSupertypes(): Array<SemanticHierarchyEdge> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -543,7 +531,6 @@ extend SemanticObject {
      * Immediate reverse edges from the existing package subtype cache. Distinct extend owners
      * remain distinct even when they implement the same type-to-interface relationship.
      */
-    @PyDoc["Immediate reverse edges from the existing package subtype cache. Distinct extend owners remain distinct even when they implement the same type-to-interface relationship."]
     public func directSubtypes(): Array<SemanticHierarchyEdge> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -571,7 +558,6 @@ extend SemanticObject {
      * Immediate member relationships: a candidate overridden through a nearer matching member
      * is excluded. Shared ancestors in a diamond appear once by declaration identity.
      */
-    @PyDoc["Immediate member relationships: a candidate overridden through a nearer matching member is excluded. Shared ancestors in a diamond appear once by declaration identity."]
     public func directImplementations(): Array<SemanticImplementationEdge> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -628,7 +614,6 @@ extend SemanticObject {
      * Immediate reverse implementation edges. The candidate search is transitive, but each
      * returned edge passes the same nearest-member rule as directImplementations.
      */
-    @PyDoc["Immediate reverse implementation edges. The candidate search is transitive, but each returned edge passes the same nearest-member rule as directImplementations."]
     public func directImplementers(): Array<SemanticImplementationEdge> {
         let db = analysis.db
         db.unwindIfCancelled()

@@ -13,7 +13,6 @@ import loupe.db.AnalysisDatabase
  * one declaration and arguments): two equal types are one id, compared and hashed as a number.
  */
 @DerivePython[opaque]
-@PyDoc["A type as inference takes it, rust-analyzer's `Ty`: its names resolved, its aliases expanded, `?T` an `Option<T>`. Interned (D54), as R1's and cjc's are (`TypeManager` hands out one `Ty` for one declaration and arguments): two equal types are one id, compared and hashed as a number."]
 @CalcaInterned
 public struct Ty {
     public let kind: TyKind
@@ -50,7 +49,6 @@ public struct Ty {
  * Local function indices are body-local, so the enclosing declaration is part of identity.
  */
 @DerivePython
-@PyDoc["A generic binder: a declaration, or a local function within its owner's body (D50). Local function indices are body-local, so the enclosing declaration is part of identity."]
 public enum GenericOwner <: Equatable<GenericOwner> & Hashable {
     | Declaration(DefId)
     | LocalFunction(DefId, Int64)
@@ -86,7 +84,6 @@ public enum GenericOwner <: Equatable<GenericOwner> & Hashable {
  * What a `Ty` is: resolved signature types, unknown types and call-local inference variables.
  */
 @DerivePython
-@PyDoc["What a `Ty` is: resolved signature types, unknown types and call-local inference variables."]
 public enum TyKind <: Hashable & Equatable<TyKind> {
     /**
      * A type of the language by its keyword: `Int64`, `Unit`, `Nothing`.
@@ -213,7 +210,6 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
  * Why the analysis cannot find a type (D77): what it does not do yet, each a gap of its own.
  */
 @DerivePython
-@PyDoc["Why the analysis cannot find a type (D77): what it does not do yet, each a gap of its own."]
 public enum Todo <: ToString & Equatable<Todo> & Hashable {
     /**
      * The value of a call of a macro whose expansion is not read: a user's (#176), std's not known
@@ -259,7 +255,6 @@ public enum Todo <: ToString & Equatable<Todo> & Hashable {
  * Why a type is unknown given the available inputs, inference progress and resources.
  */
 @DerivePython
-@PyDoc["Why a type is unknown given the available inputs, inference progress and resources."]
 public enum UnknownReason <: ToString & Equatable<UnknownReason> & Hashable {
     /**
      * A type unavailable from a binary: missing dependencies, invalid records or an unreadable

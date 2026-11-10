@@ -2,7 +2,9 @@ from typing import Literal
 
 class SemanticFile:
     """
+
     File identity retains ordinary/test/script, attachment and expansion context.
+
     """
     @property
     def identity(self) -> ItemFile:
@@ -35,7 +37,11 @@ class SemanticFile:
         ...
     def imports(self, *, stage: ScopeStage = ...) -> list[SemanticImport] | None:
         """
-        Written-stage reads this file only; expanded-stage also includes its expansion imports. Target resolution reads exports at the requested stage. Unresolved paths retain errors. Binary source syntax is unavailable even if its compiled item tree has no imports.
+
+        Written-stage reads this file only; expanded-stage also includes its expansion imports.
+        Target resolution reads exports at the requested stage. Unresolved paths retain errors.
+        Binary source syntax is unavailable even if its compiled item tree has no imports.
+
          for type ScopeStage, see 'loupe.hir/def_map.pyi'
         """
         ...
@@ -46,31 +52,42 @@ class SemanticFile:
         ...
     def visibleNames(self, *, stage: ScopeStage = ...) -> list[SemanticBinding] | None:
         """
-        Package/file scope candidates, excluding lexical locals and members. Separate entries preserve competing import routes; lookup(name, namespace) applies semantic precedence.
+
+        Package/file scope candidates, excluding lexical locals and members. Separate entries
+        preserve competing import routes; lookup(name, namespace) applies semantic precedence.
+
          for type ScopeStage, see 'loupe.hir/def_map.pyi'
         """
         ...
     def lookup(self, __name: str, __namespace: Namespace) -> Resolution | None:
         """
+
         Exact package/file lookup, preserving ambiguity through the existing Resolution value.
+
          for type Resolution, see 'loupe.hir/scope.pyi'
          for type Namespace, see 'loupe.hir/scope.pyi'
         """
         ...
     def conditions(self) -> list[SemanticCondition] | None:
         """
+
         All written @When conditions, including nested and unknown ones, with revision text.
+
         """
         ...
     def whenStatus(self) -> WhenDiagnostics | None:
         """
+
         Outermost inactive ranges and invalid-condition diagnostics; none without source text.
+
          for type WhenDiagnostics, see 'loupe.hir/when.pyi'
         """
         ...
 class SemanticCondition:
     """
+
     Condition evidence includes unknown evaluations independently of loaded-active filtering.
+
     """
     def __init__(self, __location: SemanticLocation, __expression: CfgExpr, __evaluation: bool | None, __reasons: list[str]):
         """
@@ -98,7 +115,9 @@ class SemanticCondition:
         ...
 class SemanticExports:
     """
+
     Export cycles are distinct from a known empty exported-name collection.
+
     """
     def __init__(self, __names: list[SemanticBinding], *, isCyclic: bool, isAvailable: bool):
         ...
@@ -111,12 +130,16 @@ class SemanticExports:
     @property
     def isAvailable(self) -> bool:
         """
+
         False for unloaded source inputs or an unreadable binary; names may be partial.
+
         """
         ...
 class SemanticBinding:
     """
+
     A name and its semantic target; site retains the available immediate import provenance.
+
     """
     def __init__(self, __name: str, __target: SemanticObject, __visibility: Visibility, __site: ImportSite | None, __stage: ScopeStage, *, implicitImport: SemanticImplicitImport | None = ...):
         """
@@ -158,7 +181,9 @@ class SemanticBinding:
         ...
 class SemanticImport:
     """
+
     One active import path, its alias/glob, visibility, stage and contextual syntax site.
+
     """
     def __init__(self, __file: SemanticFile, __path: ImportPath, __site: ImportSite, __stage: ScopeStage, __target: SemanticPackage | None, __names: list[SemanticBinding], __error: ImportError | None):
         """
@@ -213,13 +238,17 @@ class SemanticImport:
         ...
     def location(self) -> SemanticLocation | None:
         """
+
         Exact import declaration when syntax is available; site.path indexes grouped paths.
+
          for type SemanticLocation, see 'loupe/semantic.pyi'
         """
         ...
 class SemanticImplicitImport:
     """
+
     An implicit glob kept separate from written imports and dependency permissions.
+
     """
     def __init__(self, __target: SemanticPackage, *, isTestImport: bool):
         """

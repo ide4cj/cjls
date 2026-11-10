@@ -1,40 +1,37 @@
 from typing import Literal
 
-class WhenDiagnostics:
-    """
-    What the `@When`s of a file say: the code they leave out, outermost only (nothing inside it is checked, as cjc checks nothing there), and what cjc rejects in them whatever the build, as it says it. Code that a condition cjc rejects leaves out is not reported as left out: the error on the condition says why. A condition neither cjc knows nor the cfg sets is not one: a `--cfg` the analysis does not see may set it (#297), and its code is active.
-    """
-    def __init__(self, __inactive: list[InactiveCode], __errors: list[WhenError]):
-        ...
-    @property
-    def inactive(self) -> list[InactiveCode]:
-        ...
-    @property
-    def errors(self) -> list[WhenError]:
-        ...
-    def __eq__(self, __other: WhenDiagnostics) -> bool:
-        ...
-    def __ne__(self, __other: WhenDiagnostics) -> bool:
-        ...
 class CfgExpr:
     """
-    The condition of a `@When`, lowered from its expression with nothing of the tree: what cjc evaluates it as (`src/ConditionalCompilation`). One cjc rejects is `CfgInvalid`, false as cjc evaluates it, unlike R1's `CfgExpr::Invalid`, which is active (#149, D93).
+
+    The condition of a `@When`, lowered from its expression with nothing of the tree: what cjc
+    evaluates it as (`src/ConditionalCompilation`). One cjc rejects is `CfgInvalid`, false as cjc
+    evaluates it, unlike R1's `CfgExpr::Invalid`, which is active (#149, D93).
+
     """
     def evaluate(self, __cfg: Cfg) -> bool | None:
         """
-        Whether it holds under `cfg`; `None` when that cannot be told, a condition `cfg` has no value of. One cjc rejects is false, as cjc has it. `&&` and `||` are Kleene's: unknown only when the side known does not decide.
+
+        Whether it holds under `cfg`; `None` when that cannot be told, a condition `cfg` has no value
+        of. One cjc rejects is false, as cjc has it. `&&` and `||` are Kleene's: unknown only when the
+        side known does not decide.
+
          for type Cfg, see 'loupe.db/project.pyi'
         """
         ...
     def isActive(self, __cfg: Cfg) -> bool:
         """
+
         Whether code under it is in the build `cfg` makes: unless it is known to be false.
+
          for type Cfg, see 'loupe.db/project.pyi'
         """
         ...
     def whyFalse(self, __cfg: Cfg) -> list[str]:
         """
-        Why it is false under `cfg`: what each condition making it so is instead, each once, `os is "Linux"`, `test is not set`. Empty unless it is false.
+
+        Why it is false under `cfg`: what each condition making it so is instead, each once,
+        `os is "Linux"`, `test is not set`. Empty unless it is false.
+
          for type Cfg, see 'loupe.db/project.pyi'
         """
         ...
@@ -96,7 +93,9 @@ class CfgExpr:
             ...
 class WhenError:
     """
+
     What a `@When` is wrong with, as cjc says it, where.
+
     """
     def __init__(self, __range: TextRange, __message: str):
         """
@@ -118,7 +117,9 @@ class WhenError:
         ...
 class InactiveCode:
     """
+
     Code a false `@When` leaves out of the build, and why: `reasons`, as `CfgExpr.whyFalse`.
+
     """
     def __init__(self, __range: TextRange, __reasons: list[str]):
         """
@@ -137,4 +138,26 @@ class InactiveCode:
     def __eq__(self, __other: InactiveCode) -> bool:
         ...
     def __ne__(self, __other: InactiveCode) -> bool:
+        ...
+class WhenDiagnostics:
+    """
+
+    What the `@When`s of a file say: the code they leave out, outermost only (nothing inside it is
+    checked, as cjc checks nothing there), and what cjc rejects in them whatever the build, as it says
+    it. Code that a condition cjc rejects leaves out is not reported as left out: the error on the
+    condition says why. A condition neither cjc knows nor the cfg sets is not one: a `--cfg` the analysis does not see
+    may set it (#297), and its code is active.
+
+    """
+    def __init__(self, __inactive: list[InactiveCode], __errors: list[WhenError]):
+        ...
+    @property
+    def inactive(self) -> list[InactiveCode]:
+        ...
+    @property
+    def errors(self) -> list[WhenError]:
+        ...
+    def __eq__(self, __other: WhenDiagnostics) -> bool:
+        ...
+    def __ne__(self, __other: WhenDiagnostics) -> bool:
         ...

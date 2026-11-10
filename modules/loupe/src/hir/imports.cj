@@ -23,7 +23,6 @@ public func nameOf(db: AnalysisDatabase, pkg: PackageRef): String {
  * A package of the project and who it is of: a module's name, or a binary's.
  */
 @DerivePython
-@PyDoc["A package of the project and who it is of: a module's name, or a binary's."]
 public struct IndexedPackage <: Equatable<IndexedPackage> {
     public IndexedPackage(public let pkg: PackageRef, public let owner: String) {}
 
@@ -174,7 +173,6 @@ public func packageIndex(db: AnalysisDatabase): PackageIndex {
  * segment (cjc's module), or none of these.
  */
 @DerivePython
-@PyDoc["How a package that refers to a declaration stands to the package declaring it, cjc's `PackageRelation`: the same, one under it by name (`m.a.b` to `m.a`), one of the same first segment (cjc's module), or none of these."]
 public enum PackageRelation <: Equatable<PackageRelation> {
     | SamePackage
     | Child
@@ -265,7 +263,6 @@ public func importLevelOf(item: ImportItem): Visibility {
  * Why a path of an import brings nothing, as cjpm and cjc report it.
  */
 @DerivePython
-@PyDoc["Why a path of an import brings nothing, as cjpm and cjc report it."]
 public enum ImportError <: ToString & Equatable<ImportError> {
     /**
      * No package of the name the importer may import (cjpm's "can not find the following dependencies").
@@ -340,7 +337,6 @@ public enum ImportResolution {
  * one, or one name of one.
  */
 @DerivePython
-@PyDoc["What a path of an import names, before the names it brings are read: a package, every name of one, or one name of one."]
 public enum ImportTarget {
     /**
      * A package, under the name its path ends in or its alias (N7, N8).

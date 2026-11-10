@@ -28,7 +28,6 @@ import loupe.vfs.FileId
  * a binary callable uses the referring name's location; `definition` still identifies its overload.
  */
 @DerivePython
-@PyDoc["A callable with source locations, independent of protocol positions. Without attached sources, a binary callable uses the referring name's location; `definition` still identifies its overload."]
 public struct CallHierarchyEntry <: Equatable<CallHierarchyEntry> {
     public CallHierarchyEntry(
         public let name: String,
@@ -37,7 +36,6 @@ public struct CallHierarchyEntry <: Equatable<CallHierarchyEntry> {
         /**
          * Canonical binary identity, including when `target` is an attached source declaration.
          */
-        @PyDoc["Canonical binary identity, including when `target` is an attached source declaration."]
         public let definition!: ?DefId = None
     ) {}
 
@@ -55,7 +53,6 @@ public struct CallHierarchyEntry <: Equatable<CallHierarchyEntry> {
  * One caller or callee, grouping its call sites. Ranges always belong to the caller's file.
  */
 @DerivePython
-@PyDoc["One caller or callee, grouping its call sites. Ranges always belong to the caller's file."]
 public struct HierarchyCalls {
     public HierarchyCalls(
         public let item: CallHierarchyEntry,

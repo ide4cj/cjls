@@ -32,7 +32,6 @@ import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package, SourceFile}
  * Name resolution takes each alike.
  */
 @DerivePython
-@PyDoc["Where an item is declared: a source file, a file of a package compiled already, by its index among the package's files, or the expansion of a macro call on an item of a source file (#175). CompilerBuiltIns supplies std.core's compiler-owned declarations without inventing source text. Name resolution takes each alike."]
 public enum ItemFile <: Equatable<ItemFile> & Hashable {
     | Source(SourceFile)
     | Binary(BinaryPackageFile, Int64)
@@ -303,7 +302,6 @@ func resolveBinaryType(
  * An item of a package compiled already: the index of its file, and its id there.
  */
 @DerivePython
-@PyDoc["An item of a package compiled already: the index of its file, and its id there."]
 public struct BinaryItem <: ToString & Equatable<BinaryItem> & Hashable {
     public BinaryItem(public let file: Int64, public let id: ItemId) {}
 

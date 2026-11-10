@@ -26,7 +26,9 @@ class SignatureSourceMap:
         ...
     def typeAtRange(self, __range: TextRange) -> TypeRefId | None:
         """
+
         The first type reference written at exactly this range, or None.
+
          for type TypeRefId, see 'loupe.hir/signature.pyi'
          for type TextRange, see 'ginkgo/text_range.pyi'
         """

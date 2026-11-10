@@ -2,7 +2,9 @@ from typing import Literal
 
 class FoldKind:
     """
+
     What a fold is: LSP names the first two, the others are for whoever tells folds apart.
+
     """
     def __repr__(self) -> str:
         ...
@@ -41,7 +43,10 @@ class FoldKind:
             ...
 class Fold:
     """
-    A part of a file over more than one line an editor may fold. `range` is in UTF-8 bytes (A6) and covers the delimiters, `{` to `}`: what is left visible is the client's to choose.
+
+    A part of a file over more than one line an editor may fold. `range` is in UTF-8 bytes (A6) and
+    covers the delimiters, `{` to `}`: what is left visible is the client's to choose.
+
     """
     def __init__(self, __range: TextRange, __kind: FoldKind):
         """

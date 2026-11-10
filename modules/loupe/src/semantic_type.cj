@@ -11,7 +11,6 @@ import loupe.hir.{CompilerType, Todo, Ty, TypeTarget, UnknownReason}
  * FixedArrayType carries its element type and length. TypeParameterType names the binder's parameter.
  */
 @DerivePython
-@PyDoc["Resolved type structure. Child types and definitions share the originating snapshot; copied names, sizes and reasons remain descriptions of that revision after cancellation. FunctionType carries parameter types, return type and whether it uses the C calling convention. FixedArrayType carries its element type and length. TypeParameterType names the binder's parameter."]
 public enum SemanticTypeKind {
     | PrimitiveType(String)
     | DeclaredType(SemanticObject, Array<SemanticType>)
@@ -33,7 +32,6 @@ public enum SemanticTypeKind {
  * Nested types retain this context without creating another snapshot or exposing interned ids.
  */
 @DerivePython
-@PyDoc["A resolved type bound to the same snapshot as its semantic object. Used from one thread at a time; operations throw CancelledException after an input write or request cancellation. Nested types retain this context without creating another snapshot or exposing interned ids."]
 public class SemanticType {
     @PyIgnore
     let analysis: SemanticAnalysis
@@ -50,7 +48,6 @@ public class SemanticType {
      * Structure with aliases resolved; related definitions and child types need no database argument.
      * Invalid, unsupported and unavailable types retain their distinct meanings and reasons.
      */
-    @PyDoc["Structure with aliases resolved; related definitions and child types need no database argument. Invalid, unsupported and unavailable types retain their distinct meanings and reasons."]
     public func kind(): SemanticTypeKind {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -82,7 +79,6 @@ public class SemanticType {
     /**
      * Type display read from this revision; unknown/error details remain available through kind().
      */
-    @PyDoc["Type display read from this revision; unknown/error details remain available through kind()."]
     public func display(): String {
         analysis.db.unwindIfCancelled()
         ty.text(analysis.db)

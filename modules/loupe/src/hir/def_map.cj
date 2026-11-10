@@ -14,7 +14,6 @@ import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package}
  * compiled already (D38). What resolves in it does not ask which.
  */
 @DerivePython
-@PyDoc["A package of either kind, as name resolution takes it: one of the project's sources, or one compiled already (D38). What resolves in it does not ask which."]
 public enum PackageRef <: Equatable<PackageRef> & Hashable & ToString {
     | Source(Package)
     | Binary(BinaryPackageFile)
@@ -73,7 +72,6 @@ public func filesOf(db: AnalysisDatabase, pkg: PackageRef): Array<ItemFile> {
  * definition (its signature, its body) is keyed by one number.
  */
 @DerivePython[opaque]
-@PyDoc["An item across files: its file and its id there, interned, so that what is keyed by a definition (its signature, its body) is keyed by one number."]
 @CalcaInterned
 public struct DefId {
     public let file: ItemFile
@@ -85,7 +83,6 @@ public struct DefId {
  * by name, `protected` the packages of its first segment, `public` anyone.
  */
 @DerivePython
-@PyDoc["Who sees a declaration (N1–N4): `private` its file, `internal` its package and those under it by name, `protected` the packages of its first segment, `public` anyone."]
 public enum Visibility <: ToString & Equatable<Visibility> {
     | Private
     | Internal
@@ -135,7 +132,6 @@ public func visibilityOf(item: Item): Visibility {
  * A declaration a name of a package's scope stands for, and who sees it.
  */
 @DerivePython
-@PyDoc["A declaration a name of a package's scope stands for, and who sees it."]
 public struct Def <: ToString & Equatable<Def> {
     public Def(public let id: DefId, public let visibility: Visibility) {}
 
@@ -306,7 +302,6 @@ func frozen<V, R>(
  * is expanded depends on it: the second is a function of the first, and never a cycle of queries.
  */
 @DerivePython
-@PyDoc["What a package's scope is read at (#175): what its files write, or that and what the macro calls in them add. A macro's name is looked up in the first, since no macro is ever generated and what is expanded depends on it: the second is a function of the first, and never a cycle of queries."]
 public enum ScopeStage <: Equatable<ScopeStage> & Hashable {
     | Written
     | Expanded

@@ -122,7 +122,6 @@ def __cjmcp_run(code, workspace, classes, max_output_bytes, state, session_id, s
  */
 @When[os == "Linux"]
 @DerivePython
-@PyDoc["A script-scoped view of the session workspace; reload queues preparation after the script."]
 class Workspace {
     private var current: ?WorkspaceState = None
 
@@ -181,7 +180,6 @@ class Workspace {
      *
      * @throws IllegalStateException - if revision does not match the running script
      */
-    @PyDoc["Apply a source change to disk, checking this script's revision and all expected contents. The running analysis remains unchanged; acquire fresh analysis in the next call.  @throws IllegalStateException - if revision does not match the running script"]
     public func applyChange(change: SourceChange, revision: Int64): ApplyChangeResult {
         applySourceChange(loaded(), change, revision)
     }
@@ -244,7 +242,6 @@ class Workspace {
     /**
      * Capture this script's revision. Reacquire after a later workspace update.
      */
-    @PyDoc["Capture this script's revision. Reacquire after a later workspace update."]
     public func analysis(): AnalysisRevision {
         AnalysisRevision(loaded())
     }

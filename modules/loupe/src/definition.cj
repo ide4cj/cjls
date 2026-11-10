@@ -33,7 +33,6 @@ import loupe.vfs.FileId
  * of `expandedMacro`'s text, `fileId` the call's file.
  */
 @DerivePython
-@PyDoc["A declaration a request goes to: its file, its whole node, and its name, what an editor selects; rust-analyzer's `NavigationTarget`. One a macro wrote, which a request in an expansion goes to (`definitionInExpansion`), is in the text of that expansion: `expansion` is its call, the ranges are of `expandedMacro`'s text, `fileId` the call's file."]
 public struct NavigationTarget <: Equatable<NavigationTarget> {
     public NavigationTarget(
         public let fileId: FileId,

@@ -26,7 +26,9 @@ class Location:
         ...
 class Workspace:
     """
+
     A script-scoped view of the session workspace; reload queues preparation after the script.
+
     """
     def __init__(self, __directory: str):
         ...
@@ -70,7 +72,12 @@ class Workspace:
         ...
     def applyChange(self, __change: SourceChange, __revision: int) -> ApplyChangeResult:
         """
-        Apply a source change to disk, checking this script's revision and all expected contents. The running analysis remains unchanged; acquire fresh analysis in the next call.  @throws IllegalStateException - if revision does not match the running script
+
+        Apply a source change to disk, checking this script's revision and all expected contents.
+        The running analysis remains unchanged; acquire fresh analysis in the next call.
+
+        @throws IllegalStateException - if revision does not match the running script
+
          for type ApplyChangeResult, see 'cjmcp/source_change.pyi'
          for type SourceChange, see 'source_change/source_change.pyi'
         """
@@ -105,7 +112,9 @@ class Workspace:
         ...
     def analysis(self) -> AnalysisRevision:
         """
+
         Capture this script's revision. Reacquire after a later workspace update.
+
          for type AnalysisRevision, see 'cjmcp/analysis.pyi'
         """
         ...

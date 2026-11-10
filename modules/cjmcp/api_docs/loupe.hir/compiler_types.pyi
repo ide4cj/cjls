@@ -2,7 +2,9 @@ from typing import Literal
 
 class CompilerType:
     """
+
     Compiler-owned type heads; declaration identities only provide scoped names and navigation.
+
     """
     def __eq__(self, __other: CompilerType) -> bool:
         ...

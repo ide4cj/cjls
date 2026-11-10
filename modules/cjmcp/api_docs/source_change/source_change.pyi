@@ -2,7 +2,11 @@ from typing import Literal
 
 class FileChange:
     """
-    A file operation. Existing-file operations carry the complete expected original text. Paths use the consumer's normalized namespace; renames never overwrite a destination. CreateFile includes initial contents, so it needs no subsequent EditFile.
+
+    A file operation. Existing-file operations carry the complete expected original text.
+    Paths use the consumer's normalized namespace; renames never overwrite a destination.
+    CreateFile includes initial contents, so it needs no subsequent EditFile.
+
     """
     def __eq__(self, __other: FileChange) -> bool:
         ...
@@ -12,7 +16,9 @@ class FileChange:
         ...
     def paths(self) -> list[str]:
         """
+
         Every path reserved by this operation, including a rename destination.
+
         """
         ...
     kind: Literal['EditFile', 'CreateFile', 'RenameFile', 'DeleteFile']
@@ -71,7 +77,12 @@ class FileChange:
         __match_args__ = ('field0', 'field1')
 class SourceChange:
     """
-    A collection of independent file operations, not a filesystem transaction. Each path may occur once, including rename destinations: rename chains and an edit of a renamed/created file must be composed by the producer before constructing it. Consumers resolve paths, check expected contents and capabilities, and own application.
+
+    A collection of independent file operations, not a filesystem transaction.
+    Each path may occur once, including rename destinations: rename chains and an edit
+    of a renamed/created file must be composed by the producer before constructing it.
+    Consumers resolve paths, check expected contents and capabilities, and own application.
+
     """
     def __init__(self, __files: list[FileChange]):
         ...
@@ -86,6 +97,11 @@ class SourceChange:
         ...
     def validate(self) -> None:
         """
-        Checks path spelling conflicts and all text edits without touching the filesystem. Consumers must also reject aliases after resolving paths in their own namespace.  @throws IllegalArgumentException - for empty or repeated paths, or invalid text edits
+
+        Checks path spelling conflicts and all text edits without touching the filesystem.
+        Consumers must also reject aliases after resolving paths in their own namespace.
+
+        @throws IllegalArgumentException - for empty or repeated paths, or invalid text edits
+
         """
         ...

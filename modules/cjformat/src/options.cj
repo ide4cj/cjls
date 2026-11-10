@@ -10,7 +10,6 @@ import stdxx.deriving.*
  */
 @DeriveExt[FromToml]
 @DerivePython
-@PyDoc["Layout of an if expression with one expression in each branch and no comments."]
 public enum SimpleIf {
     | @Serde[rename: "compact"]
     Compact
@@ -24,7 +23,6 @@ public enum SimpleIf {
 @DeriveExt[FromToml]
 @Serde[denyUnknownFields]
 @DerivePython
-@PyDoc["Formatting policy. Width counts Unicode scalars; indentation always uses spaces."]
 public struct FormatOptions {
     /**
      * Creates validated formatter policy.

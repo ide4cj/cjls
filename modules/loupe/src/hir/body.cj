@@ -47,7 +47,6 @@ import loupe.syntax.parse
  * An expression of a body, by its place among the body's `exprs`.
  */
 @DerivePython
-@PyDoc["An expression of a body, by its place among the body's `exprs`."]
 public struct ExprId <: Equatable<ExprId> & Hashable & ToString {
     public ExprId(public let index: Int64) {}
 
@@ -74,7 +73,6 @@ public struct ExprId <: Equatable<ExprId> & Hashable & ToString {
  * A pattern of a body, by its place among the body's `pats`.
  */
 @DerivePython
-@PyDoc["A pattern of a body, by its place among the body's `pats`."]
 public struct PatId <: Equatable<PatId> & Hashable & ToString {
     public PatId(public let index: Int64) {}
 
@@ -101,7 +99,6 @@ public struct PatId <: Equatable<PatId> & Hashable & ToString {
  * A name a body declares, by its place among the body's `locals`.
  */
 @DerivePython
-@PyDoc["A name a body declares, by its place among the body's `locals`."]
 public struct LocalId <: Equatable<LocalId> & Hashable & ToString {
     public LocalId(public let index: Int64) {}
 
@@ -128,7 +125,6 @@ public struct LocalId <: Equatable<LocalId> & Hashable & ToString {
  * What declares a local.
  */
 @DerivePython
-@PyDoc["What declares a local."]
 public enum LocalKind <: Equatable<LocalKind> {
     /**
      * A parameter of the declaration, of a local function or of a property's setter.
@@ -172,7 +168,6 @@ public enum LocalKind <: Equatable<LocalKind> {
  * A name a body declares.
  */
 @DerivePython
-@PyDoc["A name a body declares."]
 public struct Local <: Equatable<Local> {
     public Local(
         public let name: String,
@@ -181,7 +176,6 @@ public struct Local <: Equatable<Local> {
          * Whether it is a pattern's lone name, a constructor if one has the name (N72), and then no
          * local at all.
          */
-        @PyDoc["Whether it is a pattern's lone name, a constructor if one has the name (N72), and then no local at all."]
         public let lone!: Bool = false
     ) {}
 
@@ -199,7 +193,6 @@ public struct Local <: Equatable<Local> {
  * signature; its default value.
  */
 @DerivePython
-@PyDoc["A parameter: its name, `None` for `_`; its type, written in a lambda or a local function's signature; its default value."]
 public struct BodyParam <: Equatable<BodyParam> {
     public BodyParam(
         public let local: ?LocalId,
@@ -208,12 +201,10 @@ public struct BodyParam <: Equatable<BodyParam> {
         /**
          * Whether it is a member as well, a `let` or `var` of a primary constructor (N69).
          */
-        @PyDoc["Whether it is a member as well, a `let` or `var` of a primary constructor (N69)."]
         public let isMember!: Bool = false,
         /**
          * The name it is passed by, if by one: a local function's parameter after `!`.
          */
-        @PyDoc["The name it is passed by, if by one: a local function's parameter after `!`."]
         public let passedBy!: ?String = None
     ) {}
 
@@ -232,7 +223,6 @@ public struct BodyParam <: Equatable<BodyParam> {
  * A function declared in a body: its name, a local of the scope after it (N60).
  */
 @DerivePython
-@PyDoc["A function declared in a body: its name, a local of the scope after it (N60)."]
 public struct LocalFunc <: Equatable<LocalFunc> {
     public LocalFunc(
         public let local: LocalId,
@@ -243,7 +233,6 @@ public struct LocalFunc <: Equatable<LocalFunc> {
         /**
          * Its `where`, as a signature's (N78).
          */
-        @PyDoc["Its `where`, as a signature's (N78)."]
         public let bounds!: Array<TypeBound> = []
     ) {}
 
@@ -263,7 +252,6 @@ public struct LocalFunc <: Equatable<LocalFunc> {
  * A lowered body statement: a local binding, expression or local-function declaration.
  */
 @DerivePython
-@PyDoc["A lowered body statement: a local binding, expression or local-function declaration."]
 public enum Stmt <: Equatable<Stmt> {
     /**
      * `let`, `var` or `const`: the names its pattern binds, seen after it (N60, N61).
@@ -295,7 +283,6 @@ public enum Stmt <: Equatable<Stmt> {
  * by the name of the last parameter if that is passed by name (cjc's `GetArgName`).
  */
 @DerivePython
-@PyDoc["An argument of a call: the name it is passed by, if any; whether it is a trailing lambda, passed by the name of the last parameter if that is passed by name (cjc's `GetArgName`)."]
 public struct CallArg <: Equatable<CallArg> {
     public CallArg(
         public let name: ?String,
@@ -318,7 +305,6 @@ public struct CallArg <: Equatable<CallArg> {
  * A `case`: its patterns and guard, or its condition; what it evaluates to.
  */
 @DerivePython
-@PyDoc["A `case`: its patterns and guard, or its condition; what it evaluates to."]
 public struct MatchArm <: Equatable<MatchArm> {
     public MatchArm(
         public let pats: Array<PatId>,
@@ -341,7 +327,6 @@ public struct MatchArm <: Equatable<MatchArm> {
  * A try-with-resources binding with optional local and type IDs and its initializer expression.
  */
 @DerivePython
-@PyDoc["A try-with-resources binding with optional local and type IDs and its initializer expression."]
 public struct Resource <: Equatable<Resource> {
     public Resource(
         public let local: ?LocalId,
@@ -362,7 +347,6 @@ public struct Resource <: Equatable<Resource> {
  * A catch clause with its optional local binding, caught type-reference IDs and body expression.
  */
 @DerivePython
-@PyDoc["A catch clause with its optional local binding, caught type-reference IDs and body expression."]
 public struct CatchArm <: Equatable<CatchArm> {
     public CatchArm(
         public let local: ?LocalId,
@@ -385,7 +369,6 @@ public struct CatchArm <: Equatable<CatchArm> {
  * written.
  */
 @DerivePython
-@PyDoc["An expression as a body writes it, rust-analyzer's `hir::Expr`: what it holds are other expressions, patterns and types of the same body. A name is not resolved yet; an operator is as written."]
 public enum Expr <: Equatable<Expr> {
     /**
      * An expression the parser did not find.
@@ -593,7 +576,6 @@ public enum Expr <: Equatable<Expr> {
  * tokens all the same.
  */
 @DerivePython
-@PyDoc["A macro called in a body, `@M[a](b, c)`: the path it names, the macro outermost of those nested (`@A @B(x)`); the types its `[…]` lists, if it has one, each an identifier, those between `|` (`@AssertThrows[A | B]`, N136), none of one of anything else; its arguments when they parse as an argument list, the innermost's, lowered so the names in them resolve: the macro sees them as tokens all the same."]
 public struct MacroCall <: Equatable<MacroCall> {
     public MacroCall(
         public let path: Array<String>,
@@ -614,7 +596,6 @@ public struct MacroCall <: Equatable<MacroCall> {
  * What a macro on a declaration, std.unittest's, takes in its `[...]` as code (#191).
  */
 @DerivePython
-@PyDoc["What a macro on a declaration, std.unittest's, takes in its `[...]` as code (#191)."]
 public enum AttrArg <: Equatable<AttrArg> {
     /**
      * `x in src` of `@Test`, `@TestCase`, `@Bench`, `@Strategy`: `x`, a name in the scope of the declaration's
@@ -657,7 +638,6 @@ public enum AttrArg <: Equatable<AttrArg> {
  * the arguments, those of std.unittest's macros. Whether it is std's is inference's to find.
  */
 @DerivePython
-@PyDoc["A macro on a declaration that takes code in its `[...]`, by the name it is called by: the path it names, and the arguments, those of std.unittest's macros. Whether it is std's is inference's to find."]
 public struct DeclAttr <: Equatable<DeclAttr> {
     public DeclAttr(public let path: Array<String>, public let args: Array<AttrArg>) {}
 
@@ -682,7 +662,6 @@ let CODE_ATTRS = HashSet<String>(
  * A pattern as a body writes it.
  */
 @DerivePython
-@PyDoc["A pattern as a body writes it."]
 public enum Pat <: Equatable<Pat> {
     | MissingPat
     | WildcardPat
@@ -738,7 +717,6 @@ enum AnnotationOwner {
  * Its type is public because it appears in Body's public constructor; its data stays HIR-local.
  */
 @DerivePython
-@PyDoc["A possible custom annotation on a local declaration; resolution distinguishes it from a macro. Its type is public because it appears in Body's public constructor; its data stays HIR-local."]
 public struct LocalAnnotation <: Equatable<LocalAnnotation> {
     @PyIgnore
     let path: Array<String>
@@ -789,7 +767,6 @@ public struct LocalAnnotation <: Equatable<LocalAnnotation> {
  * leaves it equal.
  */
 @DerivePython
-@PyDoc["What a declaration's body is lowered to, nothing of where it is written: rust-analyzer's `Body`. An edit that does not change its code, a blank line or a comment, an edit elsewhere in the file, leaves it equal."]
 public struct Body <: Equatable<Body> {
     public Body(
         public let exprs!: Array<Expr> = [],
@@ -799,32 +776,26 @@ public struct Body <: Equatable<Body> {
         /**
          * The types it writes, as a signature's (D48).
          */
-        @PyDoc["The types it writes, as a signature's (D48)."]
         public let types!: Array<TypeRef> = [],
         /**
          * The declaration's parameters, their default values in the body (N67).
          */
-        @PyDoc["The declaration's parameters, their default values in the body (N67)."]
         public let params!: Array<BodyParam> = [],
         /**
          * A function's block, a variable's initializer.
          */
-        @PyDoc["A function's block, a variable's initializer."]
         public let value!: ?ExprId = None,
         /**
          * A property's `get` and `set`, each a lambda.
          */
-        @PyDoc["A property's `get` and `set`, each a lambda."]
         public let accessors!: Array<ExprId> = [],
         /**
          * Getter identity stays explicit even when its parameter list is malformed.
          */
-        @PyDoc["Getter identity stays explicit even when its parameter list is malformed."]
         public let getters!: Array<ExprId> = [],
         /**
          * What the macros on it take as code in their `[...]`, outermost first.
          */
-        @PyDoc["What the macros on it take as code in their `[...]`, outermost first."]
         public let attrs!: Array<DeclAttr> = [],
         /**
          * Possible custom annotations; constructor typing decides whether placement can be checked.
@@ -847,7 +818,6 @@ public struct Body <: Equatable<Body> {
     /**
      * Its types as a signature, for `Signature.text`.
      */
-    @PyDoc["Its types as a signature, for `Signature.text`."]
     public func typesAsSignature(): Signature {
         Signature(types: types)
     }
@@ -899,7 +869,6 @@ public struct BodySource {
  * A missing array index is separate from a present synthetic node.
  */
 @DerivePython
-@PyDoc["A body node's origin: syntax in a file, or a synthetic node introduced by lowering. A missing array index is separate from a present synthetic node."]
 public enum BodyOrigin <: Equatable<BodyOrigin> {
     | WrittenSource(BodySource)
     | SyntheticSource
@@ -907,7 +876,6 @@ public enum BodyOrigin <: Equatable<BodyOrigin> {
     /**
      * The syntax source, when lowering preserved one.
      */
-    @PyDoc["The syntax source, when lowering preserved one."]
     public prop written: ?BodySource {
         get() {
             match (this) {
@@ -949,7 +917,6 @@ protected struct AnnotationSource {
  * other way round, by hash, for what asks of every name of a file.
  */
 @DerivePython
-@PyDoc["Where each expression, pattern, local and type of a body is written: a local by its name; and the other way round, by hash, for what asks of every name of a file."]
 public struct BodySourceMap <: Equatable<BodySourceMap> {
     public let exprs: Array<BodyOrigin>
     public let pats: Array<BodyOrigin>
@@ -1003,7 +970,6 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
     /**
      * The expression at the file-qualified syntax source.
      */
-    @PyDoc["The expression at the file-qualified syntax source."]
     public func exprAtSource(source: BodySource): ?ExprId {
         match (exprIndex.get(source)) {
             case Some(i) => ExprId(i)
@@ -1015,7 +981,6 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
      * All exact mappings in expression arena order, followed by distinct expansion aliases.
      * Unlike exprAtSource this includes the later desugared values (A29).
      */
-    @PyDoc["All exact mappings in expression arena order, followed by distinct expansion aliases. Unlike exprAtSource this includes the later desugared values (A29)."]
     public func exprsAtSource(source: BodySource): Array<ExprId> {
         let found = ArrayList<ExprId>()
         for (i in 0..exprs.size where exprs[i] == WrittenSource(source)) {
@@ -1031,7 +996,6 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
      * Exact written origin followed by distinct call-site aliases in lowering order.
      * Synthetic expressions have no written origin; aliases do not change that classification.
      */
-    @PyDoc["Exact written origin followed by distinct call-site aliases in lowering order. Synthetic expressions have no written origin; aliases do not change that classification."]
     public func sourcesOfExpr(id: ExprId): Array<BodySource> {
         let found = ArrayList<BodySource>()
         if (let Some(WrittenSource(source)) <- exprs.get(id.index)) {
@@ -1051,7 +1015,6 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
     /**
      * The pattern at the file-qualified syntax source.
      */
-    @PyDoc["The pattern at the file-qualified syntax source."]
     public func patAtSource(source: BodySource): ?PatId {
         match (patIndex.get(source)) {
             case Some(i) => PatId(i)
@@ -1070,7 +1033,6 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
     /**
      * The local declaration at the file-qualified syntax source.
      */
-    @PyDoc["The local declaration at the file-qualified syntax source."]
     public func localAtSource(source: BodySource): ?LocalId {
         match (localIndex.get(source)) {
             case Some(i) => LocalId(i)
@@ -1086,7 +1048,6 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
     /**
      * The type reference at the file-qualified syntax source.
      */
-    @PyDoc["The type reference at the file-qualified syntax source."]
     public func typeAtSource(source: BodySource): ?TypeRefId {
         match (typeIndex.get(source)) {
             case Some(i) => TypeRefId(i)
@@ -1137,7 +1098,6 @@ class BodySourceIndex {
  * A lowered body together with mappings between its IDs and source syntax.
  */
 @DerivePython
-@PyDoc["A lowered body together with mappings between its IDs and source syntax."]
 public struct LoweredBody <: Equatable<LoweredBody> {
     public LoweredBody(public let body: Body, public let sourceMap: BodySourceMap) {}
 

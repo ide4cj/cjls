@@ -11,7 +11,6 @@ import py_interop.internal_macros.DerivePython
  * Ranges are UTF-8 bytes; line and column are one-based, with a UTF-8 byte column.
  */
 @DerivePython
-@PyDoc["A diagnostic in the script's revision. Unknown locations remain None rather than being inferred by parsing a toolchain's human-readable message. Ranges are UTF-8 bytes; line and column are one-based, with a UTF-8 byte column."]
 struct WorkspaceDiagnostic {
     WorkspaceDiagnostic(
         public let source: String,
@@ -30,7 +29,6 @@ struct WorkspaceDiagnostic {
  * Whether this revision still needs macro preparation, independently of diagnostics.
  */
 @DerivePython
-@PyDoc["Whether this revision still needs macro preparation, independently of diagnostics."]
 enum MacroState <: Equatable<MacroState> {
     | Pending
     | Settled
@@ -53,7 +51,6 @@ enum MacroState <: Equatable<MacroState> {
  * failures, and pending is not itself a diagnostic.
  */
 @DerivePython
-@PyDoc["Work completion and diagnostic severity are independent: settled can include failures, and pending is not itself a diagnostic."]
 struct MacroStatus {
     MacroStatus(public let state: MacroState, public let diagnostics: Array<WorkspaceDiagnostic>) {}
 }

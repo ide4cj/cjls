@@ -112,7 +112,6 @@ import py_interop.internal_macros.DerivePython
  */
 @When[os == "Linux"]
 @DerivePython
-@PyDoc["A revision-bound analysis handle; querying it after a workspace update reports ContentModified."]
 class AnalysisRevision {
     private let owner: WorkspaceState
 
@@ -139,7 +138,6 @@ class AnalysisRevision {
      * Snapshot views of this checked revision, cancelled by later input changes.
      * @throws IllegalStateException - if this handle belongs to an older workspace revision.
      */
-    @PyDoc["Snapshot views of this checked revision, cancelled by later input changes. @throws IllegalStateException - if this handle belongs to an older workspace revision."]
     public func semantic(): SemanticAnalysis {
         SemanticAnalysis(state.db)
     }
@@ -316,7 +314,6 @@ class AnalysisRevision {
     /**
      * Written ranges by expression index; None marks synthetic expressions.
      */
-    @PyDoc["Written ranges by expression index; None marks synthetic expressions."]
     public func expressionRanges(def: DefId): Array<?TextRange> {
         bodyWithSourceMap(state.db, def)
             .sourceMap

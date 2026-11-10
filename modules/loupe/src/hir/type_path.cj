@@ -11,7 +11,6 @@ import loupe.db.{AnalysisDatabase, Package, SourceFile}
  * What a segment of a path in a type names.
  */
 @DerivePython
-@PyDoc["What a segment of a path in a type names."]
 public enum TypeTarget <: ToString & Equatable<TypeTarget> {
     /**
      * A type: a class, interface, struct, enum, alias, or a type of the compiler's own.
@@ -63,7 +62,6 @@ public enum TypeTarget <: ToString & Equatable<TypeTarget> {
  * What a segment of a path in a type resolves to.
  */
 @DerivePython
-@PyDoc["What a segment of a path in a type resolves to."]
 public enum PathResolution <: ToString & Equatable<PathResolution> {
     | Resolved(TypeTarget)
     /**
@@ -114,7 +112,6 @@ public enum PathResolution <: ToString & Equatable<PathResolution> {
  * names in order, an index among them a `GenericOf`'s.
  */
 @DerivePython
-@PyDoc["The type parameters of one declaration: the declaration, which `GenericOf` names, and their names in order, an index among them a `GenericOf`'s."]
 public struct Generics {
     public Generics(public let owner: DefId, public let names: Array<String>) {}
 }
@@ -125,13 +122,11 @@ public struct Generics {
  * first, each shadowing anything of its name (N55); then the scope of its file.
  */
 @DerivePython
-@PyDoc["Where the types of a declaration's signature are looked up, rust-analyzer's `Resolver`: the type parameters of the declaration, then of the type or `extend` it is a member of, the innermost first, each shadowing anything of its name (N55); then the scope of its file."]
 public struct TypeScope {
     public TypeScope(
         /**
          * The type parameters of the declaration, then of its parent, if it has one.
          */
-        @PyDoc["The type parameters of the declaration, then of its parent, if it has one."]
         public let generics: Array<Generics>,
         public let pkg: Package,
         public let file: SourceFile

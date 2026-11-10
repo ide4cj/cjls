@@ -26,7 +26,6 @@ import loupe.db.AnalysisDatabase
  * A type of a signature, by its place among the signature's `types`.
  */
 @DerivePython
-@PyDoc["A type of a signature, by its place among the signature's `types`."]
 public struct TypeRefId <: Equatable<TypeRefId> & Hashable & ToString {
     public TypeRefId(public let index: Int64) {}
 
@@ -53,7 +52,6 @@ public struct TypeRefId <: Equatable<TypeRefId> & Hashable & ToString {
  * A segment of a path in a type, `C<T>` of `a.C<T>`: its name and its type arguments.
  */
 @DerivePython
-@PyDoc["A segment of a path in a type, `C<T>` of `a.C<T>`: its name and its type arguments."]
 public struct TypeSegment <: Equatable<TypeSegment> {
     public TypeSegment(public let name: String, public let args: Array<TypeRefId>) {}
 
@@ -71,7 +69,6 @@ public struct TypeSegment <: Equatable<TypeSegment> {
  * holds are other types of the same signature; a type in parentheses is the type in them.
  */
 @DerivePython
-@PyDoc["A type as a signature writes it, its names not resolved yet: rust-analyzer's `TypeRef`. What it holds are other types of the same signature; a type in parentheses is the type in them."]
 public enum TypeRef <: Equatable<TypeRef> {
     /**
      * `a.C<T>`: what each segment names is resolution's (`resolveTypePath`).
@@ -122,7 +119,6 @@ public enum TypeRef <: Equatable<TypeRef> {
  * A type and its bounds, `T <: A & B` of a `where`.
  */
 @DerivePython
-@PyDoc["A type and its bounds, `T <: A & B` of a `where`."]
 public struct TypeBound <: Equatable<TypeBound> {
     public TypeBound(public let ty: TypeRefId, public let bounds: Array<TypeRefId>) {}
 
@@ -141,56 +137,46 @@ public struct TypeBound <: Equatable<TypeBound> {
  * what read this declaration's, not the package's names.
  */
 @DerivePython
-@PyDoc["The types a declaration's signature writes, nothing of its body: rust-analyzer's signatures, a query of each declaration apart from the item tree (D48), so that an edit to a type runs again what read this declaration's, not the package's names."]
 public struct Signature <: Equatable<Signature> {
     public Signature(
         /**
          * Its type parameters by name, in order.
          */
-        @PyDoc["Its type parameters by name, in order."]
         public let generics!: Array<String> = [],
         /**
          * Every type it writes, one inside another before it.
          */
-        @PyDoc["Every type it writes, one inside another before it."]
         public let types!: Array<TypeRef> = [],
         /**
          * Those of its parameters, of every list in order; an enum constructor's.
          */
-        @PyDoc["Those of its parameters, of every list in order; an enum constructor's."]
         public let params!: Array<TypeRefId> = [],
         /**
          * The name each of its parameters is passed by, `None` for one passed by place (`value!`
          * is `value`); as many as `params`, or none if none is named.
          */
-        @PyDoc["The name each of its parameters is passed by, `None` for one passed by place (`value!` is `value`); as many as `params`, or none if none is named."]
         public let paramNames!: Array<?String> = [],
         /**
          * Whether each of its parameters has a default value; as many as `paramNames`.
          */
-        @PyDoc["Whether each of its parameters has a default value; as many as `paramNames`."]
         public let paramDefaults!: Array<Bool> = [],
         /**
          * Whether, a `foreign` function's, it takes any number of arguments more after its
          * parameters: its `...`, none of `params`.
          */
-        @PyDoc["Whether, a `foreign` function's, it takes any number of arguments more after its parameters: its `...`, none of `params`."]
         public let isCVariadic!: Bool = false,
         /**
          * Its declared type: a function's return type, a variable's or property's type, what an
          * alias names, the type an `extend` extends.
          */
-        @PyDoc["Its declared type: a function's return type, a variable's or property's type, what an alias names, the type an `extend` extends."]
         public let ty!: ?TypeRefId = None,
         /**
          * The types after `<:`: a type's supertypes, an `extend`'s interfaces.
          */
-        @PyDoc["The types after `<:`: a type's supertypes, an `extend`'s interfaces."]
         public let supers!: Array<TypeRefId> = [],
         /**
          * Its `where`.
          */
-        @PyDoc["Its `where`."]
         public let bounds!: Array<TypeBound> = []
     ) {}
 
@@ -201,7 +187,6 @@ public struct Signature <: Equatable<Signature> {
     /**
      * `id` as written, but for whitespace and parameter names: `a.C<?Int64>`, `(Int64) -> Unit`.
      */
-    @PyDoc["`id` as written, but for whitespace and parameter names: `a.C<?Int64>`, `(Int64) -> Unit`."]
     public func text(id: TypeRefId): String {
         let list =
             { ids: Array<TypeRefId> => String.join(ids.map { one => text(one) }, delimiter: ", ") }

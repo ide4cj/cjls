@@ -18,12 +18,10 @@ public struct CangjieHome <: Equatable<CangjieHome> & Hashable & ToString {
          * What named it, for the log: `initializationOptions.cangjieHome`, `CANGJIE_HOME`, cjsdk's
          * default toolchain, or `cjc` on `PATH`.
          */
-        @PyDoc["What named it, for the log: `initializationOptions.cangjieHome`, `CANGJIE_HOME`, cjsdk's default toolchain, or `cjc` on `PATH`."]
         public let source: String,
         /**
          * The selected compiler's version; absent when it cannot run or its output is unrecognized.
          */
-        @PyDoc["The selected compiler's version; absent when it cannot run or its output is unrecognized."]
         public let version!: ?String = None
     ) {}
 

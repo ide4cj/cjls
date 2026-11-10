@@ -8,7 +8,6 @@ import loupe.db.{AnalysisDatabase, Package}
  * Compiler-owned type heads; declaration identities only provide scoped names and navigation.
  */
 @DerivePython
-@PyDoc["Compiler-owned type heads; declaration identities only provide scoped names and navigation."]
 public enum CompilerType <: Equatable<CompilerType> & Hashable & ToString {
     | PointerType
     | CStringType

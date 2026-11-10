@@ -10,7 +10,6 @@ import py_interop.internal_macros.DerivePython
  * CreateFile includes initial contents, so it needs no subsequent EditFile.
  */
 @DerivePython
-@PyDoc["A file operation. Existing-file operations carry the complete expected original text. Paths use the consumer's normalized namespace; renames never overwrite a destination. CreateFile includes initial contents, so it needs no subsequent EditFile."]
 public enum FileChange <: Equatable<FileChange> & ToString {
     EditFile(String, String, Array<TextEdit>)
     | CreateFile(String, String)
@@ -43,7 +42,6 @@ public enum FileChange <: Equatable<FileChange> & ToString {
     /**
      * Every path reserved by this operation, including a rename destination.
      */
-    @PyDoc["Every path reserved by this operation, including a rename destination."]
     public func paths(): Array<String> {
         match (this) {
             case EditFile(path, _, _) => [path]
@@ -61,7 +59,6 @@ public enum FileChange <: Equatable<FileChange> & ToString {
  * Consumers resolve paths, check expected contents and capabilities, and own application.
  */
 @DerivePython
-@PyDoc["A collection of independent file operations, not a filesystem transaction. Each path may occur once, including rename destinations: rename chains and an edit of a renamed/created file must be composed by the producer before constructing it. Consumers resolve paths, check expected contents and capabilities, and own application."]
 public struct SourceChange <: Equatable<SourceChange> & ToString {
     public SourceChange(public let files: Array<FileChange>) {}
 
@@ -83,7 +80,6 @@ public struct SourceChange <: Equatable<SourceChange> & ToString {
      *
      * @throws IllegalArgumentException - for empty or repeated paths, or invalid text edits
      */
-    @PyDoc["Checks path spelling conflicts and all text edits without touching the filesystem. Consumers must also reject aliases after resolving paths in their own namespace.  @throws IllegalArgumentException - for empty or repeated paths, or invalid text edits"]
     public func validate(): Unit {
         let used = HashSet<String>()
         for (file in files) {

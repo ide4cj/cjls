@@ -29,7 +29,6 @@ import loupe.vfs.FileId
  * `RelatedHighlight` has it, and whether it is the name a declaration gives.
  */
 @DerivePython
-@PyDoc["A name of the workspace meaning what the one asked about does: where it is, how it reaches it, as `RelatedHighlight` has it, and whether it is the name a declaration gives."]
 public struct Reference <: Equatable<Reference> {
     public Reference(
         public let fileId: FileId,
