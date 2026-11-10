@@ -16,6 +16,7 @@ class SemanticChecks:
             encoding='utf-8', newline='\n',
         )
         try:
+            self._check_python_metadata(run)
             self._check_semantic_discovery(run)
             self._check_semantic_project(run)
             self._check_semantic_scope(run)
@@ -25,8 +26,42 @@ class SemanticChecks:
             self._check_semantic_relationships(run)
             self._check_semantic_inference(run)
             self._check_semantic_staleness(path, run)
+            self._check_project_build_inputs(root, run)
         finally:
             path.unlink()
+
+    def _check_python_metadata(self, run):
+        checked = run("""
+            a = workspace.analysis()
+            exported = {name: value for name, value in globals().items() if isinstance(value, type)}
+            assert len(exported) >= 200
+            missing = [name for name, cls in exported.items() if not cls.__doc__]
+            renamed = [(name, cls.__name__) for name, cls in exported.items() if name != cls.__name__]
+            assert not missing, missing
+            assert not renamed, renamed
+            undocumented_methods = [(owner, name) for owner, cls in exported.items()
+                                    for name, value in vars(cls).items()
+                                    if not name.startswith('_') and name not in ('hashCode', 'toString')
+                                    and callable(value) and not isinstance(value, type) and not value.__doc__]
+            assert not undocumented_methods, undocumented_methods
+            assert type(workspace).__doc__
+            assert 'UTF-8' in TextRange.__doc__
+            assert 'end` excluded' in TextRange.contains.__doc__
+            assert 'syntax errors' in AnalysisRevision.formatting.__doc__
+            assert 'return type' in SignatureTypes.ty.__doc__
+            assert 'Higher first' in CompletionItem.relevance.__doc__
+            assert SemanticSyntaxElement.descendants.__doc__
+            assert SemanticObject.contextualPackage.__doc__
+            definition = a.declarations('src/helper.cj')[0]
+            duplicate = Redefinition(definition, 'duplicate')
+            missing_specific = NoSpecific(definition, 'unavailable')
+            assert getattr(duplicate, 'def') == definition
+            assert getattr(missing_specific, 'def') == definition
+            assert Redefinition.__match_args__ == ('def', 'name')
+            assert NoSpecific.__match_args__ == ('def', 'message')
+            result = len(exported)
+        """)
+        self.assertGreaterEqual(checked['result'], 200)
 
     def _check_semantic_discovery(self, run):
         # act
@@ -303,3 +338,129 @@ class SemanticChecks:
 
         # assert
         self.assertEqual(stale['result'], 6)
+
+    def _check_project_build_inputs(self, root, run):
+        manifest = root / 'cjpm.toml'
+        before = manifest.read_text()
+        manifest.write_text(before + '\n[ffi.c.sample_native]\npath = "native-libs"\n')
+        try:
+            checked = run("""
+                import sys, types
+                a = workspace.analysis()
+                module = next(m for m in a.semantic().project().modules() if m.isWorkspaceMember())
+                libraries = module.nativeLibraries()
+                assert len(libraries) == 1
+                library = libraries[0]
+                expected = NativeLibrary('sample_native', VfsPath.file(workspace.root).join('native-libs'))
+                assert library == expected and hash(library) == hash(expected)
+                assert library.name == 'sample_native' and library.dir == expected.dir
+                assert module.dependencies() and not any(d.name == library.name for d in module.dependencies())
+                try:
+                    library.name = 'changed'
+                except AttributeError:
+                    pass
+                else:
+                    raise AssertionError('native linker inputs must be read-only')
+                assert 'native linker' in NativeLibrary.__doc__
+                assert 'linker' in SemanticModule.nativeLibraries.__doc__
+                sys.modules['_native_inputs_hold'] = types.SimpleNamespace(module=module)
+                result = True
+            """)
+            self.assertTrue(checked['result'])
+            self._check_sdk_export(run)
+            self._check_sdk_revision(run)
+        finally:
+            manifest.write_text(before)
+        restored = run("""
+            import sys
+            stale = sys.modules.pop('_native_inputs_hold').module
+            try:
+                stale.nativeLibraries()
+            except RuntimeError:
+                pass
+            else:
+                raise AssertionError('stale native library query was accepted')
+            project = workspace.analysis().semantic().project()
+            assert all(not m.nativeLibraries() for m in project.modules() if m.isWorkspaceMember())
+            result = True
+        """)
+        self.assertTrue(restored['result'])
+
+    def _check_sdk_export(self, run):
+        checked = run("""
+            a = workspace.analysis()
+            sdk = workspace.sdk
+            if sdk is not None:
+                assert isinstance(sdk, CangjieHome) and sdk.path and sdk.source
+                assert (sdk.version is None) == (sdk.channel is None)
+                assert sdk.channel in [None, 'LTS', 'STS', 'pinned nightly', 'out of window']
+                assert sdk == CangjieHome(sdk.path, sdk.source, version=sdk.version)
+            unknown = CangjieHome('/sdk', 'test')
+            assert unknown.version is None and unknown.channel is None
+            lts = CangjieHome('/sdk', 'test', version='1.0.5')
+            assert lts.channel == 'LTS' and lts != unknown
+            assert hash(lts) == hash(CangjieHome('/sdk', 'test', version='1.0.5'))
+            assert CangjieHome('/sdk', 'test', version='0.0.0').channel == 'out of window'
+            assert 'selected SDK' in CangjieHome.__doc__
+            for cls, name in [(Location, 'Location'), (BodySource, 'BodySource'),
+                              (LoweredSignature, 'LoweredSignature'),
+                              (SignatureSourceMap, 'SignatureSourceMap')]:
+                assert cls.__name__ == name, (cls.__name__, name)
+                assert cls.__doc__, name
+            result = True
+        """)
+        self.assertTrue(checked['result'])
+
+    def _check_sdk_revision(self, run):
+        selected = run("""
+            import os, sys, types
+            from pathlib import Path
+            a = workspace.analysis()
+            sdk = workspace.sdk
+            fake = Path(workspace.root, '.codex', 'sdk-export')
+            (fake / 'bin').mkdir(parents=True)
+            compiler = fake / 'bin/cjc'
+            compiler.write_text('#!/bin/sh\\nprintf "Cangjie Compiler: 2.0.0 (cjnative)\\\\n"\\n')
+            compiler.chmod(0o755)
+            held = types.SimpleNamespace(a=a, sdk=sdk, original=os.environ.get('CANGJIE_HOME'))
+            sys.modules['_sdk_inputs_hold'] = held
+            os.environ['CANGJIE_HOME'] = str(fake)
+            assert workspace.sdk == sdk
+            result = a.revision
+        """)
+        try:
+            changed = run("""
+                import os, sys
+                held = sys.modules['_sdk_inputs_hold']
+                a = workspace.analysis()
+                try:
+                    sdk = workspace.sdk
+                    assert sdk.path.endswith('/.codex/sdk-export')
+                    assert sdk.source == 'CANGJIE_HOME'
+                    assert sdk.version == '2.0.0' and sdk.channel == 'out of window'
+                    try:
+                        held.a.fileSymbols('src/helper.cj')
+                    except RuntimeError:
+                        pass
+                    else:
+                        raise AssertionError('changing the SDK must invalidate retained analysis')
+                    result = a.revision
+                finally:
+                    if held.original is None:
+                        os.environ.pop('CANGJIE_HOME', None)
+                    else:
+                        os.environ['CANGJIE_HOME'] = held.original
+            """)
+            self.assertGreater(changed['revision'], selected['revision'])
+        finally:
+            restored = run("""
+                import os, sys
+                held = sys.modules.pop('_sdk_inputs_hold')
+                if held.original is None:
+                    os.environ.pop('CANGJIE_HOME', None)
+                else:
+                    os.environ['CANGJIE_HOME'] = held.original
+                assert workspace.sdk == held.sdk
+                result = workspace.revision
+            """)
+            self.assertGreater(restored['revision'], selected['revision'])

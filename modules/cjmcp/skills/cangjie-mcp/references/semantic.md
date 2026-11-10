@@ -22,7 +22,10 @@ result = {
 ```
 
 Use `s.project()` to traverse loaded modules, contextual packages, files,
-dependencies and configuration. `occurrence.contextualFile()` retains the lookup
+dependencies and configuration. Module `nativeLibraries()` reports native linker
+names and search directories separately from Cangjie dependencies; `workspace.sdk`
+reports the SDK selected for this revision, including its version and support
+channel when known. `occurrence.contextualFile()` retains the lookup
 context; `visibleNames()` lists scope candidates and `lookup(name, namespace)`
 applies native resolution precedence. Dependency permission, written imports and
 exports are separate queries. Check availability/cycle flags and explicit gaps.

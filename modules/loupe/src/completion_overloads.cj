@@ -10,6 +10,7 @@ import loupe.hir.{DefId, Ty}
  * A declaration in a completion group, seen through its receiver type when it is a member.
  */
 @DerivePython
+@PyDoc["A declaration in a completion group, seen through its receiver type when it is a member."]
 public struct CompletionOverload <: Equatable<CompletionOverload> {
     public CompletionOverload(public let id: DefId, public let receiver: ?Ty) {}
 

@@ -9,6 +9,7 @@ import loupe.{Severity, newFilePackageLine}
 import loupe.db.{AnalysisDatabase, ProjectModel}
 import loupe.vfs.{ChangedFile, CjoFile, FileStamp, Vfs, VfsPath, readCjoFiles, readFile}
 import project_model.{
+    CangjieHome,
     findCangjieHome,
     findCangjieSrc,
     findProject,
@@ -27,6 +28,7 @@ class WorkspaceState {
     var loadDiagnostics: Array<WorkspaceDiagnostic> = []
     var macroStatus = MacroStatus(MacroState.Pending, [])
     var revision: Int64 = 0
+    var sdk: ?CangjieHome = None
     var reloadRequested = false
     private var pendingChanges: Array<ChangedFile> = []
     private var model: ?ProjectModel = None
@@ -77,7 +79,8 @@ class WorkspaceState {
         }
         pendingChanges = pendingChanges.concat(vfs.takeChanges())
         let changed =
-            revision == 0 || projectChanged || binaryChanged || !pendingChanges.isEmpty() ||
+            revision == 0 || projectChanged || binaryChanged || sdk != found ||
+                !pendingChanges.isEmpty() ||
                 loadProblems != issues.toArray() ||
                 reloadRequested
         if (!changed) {
@@ -97,6 +100,7 @@ class WorkspaceState {
         files = next.files()
         loadProblems = issues.toArray()
         reloadRequested = false
+        sdk = found
         macroHome = found.map { home => Path(home.path) }
         loadDiagnostics =
             loadProblems

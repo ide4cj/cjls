@@ -12,6 +12,8 @@ import py_interop.internal_macros.DerivePython
  */
 @When[os == "Linux"]
 @DerivePython
+@PyName["SignatureSourceMap"]
+@PyDoc["Maps signature type-reference IDs to optional UTF-8 source ranges."]
 class PythonSignatureSourceMap {
     private let value: SignatureSourceMap
 
@@ -20,6 +22,7 @@ class PythonSignatureSourceMap {
         this.value = value
     }
 
+    @PyDoc["Optional UTF-8 source ranges indexed by signature TypeRefId."]
     public prop ranges: Array<?TextRange> {
         get() {
             value.ptrs.map { ptr => ptr.map { one => one.range } }
@@ -29,6 +32,7 @@ class PythonSignatureSourceMap {
     /**
      * The first type reference written at exactly this range, or None.
      */
+    @PyDoc["The first type reference written at exactly this range, or None."]
     public func typeAtRange(range: TextRange): ?TypeRefId {
         for (i in 0..value.ptrs.size where value.ptrs[i].map { ptr => ptr.range } == Some(range)) {
             return TypeRefId(i)
@@ -42,6 +46,8 @@ class PythonSignatureSourceMap {
  */
 @When[os == "Linux"]
 @DerivePython
+@PyName["LoweredSignature"]
+@PyDoc["A native written signature and the source ranges of its type references."]
 class PythonLoweredSignature {
     @PyIgnore
     init(value: LoweredSignature) {

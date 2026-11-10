@@ -9,6 +9,7 @@ import loupe.db.{AnalysisDatabase, Package}
  * What the left of a `.` in a body stands for, as far as names tell (N75–N79).
  */
 @DerivePython
+@PyDoc["What the left of a `.` in a body stands for, as far as names tell (N75–N79)."]
 public enum Receiver <: ToString & Equatable<Receiver> {
     /**
      * A package the file imports by its name or an alias (N76).
@@ -57,6 +58,7 @@ public enum Receiver <: ToString & Equatable<Receiver> {
  * What the name after a `.` in a body means.
  */
 @DerivePython
+@PyDoc["What the name after a `.` in a body means."]
 public enum FieldResolution <: ToString & Equatable<FieldResolution> {
     /**
      * Declarations of a package, a type or a value, never a constructor (N76).
