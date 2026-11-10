@@ -63,6 +63,7 @@ The workspace handle provides:
 | Workspace member | Result |
 |---|---|
 | `root` | Absolute root path |
+| `sdk` | Selected `CangjieHome` (path, discovery source, version and support channel), or `None` |
 | `loadDiagnostics` | Structured project/binary/source loading diagnostics |
 | `macros` | MacroStatus with state and structured preparation diagnostics |
 | `files()` | Source paths of the loaded project |
@@ -73,6 +74,20 @@ The workspace handle provides:
 | `revision` | Session-local revision used by this script and returned in the tool response |
 | `reload()` | Request preparation after this script; the running script keeps its revision |
 | `analysis()` | Retain an `AnalysisRevision` for HIR, inference and navigation |
+
+### Project build inputs
+
+`workspace.sdk` is captured during preparation of the current revision. Its
+`version` and `channel` are `None` when the selected compiler cannot report a
+recognized version; the SDK itself remains available. Known channels are `LTS`,
+`STS`, `pinned nightly` and `out of window`. Reading this value does not run the
+compiler or repeat discovery. Changes to SDK selection open a new revision.
+
+`a.semantic().project().modules()` exposes each module's `nativeLibraries()`:
+read-only `NativeLibrary` values with a linker `name` and a `VfsPath` search `dir`.
+These inputs are separate from Cangjie imports and source dependencies; a selected
+library may not exist yet. Build and run native artifacts with the user's build
+system before expanding macros that need them.
 
 ### Macro state and structured diagnostics
 
@@ -411,6 +426,17 @@ requests are outside this experiment. The existing macro host limitations,
 including K28's conflicting loaded libraries within a load, still apply.
 
 ## Binding implementation constraints
+
+All types exported through `@DerivePython` carry `@PyDoc`. Document exported
+methods and properties, and retain documented field contracts in Python as well;
+ordinary Cangjie doc comments remain the source documentation. Use `@PyName` when the Python registry
+name differs from the declaration name, so `__name__` and introspection agree
+with the injected name. Keep existing Python names stable.
+The process regression checks every injected class for a nonempty `__doc__` and
+an `__name__` matching its injected name. Exposed callables also need docs, except
+standard string/hash operations. Existing keyword-named fields remain
+available through `getattr(value, "def")`; constructor argument order and
+`__match_args__` remain unchanged. Metadata changes do not rename these fields.
 
 `@DerivePython` from `py_interop` exports the selected original analysis types,
 including their constructors, fields, properties and methods. Immutable fields

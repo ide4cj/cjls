@@ -29,6 +29,7 @@ import loupe.vfs.FileId
  * How a name reaches what it means: reads it, or gives it a value.
  */
 @DerivePython
+@PyDoc["How a name reaches what it means: reads it, or gives it a value."]
 public enum ReferenceAccess <: ToString & Equatable<ReferenceAccess> {
     | ReadAccess
     | WriteAccess
@@ -58,6 +59,7 @@ public enum ReferenceAccess <: ToString & Equatable<ReferenceAccess> {
  * that neither reads nor writes: a declaration but of a `var`, a name in a type or a pattern.
  */
 @DerivePython
+@PyDoc["A name of the file meaning what the one asked about does, and how it reaches it; `None` for a name that neither reads nor writes: a declaration but of a `var`, a name in a type or a pattern."]
 public struct RelatedHighlight <: Equatable<RelatedHighlight> {
     public RelatedHighlight(public let range: TextRange, public let access: ?ReferenceAccess) {}
 

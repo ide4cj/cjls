@@ -17,6 +17,7 @@ import loupe.syntax.parse
  * declarations; its semantic type does not depend on this identity (D154).
  */
 @DerivePython
+@PyDoc["What an item is: a declaration the item tree holds, an import, or a macro call on no declaration; `BuiltIn` gives a compiler-owned type a scoped name, from std.core's binary or synthetic source declarations; its semantic type does not depend on this identity (D154)."]
 public enum ItemKind <: ToString & Equatable<ItemKind> & Hashable {
     | Import
     | Func
@@ -122,6 +123,7 @@ public enum ItemKind <: ToString & Equatable<ItemKind> & Hashable {
  * file, and goes back to a node through the file's `ItemIdMap`.
  */
 @DerivePython
+@PyDoc["An item of a file, named so that an edit elsewhere leaves it as it is (D34): its kind, a hash of its parent's id and its name, and its place among the items of the file with the same kind and hash. An edit inside a body, a blank line, an item added or removed or moved leaves the ids of the other items alone; only an overload added before one moves it. It means something only in its file, and goes back to a node through the file's `ItemIdMap`."]
 public struct ItemId <: ToString & Equatable<ItemId> & Hashable {
     public ItemId(public let kind: ItemKind, public let hash: Int64, public let index: Int64) {}
 

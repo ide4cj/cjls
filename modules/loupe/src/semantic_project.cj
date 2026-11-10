@@ -3,7 +3,7 @@ package loupe
 import std.collection.{ArrayList, collectArray, filterMap, map}
 import py_interop.*
 import py_interop.internal_macros.DerivePython
-import loupe.db.{AnalysisDatabase, BinaryModel, Cfg, InactiveSourceFile, Module}
+import loupe.db.{AnalysisDatabase, BinaryModel, Cfg, InactiveSourceFile, Module, NativeLibrary}
 import loupe.hir.{
     DefId,
     ItemFile,
@@ -25,6 +25,7 @@ extend SemanticAnalysis {
      * The single merged loaded project, or none before project inputs are installed.
      * Original workspace-root grouping is not retained by the merged input.
      */
+    @PyDoc["The single merged loaded project, or none before project inputs are installed. Original workspace-root grouping is not retained by the merged input."]
     public func project(): ?SemanticProject {
         db.unwindIfCancelled()
         db.project().map { _ => SemanticProject(this) }
@@ -36,6 +37,7 @@ extend SemanticAnalysis {
  * Array filtering. All methods use the originating snapshot and cancel after input changes.
  */
 @DerivePython
+@PyDoc["Traversal of loaded inputs only. Collections preserve input order and support ordinary Array filtering. All methods use the originating snapshot and cancel after input changes."]
 public class SemanticProject {
     private let analysis: SemanticAnalysis
 
@@ -44,6 +46,7 @@ public class SemanticProject {
         this.analysis = analysis
     }
 
+    @PyDoc["Return loaded source modules, including dependency modules."]
     public func modules(): Array<SemanticModule> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -57,6 +60,7 @@ public class SemanticProject {
     /**
      * Source, binary and detached attached-source contexts, each identity once.
      */
+    @PyDoc["Source, binary and detached attached-source contexts, each identity once."]
     public func packages(): Array<SemanticPackage> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -79,10 +83,12 @@ public class SemanticProject {
         result.toArray()
     }
 
+    @PyDoc["Return contextual files of the loaded project."]
     public func files(): Array<SemanticFile> {
         packages().flatMap { pkg => pkg.files() }
     }
 
+    @PyDoc["Return module dependency edges, retaining ordinary and test-only permissions."]
     public func dependencies(): Array<SemanticDependency> {
         modules().flatMap { module => module.dependencies() }
     }
@@ -90,6 +96,7 @@ public class SemanticProject {
     /**
      * Selected loaded binary models; never enumerates their paths on disk.
      */
+    @PyDoc["Selected loaded binary models; never enumerates their paths on disk."]
     public func binaries(): Array<BinaryModel> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -99,6 +106,7 @@ public class SemanticProject {
             .binaries(db)
     }
 
+    @PyDoc["Return the project configuration retained in the analysis inputs."]
     public func configuration(): SemanticConfiguration {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -119,24 +127,29 @@ public class SemanticProject {
  * follow CfgExpr's false default, not proof that the compiler was invoked without them.
  */
 @DerivePython
+@PyDoc["Effective analysis conditions, not an exact compiler invocation. The loader does not retain profile/feature/flag completeness, selection provenance, source-set names or load diagnostics in database inputs. Unavailable metadata is separate from a known empty result. Missing @When comparison keys remain unknown/active; absent debug/test flags currently follow CfgExpr's false default, not proof that the compiler was invoked without them."]
 public struct SemanticConfiguration {
     SemanticConfiguration(public let cfg: Cfg) {}
 
+    @PyDoc["None: loader problem details are not retained by this semantic view."]
     public prop loadingProblems: ?Array<String> {
         get() {
             None
         }
     }
+    @PyDoc["None: configuration-selection provenance is not retained."]
     public prop selectionProvenance: ?String {
         get() {
             None
         }
     }
+    @PyDoc["None: selected source-set names are not retained."]
     public prop selectedSourceSets: ?Array<String> {
         get() {
             None
         }
     }
+    @PyDoc["False: retained analysis configuration is not a complete compiler invocation."]
     public prop hasCompleteCompilerInvocation: Bool {
         get() {
             false
@@ -148,6 +161,7 @@ public struct SemanticConfiguration {
  * A dependency permission, not evidence of an import statement.
  */
 @DerivePython
+@PyDoc["A dependency permission, not evidence of an import statement."]
 public struct SemanticDependency {
     SemanticDependency(
         public let source: SemanticModule,
@@ -161,6 +175,7 @@ public struct SemanticDependency {
     /**
      * False distinguishes a missing selected target from an empty package collection.
      */
+    @PyDoc["False distinguishes a missing selected target from an empty package collection."]
     public prop isResolved: Bool {
         get() {
             !modules.isEmpty() || !binaries.isEmpty()
@@ -172,6 +187,7 @@ public struct SemanticDependency {
  * Module identity includes its independent resolution scope, including script selections.
  */
 @DerivePython
+@PyDoc["Module identity includes its independent resolution scope, including script selections."]
 public class SemanticModule {
     private let analysis: SemanticAnalysis
     public let identity: Module
@@ -182,26 +198,40 @@ public class SemanticModule {
         this.identity = identity
     }
 
+    @PyDoc["Return the module name from the loaded project."]
     public func name(): String {
         analysis.db.unwindIfCancelled()
         identity.name(analysis.db)
     }
 
+    @PyDoc["Return the module root as a native VfsPath."]
     public func root(): VfsPath {
         analysis.db.unwindIfCancelled()
         identity.root(analysis.db)
     }
 
+    /**
+     * Native linker inputs selected for this module; these are separate from Cangjie dependencies.
+     */
+    @PyDoc["Return this module's selected native linker names and search directories."]
+    public func nativeLibraries(): Array<NativeLibrary> {
+        analysis.db.unwindIfCancelled()
+        identity.nativeLibraries(analysis.db)
+    }
+
+    @PyDoc["Return its independent dependency-selection scope; empty for the ordinary graph."]
     public func resolutionScope(): String {
         analysis.db.unwindIfCancelled()
         identity.resolutionScope(analysis.db)
     }
 
+    @PyDoc["Whether this module belongs to the workspace rather than its dependencies."]
     public func isWorkspaceMember(): Bool {
         analysis.db.unwindIfCancelled()
         identity.member(analysis.db)
     }
 
+    @PyDoc["Return source packages belonging to this module."]
     public func packages(): Array<SemanticPackage> {
         analysis.db.unwindIfCancelled()
         identity
@@ -209,6 +239,7 @@ public class SemanticModule {
             .map { pkg => SemanticPackage(analysis, PackageRef.Source(pkg)) }
     }
 
+    @PyDoc["Return module configuration, falling back to the project configuration."]
     public func configuration(): SemanticConfiguration {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -224,6 +255,7 @@ public class SemanticModule {
     /**
      * Source-set exclusions retained by the loader, even when their text was not loaded.
      */
+    @PyDoc["Source-set exclusions retained by the loader, even when their text was not loaded."]
     public func inactiveFiles(): Array<InactiveSourceFile> {
         analysis.db.unwindIfCancelled()
         identity.inactive(analysis.db)
@@ -233,6 +265,7 @@ public class SemanticModule {
      * Direct ordinary and additional test-only edges, plus implicit std. Script edges retain
      * their module's resolutionScope; downstream modules do not inherit test-only permissions.
      */
+    @PyDoc["Direct ordinary and additional test-only edges, plus implicit std. Script edges retain their module's resolutionScope; downstream modules do not inherit test-only permissions."]
     public func dependencies(): Array<SemanticDependency> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -278,6 +311,7 @@ public class SemanticModule {
  * Loaded origin, independent of a declaration's navigation source.
  */
 @DerivePython
+@PyDoc["Loaded origin, independent of a declaration's navigation source."]
 public enum SemanticPackageOrigin <: Equatable<SemanticPackageOrigin> {
     | WorkspacePackage
     | DependencyPackage
@@ -311,6 +345,7 @@ public enum SemanticPackageOrigin <: Equatable<SemanticPackageOrigin> {
  * A contextual package. Attached source retains its detached identity, not its binary's.
  */
 @DerivePython
+@PyDoc["A contextual package. Attached source retains its detached identity, not its binary's."]
 public class SemanticPackage {
     @PyIgnore
     let analysis: SemanticAnalysis
@@ -322,16 +357,19 @@ public class SemanticPackage {
         this.identity = identity
     }
 
+    @PyDoc["Return the full package name in this lookup context."]
     public func name(): String {
         analysis.db.unwindIfCancelled()
         nameOf(analysis.db, identity)
     }
 
+    @PyDoc["Return the semantic object representing this package."]
     public func object(): SemanticObject {
         analysis.db.unwindIfCancelled()
         analysis.object(SemanticIdentity.NamedIdentity(Definition.PackageDef(identity)))
     }
 
+    @PyDoc["Return the owning source module, or None for a binary package."]
     public func module(): ?SemanticModule {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -350,6 +388,7 @@ public class SemanticPackage {
             .next()
     }
 
+    @PyDoc["Return binary package metadata, or None for a source package."]
     public func binary(): ?SemanticPackage {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -360,10 +399,12 @@ public class SemanticPackage {
         }
     }
 
+    @PyDoc["Whether this is a package of a workspace member module."]
     public func isWorkspaceMember(): Bool {
         module()?.isWorkspaceMember() ?? false
     }
 
+    @PyDoc["Return the source, dependency, binary or built-in origin of this package."]
     public func origin(): SemanticPackageOrigin {
         analysis.db.unwindIfCancelled()
         match (identity) {
@@ -376,6 +417,7 @@ public class SemanticPackage {
     /**
      * Detached source contexts attached to this binary; empty without loaded attachments.
      */
+    @PyDoc["Detached source contexts attached to this binary; empty without loaded attachments."]
     public func attachedSources(): Array<SemanticPackage> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -395,6 +437,7 @@ public class SemanticPackage {
      * Contextual files with loaded text; binaries expose their item-file identities.
      * Attached source enumerates its own files, never the editor-preferred physical context.
      */
+    @PyDoc["Contextual files with loaded text; binaries expose their item-file identities. Attached source enumerates its own files, never the editor-preferred physical context."]
     public func files(): Array<SemanticFile> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -410,6 +453,7 @@ public class SemanticPackage {
     /**
      * Source identities whose text is not loaded; empty for binaries.
      */
+    @PyDoc["Source identities whose text is not loaded; empty for binaries."]
     public func unavailableFiles(): Array<FileId> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -424,6 +468,7 @@ public class SemanticPackage {
      * Packages permitted in this context, including self and std; these are not written
      * imports. Selection uses the same package index as semantic lookup.
      */
+    @PyDoc["Packages permitted in this context, including self and std; these are not written imports. Selection uses the same package index as semantic lookup."]
     public func permittedPackages(ofTests!: Bool = false): Array<SemanticPackage> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -438,6 +483,7 @@ public class SemanticPackage {
      * Conservative candidates allowed to depend on this package, including self and test
      * permissions. No claim about written imports or transitive use is made.
      */
+    @PyDoc["Conservative candidates allowed to depend on this package, including self and test permissions. No claim about written imports or transitive use is made."]
     public func potentialDependents(): Array<SemanticPackage> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -464,6 +510,7 @@ public class SemanticPackage {
      * Missing binary source import graphs are recorded in unavailablePackages, not
      * treated as no imports. Attached sources contribute only the loaded source evidence.
      */
+    @PyDoc["Written paths with this resolved package target, even if a name is inaccessible. Missing binary source import graphs are recorded in unavailablePackages, not treated as no imports. Attached sources contribute only the loaded source evidence."]
     public func writtenImporters(stage!: ScopeStage = ScopeStage.Written): SemanticImporters {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -492,6 +539,7 @@ public class SemanticPackage {
      * Imports in loaded source text; unavailableFiles reports any omitted source inputs.
      * None for binary syntax, empty for loaded source with no active imports.
      */
+    @PyDoc["Imports in loaded source text; unavailableFiles reports any omitted source inputs. None for binary syntax, empty for loaded source with no active imports."]
     public func imports(stage!: ScopeStage = ScopeStage.Written): ?Array<SemanticImport> {
         analysis.db.unwindIfCancelled()
         if (let Binary(_) <- identity) {
@@ -503,6 +551,7 @@ public class SemanticPackage {
     /**
      * Exports include re-export visibility. Cycles are explicit, not an empty success.
      */
+    @PyDoc["Exports include re-export visibility. Cycles are explicit, not an empty success."]
     public func exports(stage!: ScopeStage = ScopeStage.Expanded): SemanticExports {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -559,6 +608,7 @@ public class SemanticPackage {
         }
     }
 
+    @PyDoc["Return the configuration available for this package, or None when unavailable."]
     public func configuration(): ?SemanticConfiguration {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -591,6 +641,7 @@ public class SemanticPackage {
  * Reverse written-import evidence with explicit missing-source and binary graph gaps.
  */
 @DerivePython
+@PyDoc["Reverse written-import evidence with explicit missing-source and binary graph gaps."]
 public struct SemanticImporters {
     SemanticImporters(
         public let entries: Array<SemanticImport>,
@@ -603,6 +654,7 @@ extend SemanticObject {
     /**
      * Context of the identity itself; never reconstructed through its navigation location.
      */
+    @PyDoc["Context of the identity itself; never reconstructed through its navigation location."]
     public func contextualPackage(): ?SemanticPackage {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -616,6 +668,7 @@ extend SemanticObject {
 
 @DerivePython
 extend SemanticOccurrence {
+    @PyDoc["Return the file with the lookup context of this occurrence."]
     public func contextualFile(): SemanticFile {
         analysis.db.unwindIfCancelled()
         SemanticFile(analysis, location.file)
@@ -624,6 +677,7 @@ extend SemanticOccurrence {
 
 @DerivePython
 extend SemanticLocation {
+    @PyDoc["Return the file with the lookup context retained by this location."]
     public func contextualFile(): SemanticFile {
         analysis.db.unwindIfCancelled()
         SemanticFile(analysis, file)

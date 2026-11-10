@@ -95,6 +95,7 @@ import loupe.db.{
     MappedSpan,
     MappedText,
     Module,
+    NativeLibrary,
     Package,
     PackageModel,
     SourceFile,
@@ -205,6 +206,7 @@ import loupe.hir.{
     WhenError
 }
 import loupe.vfs.{FileId, VfsPath}
+import project_model.CangjieHome
 @When[os == "Linux"]
 import py_interop.PyObj
 import source_change.{FileChange, SourceChange, TextEdit}
@@ -232,6 +234,7 @@ private func sourceTypes(): Array<(String, PyObj)> {
         ("BinaryPackage", BinaryPackage.pyClass()),
         ("BinarySources", BinarySources.pyClass()),
         ("BodyMacroCall", BodyMacroCall.pyClass()),
+        ("CangjieHome", CangjieHome.pyClass()),
         ("Cfg", Cfg.pyClass()),
         ("CfgOption", CfgOption.pyClass()),
         ("ExpandTo", ExpandTo.pyClass()),
@@ -395,6 +398,7 @@ private func resolutionTypes(): Array<(String, PyObj)> {
         ("MemberTarget", MemberTarget.pyClass()),
         ("Modifier", Modifier.pyClass()),
         ("Module", Module.pyClass()),
+        ("NativeLibrary", NativeLibrary.pyClass()),
         ("NameTarget", NameTarget.pyClass()),
         ("Namespace", Namespace.pyClass()),
         ("Package", Package.pyClass()),

@@ -7,6 +7,6 @@ dependencies = []
 
 [requires."py_interop"]
 version = "1.0.0"
-source = "git+https://gitcode.com/filaco/cangjie_python_reverse_interop.git#4192e10753cc6c29db63a3d8616230e01489ce9a"
+source = "git+https://gitcode.com/filaco/cangjie_python_reverse_interop.git#e5cb61c455b1c743e71b02553b0946460b789f54"
 output-type = "static"
 dependencies = []
