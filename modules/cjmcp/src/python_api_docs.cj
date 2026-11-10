@@ -4,6 +4,8 @@ package cjmcp
 @When[os == "Linux"]
 const PYTHON_API_DOCS =
     #"
+import ast as _cjmcp_ast
+import textwrap as _cjmcp_textwrap
 import pathlib as _cjmcp_pathlib
 
 class _CjmcpApiDocs:
@@ -43,6 +45,78 @@ class _CjmcpApiDocs:
         if not self._inside(target, root):
             raise ValueError('path must stay inside the API documentation root')
         return target.read_text(encoding='utf-8')
+
+
+    def outline(self, path, symbol=None):
+        """List immediate declarations in source order, optionally inside a class.
+
+        Entries contain symbol (qualified name), kind, line and end_line.
+        Lines are one-based and inclusive, including decorators. Overloads and
+        property accessors retain separate entries with the same symbol.
+        """
+        text = self.read(path)
+        tree = _cjmcp_ast.parse(text, filename=path)
+        parents = [tree] if symbol is None else self._select(tree, symbol)
+        if any(not isinstance(node, (_cjmcp_ast.Module, _cjmcp_ast.ClassDef)) for node in parents):
+            raise ValueError('outline symbol must name a class')
+        prefix = '' if symbol is None else symbol + '.'
+        return [dict(symbol=prefix + name, kind=kind,
+                     line=self._start(node), end_line=node.end_lineno)
+                for parent in parents for node, name, kind in self._declarations(parent)]
+
+    def read_symbol(self, path, symbol, *, max_bytes=12000):
+        """Return complete dedented declarations, including docs and decorators.
+
+        Dotted names select nested declarations. All overloads/property accessors
+        are returned in source order. Missing names raise KeyError. A selection
+        over max_bytes UTF-8 bytes raises ValueError; narrow it with outline()
+        or explicitly increase max_bytes. Nothing is silently truncated.
+        """
+        if isinstance(max_bytes, bool) or not isinstance(max_bytes, int):
+            raise TypeError('max_bytes must be a positive integer')
+        if max_bytes <= 0:
+            raise ValueError('max_bytes must be a positive integer')
+        text = self.read(path)
+        nodes = self._select(_cjmcp_ast.parse(text, filename=path), symbol)
+        lines = text.splitlines(keepends=True)
+        selected = '\n'.join(_cjmcp_textwrap.dedent(''.join(lines[self._start(node)-1:node.end_lineno]))
+                             for node in nodes)
+        size = len(selected.encode('utf-8'))
+        if size > max_bytes:
+            raise ValueError(f'{symbol} requires {size} UTF-8 bytes, exceeding max_bytes={max_bytes}; '
+                             'select a member with outline(path, symbol) or increase max_bytes')
+        return selected
+
+    @staticmethod
+    def _start(node):
+        return min([node.lineno] + [d.lineno for d in getattr(node, 'decorator_list', [])])
+
+    @staticmethod
+    def _declarations(parent):
+        for node in getattr(parent, 'body', []):
+            if isinstance(node, _cjmcp_ast.ClassDef):
+                yield node, node.name, 'class'
+            elif isinstance(node, (_cjmcp_ast.FunctionDef, _cjmcp_ast.AsyncFunctionDef)):
+                yield node, node.name, 'function'
+            elif isinstance(node, _cjmcp_ast.AnnAssign) and isinstance(node.target, _cjmcp_ast.Name):
+                yield node, node.target.id, 'attribute'
+            elif isinstance(node, _cjmcp_ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, _cjmcp_ast.Name):
+                        yield node, target.id, 'attribute'
+
+    def _select(self, tree, symbol):
+        if not isinstance(symbol, str):
+            raise TypeError('symbol must be a dotted declaration name')
+        if not symbol or any(not part.isidentifier() for part in symbol.split('.')):
+            raise ValueError('symbol must be a dotted declaration name')
+        nodes = [tree]
+        for part in symbol.split('.'):
+            nodes = [node for parent in nodes
+                     for node, name, _ in self._declarations(parent) if name == part]
+            if not nodes:
+                raise KeyError(symbol)
+        return nodes
 
     @staticmethod
     def _inside(path, root):

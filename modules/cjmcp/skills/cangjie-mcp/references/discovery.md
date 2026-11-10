@@ -12,8 +12,14 @@ result = api_docs.read("cjmcp/analysis.pyi")
 `api_docs.files()` lists available `.pyi` paths. Start with `cjmcp/python.pyi`
 for `Workspace` or `cjmcp/analysis.pyi` for `AnalysisRevision`; follow paths in
 declaration comments relative to the documentation root. Files describe injected
-objects, not importable modules. Filter large files before returning text because
-the usual output budget applies. This is the locally generated reference shipped
+objects, not importable modules. For large files, use `api_docs.outline(path)` to
+list top-level declarations, then `api_docs.outline(path, "Expr")` for immediate
+class members. Read a complete declaration with
+`api_docs.read_symbol(path, "Expr.CallExpr")`; dotted names select nested members.
+Overloads and property accessors are returned together with decorators and docs.
+Selections over the default 12000 UTF-8 bytes raise an error with the required
+size: select a smaller member or explicitly increase `max_bytes`. The regular
+response budget still applies. This is the locally generated reference shipped
 with the server, which may lag binding changes.
 
 For a member absent from the supplied reference, inspect a focused name family:

@@ -50,9 +50,35 @@ Missing documentation/files raise `FileNotFoundError`; absolute paths, parent
 traversal, non-`.pyi` paths and links outside the documentation root are rejected
 with `ValueError`. Non-string paths raise `TypeError`.
 
-The regular `maxOutputBytes` budget applies. Read only relevant files, or filter
-their text in Python before returning it; some complete files exceed the default
-budget. Use `last_output` to recover an oversized response without repeating work.
+For large files, select declarations without returning the whole reference:
+
+```python
+result = api_docs.outline("loupe.hir/body.pyi")
+# In subsequent calls, inspect a class and then read the relevant declaration:
+# result = api_docs.outline("loupe.hir/body.pyi", "Expr")
+# result = api_docs.read_symbol("loupe.hir/body.pyi", "Expr.CallExpr")
+```
+
+`outline(path, symbol=None)` lists immediate declarations in source order, at the
+file level or inside the named class. Each entry contains `symbol` (a dotted
+qualified name), `kind` (`class`, `function` or `attribute`), `line` and `end_line`.
+Line numbers are one-based, inclusive and include decorators. Nested classes are
+listed without expanding their members. Overloads and property accessors have
+separate entries with the same qualified name.
+
+`read_symbol(path, symbol, *, max_bytes=12000)` returns complete declarations as
+dedented text, including decorators and docstrings. All overloads or accessors
+with the selected name are returned together, in source order. It parses the
+reference with Python's AST; it never imports or executes a stub. Missing symbols
+raise `KeyError`; malformed names raise `ValueError`, and non-string names raise
+`TypeError`. An outline container must be a class. Both operations use the same
+path validation and server-owned documentation as `read()`.
+
+The selection limit counts UTF-8 bytes. An oversized selection raises `ValueError`
+with its required size and guidance to select a member or increase `max_bytes`;
+it never returns a truncated declaration. The limit must be a positive integer.
+The regular `maxOutputBytes` response budget also applies, including JSON overhead.
+Use `last_output` to recover an oversized response without repeating work.
 
 The reference is generated and reviewed locally, then committed. Neither builds
 nor artifact packaging run `cjpydoc`; the supplied files can lag binding changes.

@@ -110,6 +110,9 @@ documentation from another checkout; see [server identity](python-api.md#server-
 Use `api_docs.files()` to list the supplied `.pyi` files and
 `api_docs.read("cjmcp/python.pyi")` to read one through `runPython`.
 Paths in declaration comments are relative to the documentation root.
+For large references, use `api_docs.outline(path)` or `outline(path, "Expr")`
+to discover declarations, then `api_docs.read_symbol(path, "Expr.CallExpr")`
+to read a complete selection with its decorators and documentation.
 The archive supplies the checked-in reference; building and packaging do not
 run the local `cjpydoc` generator. See [API documentation](python-api.md#api-documentation)
 for lookup and output-budget behavior.

@@ -17,8 +17,11 @@ For API/version mismatches return server_info: its _meta has apiVersion, build
 commit/dirty and features. Use documentation supplied with the running binary:
 api_docs.files() lists .pyi paths; api_docs.read(path) returns UTF-8 documentation.
 Start with cjmcp/python.pyi (Workspace) or cjmcp/analysis.pyi (AnalysisRevision).
-Follow links relative to the API documentation root. Read only relevant files;
-filter large files in Python before returning them to stay within the output budget.
+Follow links relative to the API documentation root. For large files, use
+api_docs.outline(path) for top-level declarations, outline(path, "Expr") for members,
+then api_docs.read_symbol(path, "Expr.CallExpr") for complete selected declarations.
+read_symbol defaults to 12000 UTF-8 bytes; narrow oversized selections or explicitly
+increase max_bytes. The regular response output budget still applies.
 
 Minimize total task token use without sacrificing correctness, evidence or
 verification. Account for query code, returned data and repeated context.
