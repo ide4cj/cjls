@@ -21,7 +21,7 @@ class Definition:
         @property
         def field0(self) -> DefId:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class LocalDef(Definition):
         kind: Literal['LocalDef'] = 'LocalDef'
         def __init__(self, __p1: DefId, __p2: LocalId):
@@ -62,7 +62,7 @@ class Definition:
         @property
         def field0(self) -> TypeTarget:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class PackageDef(Definition):
         kind: Literal['PackageDef'] = 'PackageDef'
         def __init__(self, __p1: PackageRef):
@@ -73,4 +73,4 @@ class Definition:
         @property
         def field0(self) -> PackageRef:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)

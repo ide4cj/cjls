@@ -1,24 +1,5 @@
 from typing import Literal
 
-class PackageItem:
-    """
-    The `package` line: the package's name as written (`a.b`, `org::a.b`), and whether it is a `macro package`.
-    """
-    def __init__(self, __name: str, __isMacro: bool, __modifiers: list[Modifier]):
-        ...
-    @property
-    def name(self) -> str:
-        ...
-    @property
-    def isMacro(self) -> bool:
-        ...
-    @property
-    def modifiers(self) -> list[Modifier]:
-        ...
-    def __eq__(self, __other: PackageItem) -> bool:
-        ...
-    def __ne__(self, __other: PackageItem) -> bool:
-        ...
 class Modifier:
     """
     A modifier, as written before a declaration.
@@ -98,6 +79,25 @@ class Modifier:
         kind: Literal['Specific'] = 'Specific'
         def __init__(self):
             ...
+class PackageItem:
+    """
+    The `package` line: the package's name as written (`a.b`, `org::a.b`), and whether it is a `macro package`.
+    """
+    def __init__(self, __name: str, __isMacro: bool, __modifiers: list[Modifier]):
+        ...
+    @property
+    def name(self) -> str:
+        ...
+    @property
+    def isMacro(self) -> bool:
+        ...
+    @property
+    def modifiers(self) -> list[Modifier]:
+        ...
+    def __eq__(self, __other: PackageItem) -> bool:
+        ...
+    def __ne__(self, __other: PackageItem) -> bool:
+        ...
 class ImportPath:
     """
     One name an import brings in, as written: `segments` up to it, `org::a` one segment; every name of the package for a glob (`a.b.*`), else the package's and the imported one's.

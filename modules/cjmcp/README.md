@@ -120,7 +120,10 @@ for lookup and output-budget behavior.
 To refresh the checked-in reference after building the workspace, run
 `python3 scripts/generate_pyi.py -o modules/cjmcp/api_docs` in the SDK environment.
 Use a `cjpydoc` supporting `--python-package-source`; the script supplies source
-roots for imported type links. Descriptions prefer `@PyDoc`, then source comments;
+roots for imported type links and declares the manual `BodySource` adapter with
+`--python-type=loupe.hir.BodySource=BodySource`. Use a generator that selects the
+evaluated `DerivePython` input and rejects unmapped signature types.
+Descriptions prefer `@PyDoc`, then source comments;
 `@PyIgnore` and `@PyName` follow the runtime bindings. Review the generated diff.
 
 Read the [API reference](python-api.md) only for detailed contracts:

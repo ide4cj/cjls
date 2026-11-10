@@ -1,39 +1,5 @@
 from typing import Literal
 
-class ScopeProblemAt:
-    """
-    Where a problem is: a path of an import, or a name of a declaration.
-    """
-    def __eq__(self, __other: ScopeProblemAt) -> bool:
-        ...
-    def __ne__(self, __other: ScopeProblemAt) -> bool:
-        ...
-    kind: Literal['AtImport', 'AtDecl']
-    class AtImport(ScopeProblemAt):
-        kind: Literal['AtImport'] = 'AtImport'
-        def __init__(self, __p1: ImportSite):
-            """
-             for type ImportSite, see 'loupe.hir/scope.pyi'
-            """
-            ...
-        @property
-        def field0(self) -> ImportSite:
-            ...
-        __match_args__ = ('field0')
-    class AtDecl(ScopeProblemAt):
-        kind: Literal['AtDecl'] = 'AtDecl'
-        def __init__(self, __p1: DefId, __p2: str):
-            """
-             for type DefId, see 'loupe.hir/def_map.pyi'
-            """
-            ...
-        @property
-        def field0(self) -> DefId:
-            ...
-        @property
-        def field1(self) -> str:
-            ...
-        __match_args__ = ('field0', 'field1')
 class ScopeProblem:
     """
     What is wrong with a file's scope, as cjc and cjpm report it.
@@ -65,7 +31,7 @@ class ScopeProblem:
         @property
         def field0(self) -> ImportError:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class Shadowed(ScopeProblem):
         kind: Literal['Shadowed'] = 'Shadowed'
         def __init__(self, __p1: str):
@@ -73,7 +39,7 @@ class ScopeProblem:
         @property
         def field0(self) -> str:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class Conflicted(ScopeProblem):
         kind: Literal['Conflicted'] = 'Conflicted'
         def __init__(self, __p1: str):
@@ -81,13 +47,47 @@ class ScopeProblem:
         @property
         def field0(self) -> str:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class SubPackage(ScopeProblem):
         kind: Literal['SubPackage'] = 'SubPackage'
         def __init__(self, __p1: str, __p2: str):
             ...
         @property
         def field0(self) -> str:
+            ...
+        @property
+        def field1(self) -> str:
+            ...
+        __match_args__ = ('field0', 'field1')
+class ScopeProblemAt:
+    """
+    Where a problem is: a path of an import, or a name of a declaration.
+    """
+    def __eq__(self, __other: ScopeProblemAt) -> bool:
+        ...
+    def __ne__(self, __other: ScopeProblemAt) -> bool:
+        ...
+    kind: Literal['AtImport', 'AtDecl']
+    class AtImport(ScopeProblemAt):
+        kind: Literal['AtImport'] = 'AtImport'
+        def __init__(self, __p1: ImportSite):
+            """
+             for type ImportSite, see 'loupe.hir/scope.pyi'
+            """
+            ...
+        @property
+        def field0(self) -> ImportSite:
+            ...
+        __match_args__ = ('field0',)
+    class AtDecl(ScopeProblemAt):
+        kind: Literal['AtDecl'] = 'AtDecl'
+        def __init__(self, __p1: DefId, __p2: str):
+            """
+             for type DefId, see 'loupe.hir/def_map.pyi'
+            """
+            ...
+        @property
+        def field0(self) -> DefId:
             ...
         @property
         def field1(self) -> str:

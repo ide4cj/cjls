@@ -21,7 +21,7 @@ class ItemFile:
         @property
         def field0(self) -> SourceFile:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class Binary(ItemFile):
         kind: Literal['Binary'] = 'Binary'
         def __init__(self, __p1: BinaryPackageFile, __p2: int):
@@ -46,7 +46,7 @@ class ItemFile:
         @property
         def field0(self) -> MacroCallId:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class CompilerBuiltIns(ItemFile):
         kind: Literal['CompilerBuiltIns'] = 'CompilerBuiltIns'
         def __init__(self, __p1: Package):
@@ -57,7 +57,7 @@ class ItemFile:
         @property
         def field0(self) -> Package:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
 class BinaryItem:
     """
     An item of a package compiled already: the index of its file, and its id there.

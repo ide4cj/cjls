@@ -1,27 +1,5 @@
 from typing import Literal
 
-class SemanticOrigin:
-    """
-    Exact syntax, synthetic HIR and unavailable source are distinct, including for binaries.
-    """
-    ...
-    kind: Literal['SourceOrigin', 'SyntheticOrigin', 'UnavailableOrigin']
-    class SourceOrigin(SemanticOrigin):
-        kind: Literal['SourceOrigin'] = 'SourceOrigin'
-        def __init__(self, __p1: SemanticLocation):
-            ...
-        @property
-        def field0(self) -> SemanticLocation:
-            ...
-        __match_args__ = ('field0')
-    class SyntheticOrigin(SemanticOrigin):
-        kind: Literal['SyntheticOrigin'] = 'SyntheticOrigin'
-        def __init__(self):
-            ...
-    class UnavailableOrigin(SemanticOrigin):
-        kind: Literal['UnavailableOrigin'] = 'UnavailableOrigin'
-        def __init__(self):
-            ...
 class SemanticIdentity:
     """
     An identity within one database revision. Body indices carry their declaration owner; signature and body types occupy different arenas. Do not reuse after edits/reloads or in another database. Keep SemanticObject when composing queries: it retains the snapshot. Local definitions are normalized to LocalIdentity, including when reached through resolution. Explicit initializers retain their own declaration identity independently of navigation.
@@ -41,7 +19,7 @@ class SemanticIdentity:
         @property
         def field0(self) -> Definition:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class ExpressionIdentity(SemanticIdentity):
         kind: Literal['ExpressionIdentity'] = 'ExpressionIdentity'
         def __init__(self, __p1: DefId, __p2: ExprId):
@@ -138,6 +116,28 @@ class SemanticSourceKind:
         kind: Literal['ExpansionSource'] = 'ExpansionSource'
         def __init__(self):
             ...
+class SemanticOrigin:
+    """
+    Exact syntax, synthetic HIR and unavailable source are distinct, including for binaries.
+    """
+    ...
+    kind: Literal['SourceOrigin', 'SyntheticOrigin', 'UnavailableOrigin']
+    class SourceOrigin(SemanticOrigin):
+        kind: Literal['SourceOrigin'] = 'SourceOrigin'
+        def __init__(self, __p1: SemanticLocation):
+            ...
+        @property
+        def field0(self) -> SemanticLocation:
+            ...
+        __match_args__ = ('field0',)
+    class SyntheticOrigin(SemanticOrigin):
+        kind: Literal['SyntheticOrigin'] = 'SyntheticOrigin'
+        def __init__(self):
+            ...
+    class UnavailableOrigin(SemanticOrigin):
+        kind: Literal['UnavailableOrigin'] = 'UnavailableOrigin'
+        def __init__(self):
+            ...
 class SemanticAnalysis:
     """
     Analysis pinned to db's current revision, used from one thread at a time. All object, location, type and text operations use this snapshot and throw CancelledException after an input write or request cancellation. No operation reopens disk. Copied text, coordinates and identities describe only the originating revision.
@@ -169,8 +169,6 @@ class SemanticOccurrence:
         ...
     @property
     def objects(self) -> list[SemanticObject]:
-        ...
-    def __init__(self, __analysis: SemanticAnalysis, __location: SemanticLocation, __owner: SemanticObject | None, __definitions: list[SemanticObject] | None, __objects: list[SemanticObject]):
         ...
 class SemanticObject:
     """

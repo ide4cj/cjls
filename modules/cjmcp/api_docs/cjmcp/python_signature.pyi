@@ -1,18 +1,5 @@
 from typing import Literal
 
-class LoweredSignature:
-    """
-    A native written signature and the source ranges of its type references.
-    """
-    @property
-    def signature(self) -> Signature:
-        """
-         for type Signature, see 'loupe.hir/signature.pyi'
-        """
-        ...
-    @property
-    def sourceMap(self) -> SignatureSourceMap:
-        ...
 class SignatureSourceMap:
     """
     Maps signature type-reference IDs to optional UTF-8 source ranges.
@@ -30,4 +17,17 @@ class SignatureSourceMap:
          for type TypeRefId, see 'loupe.hir/signature.pyi'
          for type TextRange, see 'ginkgo/text_range.pyi'
         """
+        ...
+class LoweredSignature:
+    """
+    A native written signature and the source ranges of its type references.
+    """
+    @property
+    def signature(self) -> Signature:
+        """
+         for type Signature, see 'loupe.hir/signature.pyi'
+        """
+        ...
+    @property
+    def sourceMap(self) -> SignatureSourceMap:
         ...

@@ -1,51 +1,5 @@
 from typing import Literal
 
-class SemanticCallEdge:
-    """
-    A possible immediate call; candidate resolution and conservative dispatch survive composition.
-    """
-    def __init__(self, __caller: SemanticObject, __callee: SemanticObject, __site: SemanticLocation, __resolution: str, __isConservative: bool):
-        """
-         for type SemanticLocation, see 'loupe/semantic.pyi'
-         for type SemanticObject, see 'loupe/semantic.pyi'
-        """
-        ...
-    @property
-    def caller(self) -> SemanticObject:
-        """
-         for type SemanticObject, see 'loupe/semantic.pyi'
-        """
-        ...
-    @property
-    def callee(self) -> SemanticObject:
-        """
-         for type SemanticObject, see 'loupe/semantic.pyi'
-        """
-        ...
-    @property
-    def site(self) -> SemanticLocation:
-        """
-         for type SemanticLocation, see 'loupe/semantic.pyi'
-        """
-        ...
-    @property
-    def resolution(self) -> str:
-        ...
-    @property
-    def isConservative(self) -> bool:
-        ...
-class SemanticUsages:
-    """
-    Written-source usages and explicit coverage omissions. Gaps are stable reason strings; macro-origin-usages means generated occurrences are outside the written reference model.
-    """
-    def __init__(self, __entries: list[SemanticUsage], __gaps: list[str]):
-        ...
-    @property
-    def entries(self) -> list[SemanticUsage]:
-        ...
-    @property
-    def gaps(self) -> list[str]:
-        ...
 class SemanticOwner:
     """
     A callable owner, or a contextual file when the occurrence is outside a callable. Local named functions and lambdas retain their own body identities.
@@ -62,7 +16,7 @@ class SemanticOwner:
         @property
         def field0(self) -> SemanticObject:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class FileOwner(SemanticOwner):
         kind: Literal['FileOwner'] = 'FileOwner'
         def __init__(self, __p1: ItemFile):
@@ -73,7 +27,7 @@ class SemanticOwner:
         @property
         def field0(self) -> ItemFile:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
 class SemanticUsage:
     """
     One semantic usage. Contextual locations are intentionally not deduplicated by physical path.
@@ -108,6 +62,52 @@ class SemanticUsage:
         ...
     @property
     def isDeclaration(self) -> bool:
+        ...
+class SemanticUsages:
+    """
+    Written-source usages and explicit coverage omissions. Gaps are stable reason strings; macro-origin-usages means generated occurrences are outside the written reference model.
+    """
+    def __init__(self, __entries: list[SemanticUsage], __gaps: list[str]):
+        ...
+    @property
+    def entries(self) -> list[SemanticUsage]:
+        ...
+    @property
+    def gaps(self) -> list[str]:
+        ...
+class SemanticCallEdge:
+    """
+    A possible immediate call; candidate resolution and conservative dispatch survive composition.
+    """
+    def __init__(self, __caller: SemanticObject, __callee: SemanticObject, __site: SemanticLocation, __resolution: str, __isConservative: bool):
+        """
+         for type SemanticLocation, see 'loupe/semantic.pyi'
+         for type SemanticObject, see 'loupe/semantic.pyi'
+        """
+        ...
+    @property
+    def caller(self) -> SemanticObject:
+        """
+         for type SemanticObject, see 'loupe/semantic.pyi'
+        """
+        ...
+    @property
+    def callee(self) -> SemanticObject:
+        """
+         for type SemanticObject, see 'loupe/semantic.pyi'
+        """
+        ...
+    @property
+    def site(self) -> SemanticLocation:
+        """
+         for type SemanticLocation, see 'loupe/semantic.pyi'
+        """
+        ...
+    @property
+    def resolution(self) -> str:
+        ...
+    @property
+    def isConservative(self) -> bool:
         ...
 class SemanticCallGap:
     """

@@ -1,36 +1,5 @@
 from typing import Literal
 
-class CallDeclaration:
-    """
-    Canonical declaration metadata, with an optional navigation location. Match targets by identity and ownership rather than source spelling: package ownership is independent of import aliases. Declaration identities belong to their producing analysis database and revision.
-    """
-    def __init__(self, __definition: DefId, __packageName: str, __name: str, __ownerName: str, __location: NavigationTarget | None):
-        """
-         for type NavigationTarget, see 'loupe/definition.pyi'
-         for type DefId, see 'loupe.hir/def_map.pyi'
-        """
-        ...
-    @property
-    def definition(self) -> DefId:
-        """
-         for type DefId, see 'loupe.hir/def_map.pyi'
-        """
-        ...
-    @property
-    def packageName(self) -> str:
-        ...
-    @property
-    def name(self) -> str:
-        ...
-    @property
-    def ownerName(self) -> str:
-        ...
-    @property
-    def location(self) -> NavigationTarget | None:
-        """
-         for type NavigationTarget, see 'loupe/definition.pyi'
-        """
-        ...
 class DirectCall:
     """
     A possible immediate call at a UTF-8 source site. Targets belong to the producing database/revision. `resolution` is `resolved-declaration` for an explicit call, `inferred-operator` for a selected operator overload, or `candidate` for an ambiguous or virtual target. A candidate has `isConservative` set; any chain containing it must retain that qualification.
@@ -100,4 +69,35 @@ class DirectCalls:
     def __eq__(self, __other: DirectCalls) -> bool:
         ...
     def __ne__(self, __other: DirectCalls) -> bool:
+        ...
+class CallDeclaration:
+    """
+    Canonical declaration metadata, with an optional navigation location. Match targets by identity and ownership rather than source spelling: package ownership is independent of import aliases. Declaration identities belong to their producing analysis database and revision.
+    """
+    def __init__(self, __definition: DefId, __packageName: str, __name: str, __ownerName: str, __location: NavigationTarget | None):
+        """
+         for type NavigationTarget, see 'loupe/definition.pyi'
+         for type DefId, see 'loupe.hir/def_map.pyi'
+        """
+        ...
+    @property
+    def definition(self) -> DefId:
+        """
+         for type DefId, see 'loupe.hir/def_map.pyi'
+        """
+        ...
+    @property
+    def packageName(self) -> str:
+        ...
+    @property
+    def name(self) -> str:
+        ...
+    @property
+    def ownerName(self) -> str:
+        ...
+    @property
+    def location(self) -> NavigationTarget | None:
+        """
+         for type NavigationTarget, see 'loupe/definition.pyi'
+        """
         ...

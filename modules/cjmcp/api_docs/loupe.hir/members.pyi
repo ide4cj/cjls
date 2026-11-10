@@ -23,7 +23,7 @@ class ExtendedType:
         @property
         def field0(self) -> DefId:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class PrimType(ExtendedType):
         kind: Literal['PrimType'] = 'PrimType'
         def __init__(self, __p1: str):
@@ -31,7 +31,7 @@ class ExtendedType:
         @property
         def field0(self) -> str:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class BuiltInHead(ExtendedType):
         kind: Literal['BuiltInHead'] = 'BuiltInHead'
         def __init__(self, __p1: CompilerType):
@@ -42,7 +42,7 @@ class ExtendedType:
         @property
         def field0(self) -> CompilerType:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
 class MemberTarget:
     """
     What a name of the type a body is in stands for: a declaration among its members, or a member parameter of its primary constructor (N69).
@@ -66,7 +66,7 @@ class MemberTarget:
         @property
         def field0(self) -> DefId:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class MemberParam(MemberTarget):
         kind: Literal['MemberParam'] = 'MemberParam'
         def __init__(self, __p1: DefId, __p2: LocalId):

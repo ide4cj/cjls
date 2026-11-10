@@ -1,62 +1,5 @@
 from typing import Literal
 
-class HighlightedRange:
-    """
-    A token of a file and what it is. `range` is in UTF-8 bytes (A6).
-    """
-    def __init__(self, __range: TextRange, __tag: HighlightTag, *, modifiers: HighlightModifiers = ...):
-        """
-         for type TextRange, see 'ginkgo/text_range.pyi'
-        """
-        ...
-    @property
-    def range(self) -> TextRange:
-        """
-         for type TextRange, see 'ginkgo/text_range.pyi'
-        """
-        ...
-    @property
-    def tag(self) -> HighlightTag:
-        ...
-    @property
-    def modifiers(self) -> HighlightModifiers:
-        ...
-    def __repr__(self) -> str:
-        """
-
-        `tag[modifiers]@start..end`.
-
-        """
-        ...
-    def __eq__(self, __other: HighlightedRange) -> bool:
-        ...
-    def __ne__(self, __other: HighlightedRange) -> bool:
-        ...
-class HighlightModifiers:
-    """
-    A set of `HighlightModifier`s.
-    """
-    def plus(self, __modifier: HighlightModifier) -> HighlightModifiers:
-        """
-        Return a modifier set including modifier.
-        """
-        ...
-    def contains(self, __modifier: HighlightModifier) -> bool:
-        """
-        Whether this set includes modifier.
-        """
-        ...
-    def isEmpty(self) -> bool:
-        """
-        Whether this set contains no modifiers.
-        """
-        ...
-    def __repr__(self) -> str:
-        ...
-    def __eq__(self, __other: HighlightModifiers) -> bool:
-        ...
-    def __ne__(self, __other: HighlightModifiers) -> bool:
-        ...
 class HighlightTag:
     """
     What a token is: by the tree, and a name at its use by what it means (D72). In a file of no package, which names do not resolve in, a name inside a type is taken for one.
@@ -126,7 +69,7 @@ class HighlightTag:
         @property
         def field0(self) -> StructureKind:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class Namespace(HighlightTag):
         kind: Literal['Namespace'] = 'Namespace'
         def __init__(self):
@@ -179,3 +122,60 @@ class HighlightModifier:
         kind: Literal['Mutable'] = 'Mutable'
         def __init__(self):
             ...
+class HighlightModifiers:
+    """
+    A set of `HighlightModifier`s.
+    """
+    def plus(self, __modifier: HighlightModifier) -> HighlightModifiers:
+        """
+        Return a modifier set including modifier.
+        """
+        ...
+    def contains(self, __modifier: HighlightModifier) -> bool:
+        """
+        Whether this set includes modifier.
+        """
+        ...
+    def isEmpty(self) -> bool:
+        """
+        Whether this set contains no modifiers.
+        """
+        ...
+    def __repr__(self) -> str:
+        ...
+    def __eq__(self, __other: HighlightModifiers) -> bool:
+        ...
+    def __ne__(self, __other: HighlightModifiers) -> bool:
+        ...
+class HighlightedRange:
+    """
+    A token of a file and what it is. `range` is in UTF-8 bytes (A6).
+    """
+    def __init__(self, __range: TextRange, __tag: HighlightTag, *, modifiers: HighlightModifiers = ...):
+        """
+         for type TextRange, see 'ginkgo/text_range.pyi'
+        """
+        ...
+    @property
+    def range(self) -> TextRange:
+        """
+         for type TextRange, see 'ginkgo/text_range.pyi'
+        """
+        ...
+    @property
+    def tag(self) -> HighlightTag:
+        ...
+    @property
+    def modifiers(self) -> HighlightModifiers:
+        ...
+    def __repr__(self) -> str:
+        """
+
+        `tag[modifiers]@start..end`.
+
+        """
+        ...
+    def __eq__(self, __other: HighlightedRange) -> bool:
+        ...
+    def __ne__(self, __other: HighlightedRange) -> bool:
+        ...

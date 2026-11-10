@@ -1,21 +1,5 @@
 from typing import Literal
 
-class WhenDiagnostics:
-    """
-    What the `@When`s of a file say: the code they leave out, outermost only (nothing inside it is checked, as cjc checks nothing there), and what cjc rejects in them whatever the build, as it says it. Code that a condition cjc rejects leaves out is not reported as left out: the error on the condition says why. A condition neither cjc knows nor the cfg sets is not one: a `--cfg` the analysis does not see may set it (#297), and its code is active.
-    """
-    def __init__(self, __inactive: list[InactiveCode], __errors: list[WhenError]):
-        ...
-    @property
-    def inactive(self) -> list[InactiveCode]:
-        ...
-    @property
-    def errors(self) -> list[WhenError]:
-        ...
-    def __eq__(self, __other: WhenDiagnostics) -> bool:
-        ...
-    def __ne__(self, __other: WhenDiagnostics) -> bool:
-        ...
 class CfgExpr:
     """
     The condition of a `@When`, lowered from its expression with nothing of the tree: what cjc evaluates it as (`src/ConditionalCompilation`). One cjc rejects is `CfgInvalid`, false as cjc evaluates it, unlike R1's `CfgExpr::Invalid`, which is active (#149, D93).
@@ -137,4 +121,20 @@ class InactiveCode:
     def __eq__(self, __other: InactiveCode) -> bool:
         ...
     def __ne__(self, __other: InactiveCode) -> bool:
+        ...
+class WhenDiagnostics:
+    """
+    What the `@When`s of a file say: the code they leave out, outermost only (nothing inside it is checked, as cjc checks nothing there), and what cjc rejects in them whatever the build, as it says it. Code that a condition cjc rejects leaves out is not reported as left out: the error on the condition says why. A condition neither cjc knows nor the cfg sets is not one: a `--cfg` the analysis does not see may set it (#297), and its code is active.
+    """
+    def __init__(self, __inactive: list[InactiveCode], __errors: list[WhenError]):
+        ...
+    @property
+    def inactive(self) -> list[InactiveCode]:
+        ...
+    @property
+    def errors(self) -> list[WhenError]:
+        ...
+    def __eq__(self, __other: WhenDiagnostics) -> bool:
+        ...
+    def __ne__(self, __other: WhenDiagnostics) -> bool:
         ...

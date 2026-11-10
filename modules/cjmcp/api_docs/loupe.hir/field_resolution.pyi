@@ -21,7 +21,7 @@ class Receiver:
         @property
         def field0(self) -> PackageRef:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class TypesReceiver(Receiver):
         kind: Literal['TypesReceiver'] = 'TypesReceiver'
         def __init__(self, __p1: list[ExtendedType]):
@@ -32,7 +32,7 @@ class Receiver:
         @property
         def field0(self) -> list[ExtendedType]:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class ValueReceiver(Receiver):
         kind: Literal['ValueReceiver'] = 'ValueReceiver'
         def __init__(self):
@@ -62,7 +62,7 @@ class FieldResolution:
         @property
         def field0(self) -> list[DefId]:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class TypeMembers(FieldResolution):
         kind: Literal['TypeMembers'] = 'TypeMembers'
         def __init__(self, __p1: list[MemberTarget]):
@@ -73,7 +73,7 @@ class FieldResolution:
         @property
         def field0(self) -> list[MemberTarget]:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class OfValue(FieldResolution):
         kind: Literal['OfValue'] = 'OfValue'
         def __init__(self):

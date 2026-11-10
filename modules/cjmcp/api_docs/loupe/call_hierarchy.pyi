@@ -1,23 +1,5 @@
 from typing import Literal
 
-class HierarchyCalls:
-    """
-    One caller or callee, grouping its call sites. Ranges always belong to the caller's file.
-    """
-    def __init__(self, __item: CallHierarchyEntry, __ranges: list[TextRange]):
-        """
-         for type TextRange, see 'ginkgo/text_range.pyi'
-        """
-        ...
-    @property
-    def item(self) -> CallHierarchyEntry:
-        ...
-    @property
-    def ranges(self) -> list[TextRange]:
-        """
-         for type TextRange, see 'ginkgo/text_range.pyi'
-        """
-        ...
 class CallHierarchyEntry:
     """
     A callable with source locations, independent of protocol positions. Without attached sources, a binary callable uses the referring name's location; `definition` still identifies its overload.
@@ -54,4 +36,22 @@ class CallHierarchyEntry:
     def __eq__(self, __other: CallHierarchyEntry) -> bool:
         ...
     def __ne__(self, __other: CallHierarchyEntry) -> bool:
+        ...
+class HierarchyCalls:
+    """
+    One caller or callee, grouping its call sites. Ranges always belong to the caller's file.
+    """
+    def __init__(self, __item: CallHierarchyEntry, __ranges: list[TextRange]):
+        """
+         for type TextRange, see 'ginkgo/text_range.pyi'
+        """
+        ...
+    @property
+    def item(self) -> CallHierarchyEntry:
+        ...
+    @property
+    def ranges(self) -> list[TextRange]:
+        """
+         for type TextRange, see 'ginkgo/text_range.pyi'
+        """
         ...

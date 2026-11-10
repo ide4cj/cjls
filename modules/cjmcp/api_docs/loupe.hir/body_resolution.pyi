@@ -21,7 +21,7 @@ class ValueTarget:
         @property
         def field0(self) -> LocalId:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class MemberOf(ValueTarget):
         kind: Literal['MemberOf'] = 'MemberOf'
         def __init__(self, __p1: MemberTarget):
@@ -32,7 +32,7 @@ class ValueTarget:
         @property
         def field0(self) -> MemberTarget:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class DeclOf(ValueTarget):
         kind: Literal['DeclOf'] = 'DeclOf'
         def __init__(self, __p1: DefId):
@@ -43,7 +43,7 @@ class ValueTarget:
         @property
         def field0(self) -> DefId:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class TypeParamOf(ValueTarget):
         kind: Literal['TypeParamOf'] = 'TypeParamOf'
         def __init__(self, __p1: TypeTarget):
@@ -54,7 +54,7 @@ class ValueTarget:
         @property
         def field0(self) -> TypeTarget:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
 class BodyResolution:
     """
     What a name used in a body means.
@@ -73,7 +73,7 @@ class BodyResolution:
         @property
         def field0(self) -> list[ValueTarget]:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class InFile(BodyResolution):
         kind: Literal['InFile'] = 'InFile'
         def __init__(self, __p1: Resolution):
@@ -84,4 +84,4 @@ class BodyResolution:
         @property
         def field0(self) -> Resolution:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
