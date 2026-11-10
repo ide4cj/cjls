@@ -8,19 +8,23 @@ import py_interop.internal_macros.DerivePython
  * annotation, a macro of the compiler's — told in our words (D109).
  */
 @DerivePython
+@PyDoc["What the language builds in and no source declares — a type that is a keyword, a type of the compiler's own, an annotation, a macro of the compiler's — told in our words (D109)."]
 public struct BuiltinDoc {
     public BuiltinDoc(
         /**
          * Its name as code writes it, without the `@` of an annotation.
          */
+        @PyDoc["Its name as code writes it, without the `@` of an annotation."]
         public let name: String,
         /**
          * How it is written, as a hover shows it: `type Int64`, `@When[condition]`.
          */
+        @PyDoc["How it is written, as a hover shows it: `type Int64`, `@When[condition]`."]
         public let code: String,
         /**
          * What it is, as Markdown.
          */
+        @PyDoc["What it is, as Markdown."]
         public let summary: String
     ) {}
 }

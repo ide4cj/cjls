@@ -10,7 +10,11 @@ import loupe.db.AnalysisDatabase
 import loupe.syntax.parse
 import loupe.vfs.FileId
 
+/**
+ * The declaration category of a source structure node.
+ */
 @DerivePython
+@PyDoc["The declaration category of a source structure node."]
 public enum StructureKind <: ToString & Equatable<StructureKind> {
     | Class
     | Interface
@@ -85,6 +89,7 @@ public enum StructureKind <: ToString & Equatable<StructureKind> {
  * `selectionRange`, inside it, is its name.
  */
 @DerivePython
+@PyDoc["One declaration of a file's outline. `range` is the whole of it, doc comment included; `selectionRange`, inside it, is its name."]
 public class StructureNode {
     public StructureNode(
         public let name: String,

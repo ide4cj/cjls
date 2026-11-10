@@ -427,10 +427,16 @@ including K28's conflicting loaded libraries within a load, still apply.
 
 ## Binding implementation constraints
 
-Use `@PyDoc` for Python-facing contracts on new exports; ordinary Cangjie doc
-comments remain the source documentation. Use `@PyName` when the Python registry
+All types exported through `@DerivePython` carry `@PyDoc`. Document exported
+methods and properties, and retain documented field contracts in Python as well;
+ordinary Cangjie doc comments remain the source documentation. Use `@PyName` when the Python registry
 name differs from the declaration name, so `__name__` and introspection agree
 with the injected name. Keep existing Python names stable.
+The process regression checks every injected class for a nonempty `__doc__` and
+an `__name__` matching its injected name. Exposed callables also need docs, except
+standard string/hash operations. Existing keyword-named fields remain
+available through `getattr(value, "def")`; constructor argument order and
+`__match_args__` remain unchanged. Metadata changes do not rename these fields.
 
 `@DerivePython` from `py_interop` exports the selected original analysis types,
 including their constructors, fields, properties and methods. Immutable fields

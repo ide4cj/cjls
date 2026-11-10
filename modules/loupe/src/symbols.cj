@@ -16,6 +16,7 @@ import loupe.vfs.FileId
  * name of the one it is under, if any.
  */
 @DerivePython
+@PyDoc["A declaration of a file, as a search of the workspace sees it: an entry of its outline, and the name of the one it is under, if any."]
 public struct FileSymbol <: Equatable<FileSymbol> {
     public FileSymbol(
         public let name: String,
@@ -40,6 +41,7 @@ public struct FileSymbol <: Equatable<FileSymbol> {
  * A declaration of the workspace a search found, and the file it is in.
  */
 @DerivePython
+@PyDoc["A declaration of the workspace a search found, and the file it is in."]
 public struct FoundSymbol {
     public FoundSymbol(public let fileId: FileId, public let symbol: FileSymbol) {}
 }

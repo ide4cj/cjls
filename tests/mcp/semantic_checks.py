@@ -16,6 +16,7 @@ class SemanticChecks:
             encoding='utf-8', newline='\n',
         )
         try:
+            self._check_python_metadata(run)
             self._check_semantic_discovery(run)
             self._check_semantic_project(run)
             self._check_semantic_scope(run)
@@ -28,6 +29,39 @@ class SemanticChecks:
             self._check_project_build_inputs(root, run)
         finally:
             path.unlink()
+
+    def _check_python_metadata(self, run):
+        checked = run("""
+            a = workspace.analysis()
+            exported = {name: value for name, value in globals().items() if isinstance(value, type)}
+            assert len(exported) >= 200
+            missing = [name for name, cls in exported.items() if not cls.__doc__]
+            renamed = [(name, cls.__name__) for name, cls in exported.items() if name != cls.__name__]
+            assert not missing, missing
+            assert not renamed, renamed
+            undocumented_methods = [(owner, name) for owner, cls in exported.items()
+                                    for name, value in vars(cls).items()
+                                    if not name.startswith('_') and name not in ('hashCode', 'toString')
+                                    and callable(value) and not isinstance(value, type) and not value.__doc__]
+            assert not undocumented_methods, undocumented_methods
+            assert type(workspace).__doc__
+            assert 'UTF-8' in TextRange.__doc__
+            assert 'end` excluded' in TextRange.contains.__doc__
+            assert 'syntax errors' in AnalysisRevision.formatting.__doc__
+            assert 'return type' in SignatureTypes.ty.__doc__
+            assert 'Higher first' in CompletionItem.relevance.__doc__
+            assert SemanticSyntaxElement.descendants.__doc__
+            assert SemanticObject.contextualPackage.__doc__
+            definition = a.declarations('src/helper.cj')[0]
+            duplicate = Redefinition(definition, 'duplicate')
+            missing_specific = NoSpecific(definition, 'unavailable')
+            assert getattr(duplicate, 'def') == definition
+            assert getattr(missing_specific, 'def') == definition
+            assert Redefinition.__match_args__ == ('def', 'name')
+            assert NoSpecific.__match_args__ == ('def', 'message')
+            result = len(exported)
+        """)
+        self.assertGreaterEqual(checked['result'], 200)
 
     def _check_semantic_discovery(self, run):
         # act

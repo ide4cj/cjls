@@ -12,6 +12,7 @@ import loupe.db.{AnalysisDatabase, Package, SourceFile}
  * What is wrong with a file's scope, as cjc and cjpm report it.
  */
 @DerivePython
+@PyDoc["What is wrong with a file's scope, as cjc and cjpm report it."]
 public enum ScopeProblem <: ToString & Equatable<ScopeProblem> {
     /**
      * A path of an import that brings nothing, or that closes a cycle of packages (N36, N47).
@@ -39,6 +40,7 @@ public enum ScopeProblem <: ToString & Equatable<ScopeProblem> {
     /**
      * Whether cjc reports it as a warning, not an error.
      */
+    @PyDoc["Whether cjc reports it as a warning, not an error."]
     public func isWarning(): Bool {
         match (this) {
             case Shadowed(_) | Conflicted(_) => true
@@ -49,6 +51,7 @@ public enum ScopeProblem <: ToString & Equatable<ScopeProblem> {
     /**
      * What cjc says of it.
      */
+    @PyDoc["What cjc says of it."]
     public func message(): String {
         match (this) {
             case ImportFailed(error) => error.toString()
@@ -82,6 +85,7 @@ public enum ScopeProblem <: ToString & Equatable<ScopeProblem> {
  * Where a problem is: a path of an import, or a name of a declaration.
  */
 @DerivePython
+@PyDoc["Where a problem is: a path of an import, or a name of a declaration."]
 public enum ScopeProblemAt <: Equatable<ScopeProblemAt> {
     | AtImport(ImportSite)
     | AtDecl(DefId, String)
@@ -101,7 +105,11 @@ public enum ScopeProblemAt <: Equatable<ScopeProblemAt> {
     }
 }
 
+/**
+ * A scope-resolution problem paired with the import, declaration or file site that caused it.
+ */
 @DerivePython
+@PyDoc["A scope-resolution problem paired with the import, declaration or file site that caused it."]
 public struct ScopeDiagnostic <: Equatable<ScopeDiagnostic> {
     public ScopeDiagnostic(public let at: ScopeProblemAt, public let problem: ScopeProblem) {}
 

@@ -13,6 +13,7 @@ import rope.Rope
  * the one handle the layers above know a file by; `Vfs` says which path it stands for.
  */
 @DerivePython
+@PyDoc["A file, by the index its path was given when first seen. Cheap to keep, compare and hash, and the one handle the layers above know a file by; `Vfs` says which path it stands for."]
 public struct FileId <: ToString & Hashable & Equatable<FileId> {
     public FileId(public let index: Int64) {}
 

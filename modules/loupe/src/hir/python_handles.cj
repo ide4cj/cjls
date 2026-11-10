@@ -19,16 +19,19 @@ public class PythonBodySource {
         this.value = value
     }
 
+    @PyDoc["The UTF-8 byte range of the source syntax."]
     public prop range: TextRange {
         get() {
             value.ptr.range
         }
     }
+    @PyDoc["The source syntax kind name."]
     public prop kind: String {
         get() {
             value.ptr.kind.toString()
         }
     }
+    @PyDoc["The containing macro expansion ID, or None for written source."]
     public prop expansion: ?MacroCallId {
         get() {
             value.expansion

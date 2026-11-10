@@ -121,6 +121,7 @@ def __cjmcp_run(code, workspace, classes, max_output_bytes, state, session_id, s
  */
 @When[os == "Linux"]
 @DerivePython
+@PyDoc["A script-scoped view of the session workspace; reload queues preparation after the script."]
 class Workspace {
     private var current: ?WorkspaceState = None
 
@@ -131,17 +132,20 @@ class Workspace {
         current = state
     }
 
+    @PyDoc["The session-local revision prepared for this script."]
     public prop revision: Int64 {
         get() {
             loaded().revision
         }
     }
 
+    @PyDoc["The canonical absolute root directory selected for this workspace session."]
     public prop root: String {
         get() {
             directory
         }
     }
+    @PyDoc["Structured project, binary and source loading diagnostics for this preparation."]
     public prop loadDiagnostics: Array<WorkspaceDiagnostic> {
         get() {
             loaded().loadDiagnostics
@@ -158,12 +162,14 @@ class Workspace {
         }
     }
 
+    @PyDoc["Macro preparation state and diagnostics; settled does not imply success."]
     public prop macros: MacroStatus {
         get() {
             loaded().macroStatus
         }
     }
 
+    @PyDoc["Return loaded source paths, including dependencies."]
     public func files(): Array<String> {
         loaded().files.map { path => path.toString() }
     }
@@ -174,20 +180,24 @@ class Workspace {
      *
      * @throws IllegalStateException - if revision does not match the running script
      */
+    @PyDoc["Apply a source change to disk, checking this script's revision and all expected contents. The running analysis remains unchanged; acquire fresh analysis in the next call.  @throws IllegalStateException - if revision does not match the running script"]
     public func applyChange(change: SourceChange, revision: Int64): ApplyChangeResult {
         applySourceChange(loaded(), change, revision)
     }
 
+    @PyDoc["Queue preparation after the current script; retained analysis is unchanged during this call."]
     public func reload(): Unit {
         // Never mutate the database while Python holds native analysis objects.
         loaded().reloadRequested = true
     }
 
+    @PyDoc["Return source structure nodes for a loaded path."]
     public func structure(path: String): Array<StructureNode> {
         let (view, file) = resolve(path)
         fileStructure(view.db, file)
     }
 
+    @PyDoc["Return located diagnostics for a loaded path in this revision."]
     public func diagnostics(path: String): Array<WorkspaceDiagnostic> {
         let (view, file) = resolve(path)
         let text = view.vfs.fileContents(file).getOrThrow()
@@ -210,11 +220,13 @@ class Workspace {
             }
     }
 
+    @PyDoc["Return hover information at a UTF-8 byte offset, or None when absent."]
     public func hover(path: String, offset: Int64): ?HoverResult {
         let (view, file) = position(path, offset)
         hoverAt(view.db, file, offset)
     }
 
+    @PyDoc["Return definition targets with UTF-8 declaration and selection ranges."]
     public func definition(path: String, offset: Int64): Array<PythonLocation> {
         let (view, file) = position(path, offset)
         definitionAt(view.db, file, offset)
@@ -231,6 +243,7 @@ class Workspace {
     /**
      * Capture this script's revision. Reacquire after a later workspace update.
      */
+    @PyDoc["Capture this script's revision. Reacquire after a later workspace update."]
     public func analysis(): AnalysisRevision {
         AnalysisRevision(loaded())
     }

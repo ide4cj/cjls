@@ -18,6 +18,7 @@ import loupe.syntax.parse
  * is in its own input. Nothing in it says where it is, so an edit that moves it alone changes no query reading it.
  */
 @DerivePython
+@PyDoc["A macro called in an item, in a body or an initializer, not on the item (D117), as `bodyMacroCalls` finds it: its item, the macro's name as written (`m.M`), its ordinal among the calls of that name in the item in the order their `@`s are written, the names of the calls in the item whose input it is in, outermost first, and whether another call is in its own input. Nothing in it says where it is, so an edit that moves it alone changes no query reading it."]
 public struct BodyMacroCall <: Equatable<BodyMacroCall> {
     public BodyMacroCall(
         public let item: ItemId,
