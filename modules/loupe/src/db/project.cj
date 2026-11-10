@@ -19,6 +19,7 @@ const DEFAULT_PACKAGE = "default"
  * One option `@When` is evaluated against: `os == "Linux"` reads the option `os`.
  */
 @DerivePython
+@PyDoc[#"One option `@When` is evaluated against: `os == "Linux"` reads the option `os`."#]
 public struct CfgOption <: Equatable<CfgOption> {
     public CfgOption(public let key: String, public let value: String) {}
 
@@ -36,6 +37,7 @@ public struct CfgOption <: Equatable<CfgOption> {
  * key once, in the order of the keys.
  */
 @DerivePython
+@PyDoc["What `@When` is evaluated against: `os`, `arch`, `backend` and whatever else a build sets, each key once, in the order of the keys."]
 public struct Cfg <: Equatable<Cfg> {
     public let options: Array<CfgOption>
 
@@ -55,6 +57,7 @@ public struct Cfg <: Equatable<Cfg> {
     /**
      * The value of `key`, `None` if this sets none.
      */
+    @PyDoc["The value of `key`, `None` if this sets none."]
     public func get(key: String): ?String {
         for (option in options where option.key == key) {
             return option.value
@@ -65,6 +68,7 @@ public struct Cfg <: Equatable<Cfg> {
     /**
      * These options, with those of `overrides` in place of any of the same key.
      */
+    @PyDoc["These options, with those of `overrides` in place of any of the same key."]
     public func overriddenBy(overrides: Cfg): Cfg {
         Cfg(
             options
@@ -86,29 +90,35 @@ public struct Cfg <: Equatable<Cfg> {
  * A package of a project: the files cjc compiles as one, and how.
  */
 @DerivePython
+@PyDoc["A package of a project: the files cjc compiles as one, and how."]
 public struct PackageModel <: Equatable<PackageModel> {
     public PackageModel(
         /**
          * As the files name it: `std.collection`, `org::a.b`.
          */
+        @PyDoc["As the files name it: `std.collection`, `org::a.b`."]
         public let name: String,
         /**
          * Where it is: the directory its name gives, unless the build says otherwise.
          */
+        @PyDoc["Where it is: the directory its name gives, unless the build says otherwise."]
         public let dir: VfsPath,
         public let files: Array<VfsPath>,
         /**
          * Compiled with `--no-prelude`: inside it the prelude is the package itself (`std.core`).
          */
+        @PyDoc["Compiled with `--no-prelude`: inside it the prelude is the package itself (`std.core`)."]
         public let noPrelude!: Bool = false,
         /**
          * Whether it is a `macro package`, `None` to read it from its files.
          */
+        @PyDoc["Whether it is a `macro package`, `None` to read it from its files."]
         public let isMacro!: ?Bool = None,
         /**
          * The conditions of its own, those of a `cfg.toml` in its directory, in place of its module's
          * of the same key; `None` for none.
          */
+        @PyDoc["The conditions of its own, those of a `cfg.toml` in its directory, in place of its module's of the same key; `None` for none."]
         public let cfg!: ?Cfg = None
     ) {}
 
@@ -137,6 +147,7 @@ public struct InactiveFile {
  * A native linker name and its search directory. It supplies no Cangjie declarations.
  */
 @DerivePython
+@PyDoc["A native linker name and search directory; it supplies no Cangjie declarations."]
 public struct NativeLibrary <: Equatable<NativeLibrary> & Hashable & ToString {
     public NativeLibrary(public let name: String, public let dir: VfsPath) {}
 
@@ -224,6 +235,7 @@ public struct ModuleModel {
  * A package compiled already, a `.cjo` and its library.
  */
 @DerivePython
+@PyDoc["A package compiled already, a `.cjo` and its library."]
 public struct BinaryPackage <: Equatable<BinaryPackage> {
     public BinaryPackage(public let name: String, public let path: VfsPath) {}
 
@@ -241,12 +253,14 @@ public struct BinaryPackage <: Equatable<BinaryPackage> {
  * declarations to go to. Never resolved against: a name resolves in the `.cjo` alone (D38).
  */
 @DerivePython
+@PyDoc["The sources a binary was compiled from, of its version: what its `.cjo` keeps nothing of, the declarations to go to. Never resolved against: a name resolves in the `.cjo` alone (D38)."]
 public struct BinarySources <: Equatable<BinarySources> {
     public BinarySources(
         /**
          * The directory of its root package, each package in the directory its name gives under it
          * (`std.collection` in `<dir>/collection`).
          */
+        @PyDoc["The directory of its root package, each package in the directory its name gives under it (`std.collection` in `<dir>/collection`)."]
         public let dir: VfsPath,
         public let packages: Array<PackageModel>
     ) {}
@@ -265,6 +279,7 @@ public struct BinarySources <: Equatable<BinarySources> {
  * which is a package (`path-option`), and packages one by one (`package-option`).
  */
 @DerivePython
+@PyDoc["Modules compiled already, as cjpm's `bin-dependencies` give them: directories every `.cjo` of which is a package (`path-option`), and packages one by one (`package-option`)."]
 public struct BinaryModel <: Equatable<BinaryModel> {
     public BinaryModel(
         public let name: String,
@@ -274,10 +289,12 @@ public struct BinaryModel <: Equatable<BinaryModel> {
          * Whether `paths` discover packages. False retains watched search paths for an already
          * selected package list, such as cjpm's profile-specific binary precedence.
          */
+        @PyDoc["Whether `paths` discover packages. False retains watched search paths for an already selected package list, such as cjpm's profile-specific binary precedence."]
         public let discoverPackages!: Bool = true,
         /**
          * Its sources, `None` if they are not there.
          */
+        @PyDoc["Its sources, `None` if they are not there."]
         public let sources!: ?BinarySources = None
     ) {}
 
@@ -551,6 +568,7 @@ public struct BinarySourceFile {
  * gone is no longer in `Project`. Independent scopes may share a physical root and name.
  */
 @DerivePython[opaque]
+@PyDoc["A module of the project, one per root, name and resolution scope, never dropped: a module gone is no longer in `Project`. Independent scopes may share a physical root and name."]
 @CalcaInput
 public struct Module {
     public let root: VfsPath
@@ -572,6 +590,7 @@ public struct Module {
  * A file of a module the build leaves out, by its id, and why.
  */
 @DerivePython
+@PyDoc["A file of a module the build leaves out, by its id, and why."]
 public struct InactiveSourceFile <: Equatable<InactiveSourceFile> {
     public InactiveSourceFile(public let fileId: FileId, public let reason: String) {}
 
@@ -590,6 +609,7 @@ public struct InactiveSourceFile <: Equatable<InactiveSourceFile> {
  * empty text (A5), which nothing tells from an empty file.
  */
 @DerivePython[opaque]
+@PyDoc["A package of the project, one per name in a module, never dropped: a package gone is no longer in its module. Its files are an input of their own, not found from their texts: a file deleted is an empty text (A5), which nothing tells from an empty file."]
 @CalcaInput
 public struct Package {
     public let name: String
@@ -624,6 +644,7 @@ public struct Package {
  * file, never dropped: a package gone is no longer in `Project.binaryPackages`, and holds no bytes.
  */
 @DerivePython[opaque]
+@PyDoc["A package compiled already, as the analysis sees it: the bytes of its `.cjo`, kept out of the `Vfs`, which holds what an editor may open and edit as text (D38). One per binary, package and file, never dropped: a package gone is no longer in `Project.binaryPackages`, and holds no bytes."]
 @CalcaInput
 public struct BinaryPackageFile {
     /**

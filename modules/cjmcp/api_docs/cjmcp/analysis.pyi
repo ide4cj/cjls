@@ -2,19 +2,14 @@ from typing import Literal
 
 class AnalysisRevision:
     """
-
     A revision-bound analysis handle; querying it after a workspace update reports ContentModified.
-
     """
     @property
     def revision(self) -> int:
         ...
     def semantic(self) -> SemanticAnalysis:
         """
-
-        Snapshot views of this checked revision, cancelled by later input changes.
-        @throws IllegalStateException - if this handle belongs to an older workspace revision.
-
+        Snapshot views of this checked revision, cancelled by later input changes. @throws IllegalStateException - if this handle belongs to an older workspace revision.
          for type SemanticAnalysis, see 'loupe/semantic.pyi'
         """
         ...
@@ -261,9 +256,7 @@ class AnalysisRevision:
         ...
     def expressionRanges(self, __def: DefId) -> list[TextRange | None]:
         """
-
         Written ranges by expression index; None marks synthetic expressions.
-
          for type TextRange, see 'ginkgo/text_range.pyi'
          for type DefId, see 'loupe.hir/def_map.pyi'
         """

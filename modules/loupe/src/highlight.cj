@@ -19,6 +19,7 @@ import loupe.vfs.FileId
  * package, which names do not resolve in, a name inside a type is taken for one.
  */
 @DerivePython
+@PyDoc["What a token is: by the tree, and a name at its use by what it means (D72). In a file of no package, which names do not resolve in, a name inside a type is taken for one."]
 public enum HighlightTag <: ToString & Equatable<HighlightTag> {
     | Keyword
     | Comment
@@ -94,6 +95,7 @@ public enum HighlightTag <: ToString & Equatable<HighlightTag> {
  * A semantic highlighting modifier such as declaration, readonly or deprecated.
  */
 @DerivePython
+@PyDoc["A semantic highlighting modifier such as declaration, readonly or deprecated."]
 public enum HighlightModifier <: ToString & Equatable<HighlightModifier> {
     // the name being declared
     | Declaration
@@ -167,6 +169,7 @@ let HIGHLIGHT_MODIFIERS =
  * A set of `HighlightModifier`s.
  */
 @DerivePython
+@PyDoc["A set of `HighlightModifier`s."]
 public struct HighlightModifiers <: ToString & Equatable<HighlightModifiers> {
     private HighlightModifiers(let bits: UInt8) {}
 
@@ -208,6 +211,7 @@ public struct HighlightModifiers <: ToString & Equatable<HighlightModifiers> {
  * A token of a file and what it is. `range` is in UTF-8 bytes (A6).
  */
 @DerivePython
+@PyDoc["A token of a file and what it is. `range` is in UTF-8 bytes (A6)."]
 public struct HighlightedRange <: ToString & Equatable<HighlightedRange> {
     public HighlightedRange(
         public let range: TextRange,

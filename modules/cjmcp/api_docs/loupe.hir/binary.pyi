@@ -2,12 +2,7 @@ from typing import Literal
 
 class ItemFile:
     """
-
-    Where an item is declared: a source file, a file of a package compiled already, by its index
-    among the package's files, or the expansion of a macro call on an item of a source file (#175).
-    CompilerBuiltIns supplies std.core's compiler-owned declarations without inventing source text.
-    Name resolution takes each alike.
-
+    Where an item is declared: a source file, a file of a package compiled already, by its index among the package's files, or the expansion of a macro call on an item of a source file (#175). CompilerBuiltIns supplies std.core's compiler-owned declarations without inventing source text. Name resolution takes each alike.
     """
     def __eq__(self, __other: ItemFile) -> bool:
         ...
@@ -65,9 +60,7 @@ class ItemFile:
         __match_args__ = ('field0')
 class BinaryItem:
     """
-
     An item of a package compiled already: the index of its file, and its id there.
-
     """
     def __init__(self, __file: int, __id: ItemId):
         """

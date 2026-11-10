@@ -1,30 +1,8 @@
 from typing import Literal
 
-class SemanticImporters:
-    """
-
-    Reverse written-import evidence with explicit missing-source and binary graph gaps.
-
-    """
-    def __init__(self, __entries: list[SemanticImport], __unavailablePackages: list[SemanticPackage]):
-        """
-         for type SemanticImport, see 'loupe/semantic_scope.pyi'
-        """
-        ...
-    @property
-    def entries(self) -> list[SemanticImport]:
-        """
-         for type SemanticImport, see 'loupe/semantic_scope.pyi'
-        """
-        ...
-    @property
-    def unavailablePackages(self) -> list[SemanticPackage]:
-        ...
 class SemanticDependency:
     """
-
     A dependency permission, not evidence of an import statement.
-
     """
     def __init__(self, __source: SemanticModule, __name: str, __modules: list[SemanticModule], __binaries: list[BinaryModel], *, isTestOnly: bool = ..., isImplicit: bool = ...):
         """
@@ -55,17 +33,12 @@ class SemanticDependency:
     @property
     def isResolved(self) -> bool:
         """
-
         False distinguishes a missing selected target from an empty package collection.
-
         """
         ...
 class SemanticProject:
     """
-
-    Traversal of loaded inputs only. Collections preserve input order and support ordinary
-    Array filtering. All methods use the originating snapshot and cancel after input changes.
-
+    Traversal of loaded inputs only. Collections preserve input order and support ordinary Array filtering. All methods use the originating snapshot and cancel after input changes.
     """
     def modules(self) -> list[SemanticModule]:
         """
@@ -74,9 +47,7 @@ class SemanticProject:
         ...
     def packages(self) -> list[SemanticPackage]:
         """
-
         Source, binary and detached attached-source contexts, each identity once.
-
         """
         ...
     def files(self) -> list[SemanticFile]:
@@ -92,9 +63,7 @@ class SemanticProject:
         ...
     def binaries(self) -> list[BinaryModel]:
         """
-
         Selected loaded binary models; never enumerates their paths on disk.
-
          for type BinaryModel, see 'loupe.db/project.pyi'
         """
         ...
@@ -103,15 +72,27 @@ class SemanticProject:
         Return the project configuration retained in the analysis inputs.
         """
         ...
+class SemanticImporters:
+    """
+    Reverse written-import evidence with explicit missing-source and binary graph gaps.
+    """
+    def __init__(self, __entries: list[SemanticImport], __unavailablePackages: list[SemanticPackage]):
+        """
+         for type SemanticImport, see 'loupe/semantic_scope.pyi'
+        """
+        ...
+    @property
+    def entries(self) -> list[SemanticImport]:
+        """
+         for type SemanticImport, see 'loupe/semantic_scope.pyi'
+        """
+        ...
+    @property
+    def unavailablePackages(self) -> list[SemanticPackage]:
+        ...
 class SemanticConfiguration:
     """
-
-    Effective analysis conditions, not an exact compiler invocation. The loader does not
-    retain profile/feature/flag completeness, selection provenance, source-set names or load
-    diagnostics in database inputs. Unavailable metadata is separate from a known empty result.
-    Missing @When comparison keys remain unknown/active; absent debug/test flags currently
-    follow CfgExpr's false default, not proof that the compiler was invoked without them.
-
+    Effective analysis conditions, not an exact compiler invocation. The loader does not retain profile/feature/flag completeness, selection provenance, source-set names or load diagnostics in database inputs. Unavailable metadata is separate from a known empty result. Missing @When comparison keys remain unknown/active; absent debug/test flags currently follow CfgExpr's false default, not proof that the compiler was invoked without them.
     """
     def __init__(self, __cfg: Cfg):
         """
@@ -150,9 +131,7 @@ class SemanticConfiguration:
         ...
 class SemanticModule:
     """
-
     Module identity includes its independent resolution scope, including script selections.
-
     """
     @property
     def identity(self) -> Module:
@@ -173,9 +152,7 @@ class SemanticModule:
         ...
     def nativeLibraries(self) -> list[NativeLibrary]:
         """
-
-        Native linker inputs selected for this module; these are separate from Cangjie dependencies.
-
+        Return this module's selected native linker names and search directories.
          for type NativeLibrary, see 'loupe.db/project.pyi'
         """
         ...
@@ -201,25 +178,18 @@ class SemanticModule:
         ...
     def inactiveFiles(self) -> list[InactiveSourceFile]:
         """
-
         Source-set exclusions retained by the loader, even when their text was not loaded.
-
          for type InactiveSourceFile, see 'loupe.db/project.pyi'
         """
         ...
     def dependencies(self) -> list[SemanticDependency]:
         """
-
-        Direct ordinary and additional test-only edges, plus implicit std. Script edges retain
-        their module's resolutionScope; downstream modules do not inherit test-only permissions.
-
+        Direct ordinary and additional test-only edges, plus implicit std. Script edges retain their module's resolutionScope; downstream modules do not inherit test-only permissions.
         """
         ...
 class SemanticPackageOrigin:
     """
-
     Loaded origin, independent of a declaration's navigation source.
-
     """
     def __eq__(self, __other: SemanticPackageOrigin) -> bool:
         ...
@@ -244,9 +214,7 @@ class SemanticPackageOrigin:
             ...
 class SemanticPackage:
     """
-
     A contextual package. Attached source retains its detached identity, not its binary's.
-
     """
     @property
     def identity(self) -> PackageRef:
@@ -287,69 +255,47 @@ class SemanticPackage:
         ...
     def attachedSources(self) -> list[SemanticPackage]:
         """
-
         Detached source contexts attached to this binary; empty without loaded attachments.
-
         """
         ...
     def files(self) -> list[SemanticFile]:
         """
-
-        Contextual files with loaded text; binaries expose their item-file identities.
-        Attached source enumerates its own files, never the editor-preferred physical context.
-
+        Contextual files with loaded text; binaries expose their item-file identities. Attached source enumerates its own files, never the editor-preferred physical context.
          for type SemanticFile, see 'loupe/semantic_scope.pyi'
         """
         ...
     def unavailableFiles(self) -> list[FileId]:
         """
-
         Source identities whose text is not loaded; empty for binaries.
-
          for type FileId, see 'loupe.vfs/vfs.pyi'
         """
         ...
     def permittedPackages(self, *, ofTests: bool = ...) -> list[SemanticPackage]:
         """
-
-        Packages permitted in this context, including self and std; these are not written
-        imports. Selection uses the same package index as semantic lookup.
-
+        Packages permitted in this context, including self and std; these are not written imports. Selection uses the same package index as semantic lookup.
         """
         ...
     def potentialDependents(self) -> list[SemanticPackage]:
         """
-
-        Conservative candidates allowed to depend on this package, including self and test
-        permissions. No claim about written imports or transitive use is made.
-
+        Conservative candidates allowed to depend on this package, including self and test permissions. No claim about written imports or transitive use is made.
         """
         ...
     def writtenImporters(self, *, stage: ScopeStage = ...) -> SemanticImporters:
         """
-
-        Written paths with this resolved package target, even if a name is inaccessible.
-        Missing binary source import graphs are recorded in unavailablePackages, not
-        treated as no imports. Attached sources contribute only the loaded source evidence.
-
+        Written paths with this resolved package target, even if a name is inaccessible. Missing binary source import graphs are recorded in unavailablePackages, not treated as no imports. Attached sources contribute only the loaded source evidence.
          for type ScopeStage, see 'loupe.hir/def_map.pyi'
         """
         ...
     def imports(self, *, stage: ScopeStage = ...) -> list[SemanticImport] | None:
         """
-
-        Imports in loaded source text; unavailableFiles reports any omitted source inputs.
-        None for binary syntax, empty for loaded source with no active imports.
-
+        Imports in loaded source text; unavailableFiles reports any omitted source inputs. None for binary syntax, empty for loaded source with no active imports.
          for type SemanticImport, see 'loupe/semantic_scope.pyi'
          for type ScopeStage, see 'loupe.hir/def_map.pyi'
         """
         ...
     def exports(self, *, stage: ScopeStage = ...) -> SemanticExports:
         """
-
         Exports include re-export visibility. Cycles are explicit, not an empty success.
-
          for type SemanticExports, see 'loupe/semantic_scope.pyi'
          for type ScopeStage, see 'loupe.hir/def_map.pyi'
         """

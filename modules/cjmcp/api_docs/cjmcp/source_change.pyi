@@ -2,12 +2,7 @@ from typing import Literal
 
 class ApplyChangeResult:
     """
-
-    Application report using zero-based operation indices in the supplied SourceChange.
-    Preflight failures have no applied operations and no failed index. An I/O failure
-    stops at failed; that operation may have changed disk. Nothing is rolled back.
-    revision remains the script's original analysis revision, including after success.
-
+    Application report using zero-based operation indices in the supplied SourceChange. Preflight failures have no applied operations and no failed index. An I/O failure stops at failed; that operation may have changed disk. Nothing is rolled back. revision remains the script's original analysis revision, including after success.
     """
     def __init__(self, __revision: int, __applied: list[int], __failed: int | None, __error: str | None):
         ...

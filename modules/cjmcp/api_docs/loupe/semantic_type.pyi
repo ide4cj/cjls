@@ -2,35 +2,21 @@ from typing import Literal
 
 class SemanticType:
     """
-
-    A resolved type bound to the same snapshot as its semantic object. Used from one thread
-    at a time; operations throw CancelledException after an input write or request cancellation.
-    Nested types retain this context without creating another snapshot or exposing interned ids.
-
+    A resolved type bound to the same snapshot as its semantic object. Used from one thread at a time; operations throw CancelledException after an input write or request cancellation. Nested types retain this context without creating another snapshot or exposing interned ids.
     """
     def kind(self) -> SemanticTypeKind:
         """
-
-        Structure with aliases resolved; related definitions and child types need no database argument.
-        Invalid, unsupported and unavailable types retain their distinct meanings and reasons.
-
+        Structure with aliases resolved; related definitions and child types need no database argument. Invalid, unsupported and unavailable types retain their distinct meanings and reasons.
         """
         ...
     def display(self) -> str:
         """
-
         Type display read from this revision; unknown/error details remain available through kind().
-
         """
         ...
 class SemanticTypeKind:
     """
-
-    Resolved type structure. Child types and definitions share the originating snapshot;
-    copied names, sizes and reasons remain descriptions of that revision after cancellation.
-    FunctionType carries parameter types, return type and whether it uses the C calling convention.
-    FixedArrayType carries its element type and length. TypeParameterType names the binder's parameter.
-
+    Resolved type structure. Child types and definitions share the originating snapshot; copied names, sizes and reasons remain descriptions of that revision after cancellation. FunctionType carries parameter types, return type and whether it uses the C calling convention. FixedArrayType carries its element type and length. TypeParameterType names the binder's parameter.
     """
     ...
     kind: Literal['PrimitiveType', 'DeclaredType', 'CompilerOwnedType', 'TupleType', 'FunctionType', 'FixedArrayType', 'TypeParameterType', 'SelfType', 'InvalidType', 'UnsupportedType', 'UnavailableType', 'InferenceVariableType']

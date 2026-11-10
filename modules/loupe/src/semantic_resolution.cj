@@ -37,6 +37,7 @@ import loupe.hir.{
  * MissingResolutionReason states that inference retained no more precise failure explanation.
  */
 @DerivePython
+@PyDoc["Resolution completeness, independent of whether navigation source is available. MissingResolutionReason states that inference retained no more precise failure explanation."]
 public enum SemanticResolutionStatus <: Equatable<SemanticResolutionStatus> {
     | ResolvedMeaning
     | AmbiguousMeaning
@@ -74,6 +75,7 @@ public enum SemanticResolutionStatus <: Equatable<SemanticResolutionStatus> {
  * Preserved analysis gaps, or an explicit absence of a retained failure explanation.
  */
 @DerivePython
+@PyDoc["Preserved analysis gaps, or an explicit absence of a retained failure explanation."]
 public enum SemanticResolutionReason {
     | MissingResolutionReason
     | MissingResolutionData
@@ -87,6 +89,7 @@ public enum SemanticResolutionReason {
  * A final instantiated generic parameter, identified by its real declaration or local binder.
  */
 @DerivePython
+@PyDoc["A final instantiated generic parameter, identified by its real declaration or local binder."]
 public struct SemanticGenericBinding {
     SemanticGenericBinding(
         public let parameter: SemanticObject,
@@ -98,6 +101,7 @@ public struct SemanticGenericBinding {
  * An inference diagnostic and its owner-qualified anchor in the originating snapshot.
  */
 @DerivePython
+@PyDoc["An inference diagnostic and its owner-qualified anchor in the originating snapshot."]
 public struct SemanticResolutionDiagnostic {
     SemanticResolutionDiagnostic(
         public let anchor: SemanticObject,
@@ -110,6 +114,7 @@ public struct SemanticResolutionDiagnostic {
  * functions keep their body-qualified local identity. Initializers and named types stay separate.
  */
 @DerivePython
+@PyDoc["Retained call evidence. A resolved function value has no declaration target; local named functions keep their body-qualified local identity. Initializers and named types stay separate."]
 public class SemanticCallResolution {
     @PyIgnore
     let analysis: SemanticAnalysis
@@ -183,6 +188,7 @@ public class SemanticCallResolution {
     /**
      * Parameter indices in written argument order, including variadic and trailing-lambda arguments.
      */
+    @PyDoc["Parameter indices in written argument order, including variadic and trailing-lambda arguments."]
     public func argumentParameters(): ?Array<Int64> {
         analysis.db.unwindIfCancelled()
         Some(raw.params)
@@ -215,6 +221,7 @@ public class SemanticCallResolution {
  * Path identities and diagnostic payloads belong to occurrence's snapshot, like SemanticIdentity.
  */
 @DerivePython
+@PyDoc["One source occurrence's retained name, member, import or type-segment meaning and call evidence. Status describes identity selection; a resolved declaration may still have an incomplete type. Path identities and diagnostic payloads belong to occurrence's snapshot, like SemanticIdentity."]
 public class SemanticResolution {
     SemanticResolution(
         public let occurrence: SemanticOccurrence,
@@ -232,6 +239,7 @@ public class SemanticResolution {
  * Empty records alone never establish that an unavailable binary body has no references or calls.
  */
 @DerivePython
+@PyDoc["A declaration's retained body results and whether its source was available to analysis. Empty records alone never establish that an unavailable binary body has no references or calls."]
 public class SemanticBodyResolutions {
     SemanticBodyResolutions(
         public let owner: SemanticObject,
@@ -248,6 +256,7 @@ extend SemanticOccurrence {
      * Uses the same classification and selected identities as navigation, with explicit non-success.
      * No rejection trace is synthesized when inference did not retain one.
      */
+    @PyDoc["Uses the same classification and selected identities as navigation, with explicit non-success. No rejection trace is synthesized when inference did not retain one."]
     public func resolution(): SemanticResolution {
         analysis.db.unwindIfCancelled()
         var call: ?SemanticCallResolution = None
@@ -371,6 +380,7 @@ extend SemanticObject {
      * Body records with explicit source availability. Checked binary attachments use their
      * source body while declaration, generic and callable targets retain canonical identities.
      */
+    @PyDoc["Body records with explicit source availability. Checked binary attachments use their source body while declaration, generic and callable targets retain canonical identities."]
     public func bodyResolutions(): SemanticBodyResolutions {
         analysis.db.unwindIfCancelled()
         let source = bodyOwner()
@@ -409,6 +419,7 @@ extend SemanticObject {
      * Retained calls, including synthetic operators and function values. Use bodyResolutions()
      * to distinguish unavailable bodies from bodies with no calls.
      */
+    @PyDoc["Retained calls, including synthetic operators and function values. Use bodyResolutions() to distinguish unavailable bodies from bodies with no calls."]
     public func calls(): Array<SemanticCallResolution> {
         analysis.db.unwindIfCancelled()
         let owner = bodyOwner() ?? return []
@@ -428,6 +439,7 @@ extend SemanticObject {
      * source context. Signature segments and body expansions are included; source-less bodies
      * have no written occurrences.
      */
+    @PyDoc["Written name and operator occurrences belonging to this declaration, in source order per source context. Signature segments and body expansions are included; source-less bodies have no written occurrences."]
     public func resolutions(): Array<SemanticResolution> {
         analysis.db.unwindIfCancelled()
         let owner = bodyOwner() ?? return []

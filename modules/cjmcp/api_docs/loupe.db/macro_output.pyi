@@ -2,9 +2,7 @@ from typing import Literal
 
 class MacroDiagnostic:
     """
-
     What a macro reported running a call: where in its input (`None` for no token of it), and what.
-
     """
     def __init__(self, __severity: MacroSeverity, __origin: SpanOrigin | None, __message: str, __hint: str):
         ...
@@ -26,9 +24,7 @@ class MacroDiagnostic:
         ...
 class MacroSeverity:
     """
-
     How bad what a macro reports is (`diagReport`'s `DiagReportLevel`).
-
     """
     def __eq__(self, __other: MacroSeverity) -> bool:
         ...
@@ -45,9 +41,7 @@ class MacroSeverity:
             ...
 class MacroItem:
     """
-
     One `setItem` of a macro call: its key and value.
-
     """
     def __init__(self, __key: str, __value: MacroItemValue):
         ...
@@ -65,9 +59,7 @@ class MacroItem:
         ...
 class MappedSpan:
     """
-
     A range of a `MappedText` and where it comes from.
-
     """
     def __init__(self, __range: TextRange, __origin: SpanOrigin):
         """
@@ -91,9 +83,7 @@ class MappedSpan:
         ...
 class SpanOrigin:
     """
-
     Where a piece of a macro call's input or output comes from (#176).
-
     """
     def __repr__(self) -> str:
         ...
@@ -119,10 +109,7 @@ class SpanOrigin:
             ...
 class MappedText:
     """
-
-    Text a macro call reads or writes, and where its pieces come from: spans in order, not overlapping; text in none of
-    them (the spaces between printed tokens) comes from nowhere.
-
+    Text a macro call reads or writes, and where its pieces come from: spans in order, not overlapping; text in none of them (the spaces between printed tokens) comes from nowhere.
     """
     def __init__(self, __text: str, __spans: list[MappedSpan]):
         ...
@@ -135,17 +122,12 @@ class MappedText:
     @staticmethod
     def fromSource(__text: str, __origin: int) -> MappedText:
         """
-
         Text all of which comes from the source at `origin`, relative to the top-level item, as one span.
-
         """
         ...
     def originOf(self, __range: TextRange) -> SpanOrigin | None:
         """
-
-        Where `range` of the text comes from: the origin of the span its start is in; within a span as long as its
-        origin (text copied from the source), the same part of it. `None` for text in no span.
-
+        Where `range` of the text comes from: the origin of the span its start is in; within a span as long as its origin (text copied from the source), the same part of it. `None` for text in no span.
          for type TextRange, see 'ginkgo/text_range.pyi'
         """
         ...
@@ -155,9 +137,7 @@ class MappedText:
         ...
 class MacroItemValue:
     """
-
     A value a macro gives the macro calls around it (`setItem`, which they read with `getChildMessages`).
-
     """
     def __repr__(self) -> str:
         ...

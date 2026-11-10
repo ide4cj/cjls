@@ -2,9 +2,7 @@ from typing import Literal
 
 class UnknownReason:
     """
-
     Why a type is unknown given the available inputs, inference progress and resources.
-
     """
     def __repr__(self) -> str:
         ...
@@ -37,9 +35,7 @@ class UnknownReason:
             ...
 class Todo:
     """
-
     Why the analysis cannot find a type (D77): what it does not do yet, each a gap of its own.
-
     """
     def __repr__(self) -> str:
         ...
@@ -58,23 +54,9 @@ class Todo:
         kind: Literal['MacroMember'] = 'MacroMember'
         def __init__(self):
             ...
-class CalcaFields_Ty:
-    ...
-class Ty:
-    """
-
-    A type as inference takes it, rust-analyzer's `Ty`: its names resolved, its aliases expanded,
-    `?T` an `Option<T>`. Interned (D54), as R1's and cjc's are (`TypeManager` hands out one `Ty` for
-    one declaration and arguments): two equal types are one id, compared and hashed as a number.
-
-    """
-    ...
 class GenericOwner:
     """
-
-    A generic binder: a declaration, or a local function within its owner's body (D50).
-    Local function indices are body-local, so the enclosing declaration is part of identity.
-
+    A generic binder: a declaration, or a local function within its owner's body (D50). Local function indices are body-local, so the enclosing declaration is part of identity.
     """
     def __eq__(self, __other: GenericOwner) -> bool:
         ...
@@ -108,11 +90,19 @@ class GenericOwner:
         def field1(self) -> int:
             ...
         __match_args__ = ('field0', 'field1')
+class CalcaFields_Ty:
+    """
+    A type as inference takes it, rust-analyzer's `Ty`: its names resolved, its aliases expanded, `?T` an `Option<T>`. Interned (D54), as R1's and cjc's are (`TypeManager` hands out one `Ty` for one declaration and arguments): two equal types are one id, compared and hashed as a number.
+    """
+    ...
+class Ty:
+    """
+    A type as inference takes it, rust-analyzer's `Ty`: its names resolved, its aliases expanded, `?T` an `Option<T>`. Interned (D54), as R1's and cjc's are (`TypeManager` hands out one `Ty` for one declaration and arguments): two equal types are one id, compared and hashed as a number.
+    """
+    ...
 class TyKind:
     """
-
     What a `Ty` is: resolved signature types, unknown types and call-local inference variables.
-
     """
     def __hash__(self) -> int:
         """

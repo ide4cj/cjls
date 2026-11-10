@@ -2,9 +2,7 @@ from typing import Literal
 
 class HighlightedRange:
     """
-
     A token of a file and what it is. `range` is in UTF-8 bytes (A6).
-
     """
     def __init__(self, __range: TextRange, __tag: HighlightTag, *, modifiers: HighlightModifiers = ...):
         """
@@ -36,9 +34,7 @@ class HighlightedRange:
         ...
 class HighlightModifiers:
     """
-
     A set of `HighlightModifier`s.
-
     """
     def plus(self, __modifier: HighlightModifier) -> HighlightModifiers:
         """
@@ -63,10 +59,7 @@ class HighlightModifiers:
         ...
 class HighlightTag:
     """
-
-    What a token is: by the tree, and a name at its use by what it means (D72). In a file of no
-    package, which names do not resolve in, a name inside a type is taken for one.
-
+    What a token is: by the tree, and a name at its use by what it means (D72). In a file of no package, which names do not resolve in, a name inside a type is taken for one.
     """
     def __repr__(self) -> str:
         ...
@@ -144,9 +137,7 @@ class HighlightTag:
             ...
 class HighlightModifier:
     """
-
     A semantic highlighting modifier such as declaration, readonly or deprecated.
-
     """
     def bit(self) -> int:
         """

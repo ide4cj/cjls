@@ -2,9 +2,7 @@ from typing import Literal
 
 class CompletionOverload:
     """
-
     A declaration in a completion group, seen through its receiver type when it is a member.
-
     """
     def __init__(self, __id: DefId, __receiver: Ty | None):
         """

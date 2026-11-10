@@ -24,6 +24,7 @@ import loupe.syntax.parse
  * A modifier, as written before a declaration.
  */
 @DerivePython
+@PyDoc["A modifier, as written before a declaration."]
 public enum Modifier <: ToString & Equatable<Modifier> {
     | Static
     | Public
@@ -122,6 +123,7 @@ let MODIFIERS: Array<(SyntaxKind, Modifier)> =
  * `macro package`.
  */
 @DerivePython
+@PyDoc["The `package` line: the package's name as written (`a.b`, `org::a.b`), and whether it is a `macro package`."]
 public struct PackageItem <: Equatable<PackageItem> {
     public PackageItem(
         public let name: String,
@@ -143,6 +145,7 @@ public struct PackageItem <: Equatable<PackageItem> {
  * of the package for a glob (`a.b.*`), else the package's and the imported one's.
  */
 @DerivePython
+@PyDoc["One name an import brings in, as written: `segments` up to it, `org::a` one segment; every name of the package for a glob (`a.b.*`), else the package's and the imported one's."]
 public struct ImportPath <: Equatable<ImportPath> {
     public ImportPath(
         public let segments: Array<String>,
@@ -163,6 +166,7 @@ public struct ImportPath <: Equatable<ImportPath> {
  * An `import`, and every name it brings in: `import a.{b as c, d.*}` brings two.
  */
 @DerivePython
+@PyDoc["An `import`, and every name it brings in: `import a.{b as c, d.*}` brings two."]
 public struct ImportItem <: Equatable<ImportItem> {
     public ImportItem(
         public let id: ItemId,
@@ -171,6 +175,7 @@ public struct ImportItem <: Equatable<ImportItem> {
         /**
          * Its `@When`'s, `None` for none.
          */
+        @PyDoc["Its `@When`'s, `None` for none."]
         public let condition!: ?CfgExpr = None
     ) {}
 
@@ -189,6 +194,7 @@ public struct ImportItem <: Equatable<ImportItem> {
  * edited elsewhere: no range, no body, no signature.
  */
 @DerivePython
+@PyDoc["A declaration of the file, as name resolution needs it, and nothing that moves when the file is edited elsewhere: no range, no body, no signature."]
 public struct Item <: Equatable<Item> {
     public Item(
         public let id: ItemId,
@@ -196,33 +202,40 @@ public struct Item <: Equatable<Item> {
          * What it declares by name: one for most, none for an `extend` or a macro call, each
          * binding of a `let` of a pattern. Empty while its name is not written yet.
          */
+        @PyDoc["What it declares by name: one for most, none for an `extend` or a macro call, each binding of a `let` of a pattern. Empty while its name is not written yet."]
         public let names: Array<String>,
         /**
          * Those of the declaration and of the macro calls on it; `foreign` for one in a `foreign`
          * block.
          */
+        @PyDoc["Those of the declaration and of the macro calls on it; `foreign` for one in a `foreign` block."]
         public let modifiers: Array<Modifier>,
         /**
          * The macros called on it, outermost first; for a macro call on no declaration, its macro.
          */
+        @PyDoc["The macros called on it, outermost first; for a macro call on no declaration, its macro."]
         public let macros: Array<String>,
         /**
          * A type's members, an enum's constructors.
          */
+        @PyDoc["A type's members, an enum's constructors."]
         public let members: Array<Item>,
         /**
          * The `@When` before it, or before the outermost macro call on it, `None` for none: whether
          * it is in a build is the cfg's to say (`activeItemTree`).
          */
+        @PyDoc["The `@When` before it, or before the outermost macro call on it, `None` for none: whether it is in a build is the cfg's to say (`activeItemTree`)."]
         public let condition!: ?CfgExpr = None,
         /**
          * The macros called on each parameter of its own parameter lists that has any, in the
          * parameters' order, each outermost first: `@M let x` of a primary constructor (D119).
          */
+        @PyDoc["The macros called on each parameter of its own parameter lists that has any, in the parameters' order, each outermost first: `@M let x` of a primary constructor (D119)."]
         public let paramMacros!: Array<Array<String>> = [],
         /**
          * Whether the declaration has the built-in `@C` annotation, distinct from a macro call.
          */
+        @PyDoc["Whether the declaration has the built-in `@C` annotation, distinct from a macro call."]
         public let isC!: Bool = false
     ) {}
 
@@ -236,6 +249,7 @@ public struct Item <: Equatable<Item> {
     /**
      * Whether `modifier` is among its modifiers.
      */
+    @PyDoc["Whether `modifier` is among its modifiers."]
     public func has(modifier: Modifier): Bool {
         modifiers.contains(modifier)
     }
@@ -260,6 +274,7 @@ public struct Item <: Equatable<Item> {
  * read it is not run again.
  */
 @DerivePython
+@PyDoc["What a file declares, rust-analyzer's `ItemTree`: its package, its imports and its items, named by their `ItemId`s. An edit inside a body, or one that only moves items, leaves it equal, so what read it is not run again."]
 public struct ItemTree <: Equatable<ItemTree> {
     public ItemTree(
         public let packageHeader!: ?PackageItem = None,

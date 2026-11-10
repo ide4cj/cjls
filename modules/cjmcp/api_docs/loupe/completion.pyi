@@ -2,10 +2,7 @@ from typing import Literal
 
 class CompletionResult:
     """
-
-    The completions at a cursor: what the item inserted replaces, the name typed so far before the
-    cursor, and the items, the most relevant first.
-
+    The completions at a cursor: what the item inserted replaces, the name typed so far before the cursor, and the items, the most relevant first.
     """
     def __init__(self, __range: TextRange, __items: list[CompletionItem]):
         """
@@ -27,9 +24,7 @@ class CompletionResult:
         ...
 class CompletionItem:
     """
-
     One completion candidate: label, kind, ranking relevance and source for deferred details.
-
     """
     def __init__(self, __label: str, __kind: CompletionKind, __relevance: int, __source: CompletionSource):
         ...
@@ -42,10 +37,7 @@ class CompletionItem:
     @property
     def relevance(self) -> int:
         """
-
-        Higher first: a local before a member before the file's scope before a keyword; the
-        client's own match against what was typed comes on top of it.
-
+        Higher first: a local before a member before the file's scope before a keyword; the client's own match against what was typed comes on top of it.
         """
         ...
     @property
@@ -54,9 +46,7 @@ class CompletionItem:
     @property
     def overloadCount(self) -> int:
         """
-
         How many declarations this item offers; counting a group needs no signature query.
-
         """
         ...
     def __eq__(self, __other: CompletionItem) -> bool:
@@ -65,9 +55,7 @@ class CompletionItem:
         ...
 class CompletionKind:
     """
-
     What a completion item is, for the client to show it as one.
-
     """
     def __eq__(self, __other: CompletionKind) -> bool:
         ...
@@ -134,12 +122,7 @@ class CompletionKind:
             ...
 class CompletionSource:
     """
-
-    What a completion item stands for, for its detail and documentation when a client asks for them
-    (`completionDetails`): a declaration, as a member of a value of a type if one's; a group of
-    overloads with their receiver types; a local of a body; a member parameter of a primary
-    constructor; nothing, for a keyword or a package.
-
+    What a completion item stands for, for its detail and documentation when a client asks for them (`completionDetails`): a declaration, as a member of a value of a type if one's; a group of overloads with their receiver types; a local of a body; a member parameter of a primary constructor; nothing, for a keyword or a package.
     """
     def __eq__(self, __other: CompletionSource) -> bool:
         ...

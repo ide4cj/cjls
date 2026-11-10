@@ -12,6 +12,7 @@ import loupe.db.AnalysisDatabase
  * (`CPointer`, `CString`): a file names those, through its scope.
  */
 @DerivePython
+@PyDoc["A declaration of std the language itself means, whatever a file's scope names: what the syntax is sugar for or is of. cjc's `GetCoreDecl`, R1's lang items (8f). Not the compiler's own types (`CPointer`, `CString`): a file names those, through its scope."]
 public enum LangItem <: Equatable<LangItem> & Hashable {
     /**
      * `Option`: `?T`, `??`, `as`, a value boxed.
@@ -97,6 +98,7 @@ public enum LangItem <: Equatable<LangItem> & Hashable {
     /**
      * The package of std it is declared in.
      */
+    @PyDoc["The package of std it is declared in."]
     public func pkg(): String {
         match (this) {
             case TokensClass => "std.ast"
@@ -107,6 +109,7 @@ public enum LangItem <: Equatable<LangItem> & Hashable {
     /**
      * The lang item it is a member of: an enum's of a constructor.
      */
+    @PyDoc["The lang item it is a member of: an enum's of a constructor."]
     public func owner(): ?LangItem {
         match (this) {
             case OptionSome | OptionNone => OptionEnum

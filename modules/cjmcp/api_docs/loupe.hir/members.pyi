@@ -2,9 +2,7 @@ from typing import Literal
 
 class ExtendedType:
     """
-
     A type an `extend` extends: one declared, or a type of the language by its keyword (`Int64`).
-
     """
     def __repr__(self) -> str:
         ...
@@ -47,10 +45,7 @@ class ExtendedType:
         __match_args__ = ('field0')
 class MemberTarget:
     """
-
-    What a name of the type a body is in stands for: a declaration among its members, or a member
-    parameter of its primary constructor (N69).
-
+    What a name of the type a body is in stands for: a declaration among its members, or a member parameter of its primary constructor (N69).
     """
     def __repr__(self) -> str:
         ...

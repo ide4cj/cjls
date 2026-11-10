@@ -2,10 +2,7 @@ from typing import Literal
 
 class Reference:
     """
-
-    A name of the workspace meaning what the one asked about does: where it is, how it reaches it, as
-    `RelatedHighlight` has it, and whether it is the name a declaration gives.
-
+    A name of the workspace meaning what the one asked about does: where it is, how it reaches it, as `RelatedHighlight` has it, and whether it is the name a declaration gives.
     """
     def __init__(self, __fileId: FileId, __range: TextRange, __access: ReferenceAccess | None, __isDeclaration: bool):
         """

@@ -2,11 +2,7 @@ from typing import Literal
 
 class LangItem:
     """
-
-    A declaration of std the language itself means, whatever a file's scope names: what the syntax is
-    sugar for or is of. cjc's `GetCoreDecl`, R1's lang items (8f). Not the compiler's own types
-    (`CPointer`, `CString`): a file names those, through its scope.
-
+    A declaration of std the language itself means, whatever a file's scope names: what the syntax is sugar for or is of. cjc's `GetCoreDecl`, R1's lang items (8f). Not the compiler's own types (`CPointer`, `CString`): a file names those, through its scope.
     """
     def name(self) -> str:
         """
@@ -21,16 +17,12 @@ class LangItem:
         ...
     def pkg(self) -> str:
         """
-
         The package of std it is declared in.
-
         """
         ...
     def owner(self) -> LangItem | None:
         """
-
         The lang item it is a member of: an enum's of a constructor.
-
         """
         ...
     def __eq__(self, __other: LangItem) -> bool:

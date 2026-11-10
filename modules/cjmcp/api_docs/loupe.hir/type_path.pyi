@@ -1,10 +1,36 @@
 from typing import Literal
 
+class TypeScope:
+    """
+    Where the types of a declaration's signature are looked up, rust-analyzer's `Resolver`: the type parameters of the declaration, then of the type or `extend` it is a member of, the innermost first, each shadowing anything of its name (N55); then the scope of its file.
+    """
+    def __init__(self, __generics: list[Generics], __pkg: Package, __file: SourceFile):
+        """
+         for type SourceFile, see 'loupe.db/db.pyi'
+         for type Package, see 'loupe.db/project.pyi'
+        """
+        ...
+    @property
+    def generics(self) -> list[Generics]:
+        """
+        The type parameters of the declaration, then of its parent, if it has one.
+        """
+        ...
+    @property
+    def pkg(self) -> Package:
+        """
+         for type Package, see 'loupe.db/project.pyi'
+        """
+        ...
+    @property
+    def file(self) -> SourceFile:
+        """
+         for type SourceFile, see 'loupe.db/db.pyi'
+        """
+        ...
 class PathResolution:
     """
-
     What a segment of a path in a type resolves to.
-
     """
     def __repr__(self) -> str:
         ...
@@ -49,9 +75,7 @@ class PathResolution:
             ...
 class TypeTarget:
     """
-
     What a segment of a path in a type names.
-
     """
     def __repr__(self) -> str:
         ...
@@ -115,10 +139,7 @@ class TypeTarget:
         __match_args__ = ('field0')
 class Generics:
     """
-
-    The type parameters of one declaration: the declaration, which `GenericOf` names, and their
-    names in order, an index among them a `GenericOf`'s.
-
+    The type parameters of one declaration: the declaration, which `GenericOf` names, and their names in order, an index among them a `GenericOf`'s.
     """
     def __init__(self, __owner: DefId, __names: list[str]):
         """
@@ -133,38 +154,4 @@ class Generics:
         ...
     @property
     def names(self) -> list[str]:
-        ...
-class TypeScope:
-    """
-
-    Where the types of a declaration's signature are looked up, rust-analyzer's `Resolver`: the type
-    parameters of the declaration, then of the type or `extend` it is a member of, the innermost
-    first, each shadowing anything of its name (N55); then the scope of its file.
-
-    """
-    def __init__(self, __generics: list[Generics], __pkg: Package, __file: SourceFile):
-        """
-         for type SourceFile, see 'loupe.db/db.pyi'
-         for type Package, see 'loupe.db/project.pyi'
-        """
-        ...
-    @property
-    def generics(self) -> list[Generics]:
-        """
-
-        The type parameters of the declaration, then of its parent, if it has one.
-
-        """
-        ...
-    @property
-    def pkg(self) -> Package:
-        """
-         for type Package, see 'loupe.db/project.pyi'
-        """
-        ...
-    @property
-    def file(self) -> SourceFile:
-        """
-         for type SourceFile, see 'loupe.db/db.pyi'
-        """
         ...

@@ -40,6 +40,7 @@ import loupe.vfs.FileId
  * `isConservative` set; any chain containing it must retain that qualification.
  */
 @DerivePython
+@PyDoc["A possible immediate call at a UTF-8 source site. Targets belong to the producing database/revision. `resolution` is `resolved-declaration` for an explicit call, `inferred-operator` for a selected operator overload, or `candidate` for an ambiguous or virtual target. A candidate has `isConservative` set; any chain containing it must retain that qualification."]
 public struct DirectCall <: Equatable<DirectCall> {
     public DirectCall(
         public let target: DefId,
@@ -77,6 +78,7 @@ public struct DirectCall <: Equatable<DirectCall> {
  * - `declaration-macro`, `body-macro`: macro behavior outside the transparent CalcaTracked policy.
  */
 @DerivePython
+@PyDoc["Coverage information, not a source diagnostic. A missing body may have no source site. Stable `reason` strings identify the omitted behavior: - `unavailable-body`: binary/expansion body, absent block or removed declaration. - `unresolved-call`: no declaration-backed callable target resolved. - `functional-value`: invocation of a local function, lambda, parameter, variable or expression. - `functional-value-or-constructor`: a value/type without a selected callable declaration. - `callback-flow`: a call has arguments; callback transfer/invocation is not modeled. This deliberately includes arguments that are not callbacks. - `virtual-dispatch`: possible runtime implementations of a static target are not enumerated. - `implicit-initialization`: field, base or other implicit construction effects. - `implicit-operator`: operator effects are incomplete, even with a selected overload edge. - `property-or-initialization`: getter/setter or declaration-backed value initialization. - `unresolved-value`: value resolution is unavailable. - `default-arguments`: default values are not unconditional body calls. - `implicit-conversion`: interpolation may invoke user conversion code. - `malformed-source`: parse recovery may have omitted executable code. - `iteration-protocol`, `resource-protocol`, `spawn-boundary`: implicit protocol/execution effects. - `declaration-macro`, `body-macro`: macro behavior outside the transparent CalcaTracked policy."]
 public struct CallGap <: Equatable<CallGap> {
     public CallGap(public let reason: String, public let site: ?NavigationTarget) {}
     public operator func ==(other: CallGap): Bool {
@@ -95,6 +97,7 @@ public struct CallGap <: Equatable<CallGap> {
  * This result cannot certify general language-level purity.
  */
 @DerivePython
+@PyDoc["Immediate edges and omissions in a partial possible-call model. Both conditional branches contribute; edges do not prove execution. Empty edges with gaps leave reachability unknown. Even a traversal without gaps establishes absence only within this model: compiler/runtime effects such as allocation, finalization and implicit string conversion may remain unmodeled. This result cannot certify general language-level purity."]
 public struct DirectCalls <: Equatable<DirectCalls> {
     public DirectCalls(public let edges: Array<DirectCall>, public let gaps: Array<CallGap>) {}
     public operator func ==(other: DirectCalls): Bool {
@@ -111,6 +114,7 @@ public struct DirectCalls <: Equatable<DirectCalls> {
  * Declaration identities belong to their producing analysis database and revision.
  */
 @DerivePython
+@PyDoc["Canonical declaration metadata, with an optional navigation location. Match targets by identity and ownership rather than source spelling: package ownership is independent of import aliases. Declaration identities belong to their producing analysis database and revision."]
 public struct CallDeclaration {
     public CallDeclaration(
         public let definition: DefId,

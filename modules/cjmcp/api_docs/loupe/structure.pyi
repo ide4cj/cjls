@@ -2,9 +2,7 @@ from typing import Literal
 
 class StructureKind:
     """
-
     The declaration category of a source structure node.
-
     """
     def __repr__(self) -> str:
         ...
@@ -83,10 +81,7 @@ class StructureKind:
             ...
 class StructureNode:
     """
-
-    One declaration of a file's outline. `range` is the whole of it, doc comment included;
-    `selectionRange`, inside it, is its name.
-
+    One declaration of a file's outline. `range` is the whole of it, doc comment included; `selectionRange`, inside it, is its name.
     """
     def __init__(self, __name: str, __kind: StructureKind, __range: TextRange, __selectionRange: TextRange, __children: list[StructureNode]):
         """

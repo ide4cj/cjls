@@ -2,10 +2,7 @@ from typing import Literal
 
 class MacroStatus:
     """
-
-    Work completion and diagnostic severity are independent: settled can include
-    failures, and pending is not itself a diagnostic.
-
+    Work completion and diagnostic severity are independent: settled can include failures, and pending is not itself a diagnostic.
     """
     def __init__(self, __state: MacroState, __diagnostics: list[WorkspaceDiagnostic]):
         ...
@@ -17,11 +14,7 @@ class MacroStatus:
         ...
 class WorkspaceDiagnostic:
     """
-
-    A diagnostic in the script's revision. Unknown locations remain None rather
-    than being inferred by parsing a toolchain's human-readable message.
-    Ranges are UTF-8 bytes; line and column are one-based, with a UTF-8 byte column.
-
+    A diagnostic in the script's revision. Unknown locations remain None rather than being inferred by parsing a toolchain's human-readable message. Ranges are UTF-8 bytes; line and column are one-based, with a UTF-8 byte column.
     """
     def __init__(self, __source: str, __severity: Severity, __message: str, *, code: str | None = ..., path: str | None = ..., range: TextRange | None = ..., line: int | None = ..., column: int | None = ..., unnecessary: bool = ...):
         """
@@ -64,9 +57,7 @@ class WorkspaceDiagnostic:
         ...
 class MacroState:
     """
-
     Whether this revision still needs macro preparation, independently of diagnostics.
-
     """
     def __eq__(self, __other: MacroState) -> bool:
         ...

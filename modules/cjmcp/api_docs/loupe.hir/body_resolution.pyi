@@ -2,9 +2,7 @@ from typing import Literal
 
 class ValueTarget:
     """
-
     What a name used in a body stands for.
-
     """
     def __repr__(self) -> str:
         ...
@@ -59,9 +57,7 @@ class ValueTarget:
         __match_args__ = ('field0')
 class BodyResolution:
     """
-
     What a name used in a body means.
-
     """
     def __repr__(self) -> str:
         ...
