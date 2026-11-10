@@ -1,5 +1,414 @@
 from typing import Literal
 
+class FieldTargets:
+    """
+    The members the name after the `.` of a value names, found from the value's type (N75).
+    """
+    def __init__(self, __expr: ExprId, __targets: list[MemberTarget]):
+        """
+         for type MemberTarget, see 'loupe.hir/members.pyi'
+         for type ExprId, see 'loupe.hir/body.pyi'
+        """
+        ...
+    @property
+    def expr(self) -> ExprId:
+        """
+         for type ExprId, see 'loupe.hir/body.pyi'
+        """
+        ...
+    @property
+    def targets(self) -> list[MemberTarget]:
+        """
+         for type MemberTarget, see 'loupe.hir/members.pyi'
+        """
+        ...
+    def keyIndex(self) -> int:
+        """
+        The body expression index associated with this inference entry.
+        """
+        ...
+    def __eq__(self, __other: FieldTargets) -> bool:
+        ...
+    def __ne__(self, __other: FieldTargets) -> bool:
+        ...
+class CalleeTarget:
+    """
+    The declaration selected for a call, by its callee (8d); initializer targets are used only for navigation.
+    """
+    def __init__(self, __expr: ExprId, __decl: DefId, *, isInitializer: bool = ...):
+        """
+         for type DefId, see 'loupe.hir/def_map.pyi'
+         for type ExprId, see 'loupe.hir/body.pyi'
+        """
+        ...
+    @property
+    def expr(self) -> ExprId:
+        """
+         for type ExprId, see 'loupe.hir/body.pyi'
+        """
+        ...
+    @property
+    def decl(self) -> DefId:
+        """
+         for type DefId, see 'loupe.hir/def_map.pyi'
+        """
+        ...
+    @property
+    def isInitializer(self) -> bool:
+        ...
+    def keyIndex(self) -> int:
+        """
+        The body expression index associated with this inference entry.
+        """
+        ...
+    def __eq__(self, __other: CalleeTarget) -> bool:
+        ...
+    def __ne__(self, __other: CalleeTarget) -> bool:
+        ...
+class NameTarget:
+    """
+    What a name the body uses as a value means, as inference resolved it: what highlighting and go to definition read, not resolving it again.
+    """
+    def __init__(self, __expr: ExprId, __resolution: BodyResolution):
+        """
+         for type BodyResolution, see 'loupe.hir/body_resolution.pyi'
+         for type ExprId, see 'loupe.hir/body.pyi'
+        """
+        ...
+    @property
+    def expr(self) -> ExprId:
+        """
+         for type ExprId, see 'loupe.hir/body.pyi'
+        """
+        ...
+    @property
+    def resolution(self) -> BodyResolution:
+        """
+         for type BodyResolution, see 'loupe.hir/body_resolution.pyi'
+        """
+        ...
+    def keyIndex(self) -> int:
+        """
+        The body expression index associated with this inference entry.
+        """
+        ...
+    def __eq__(self, __other: NameTarget) -> bool:
+        ...
+    def __ne__(self, __other: NameTarget) -> bool:
+        ...
+class AccessTarget:
+    """
+    What the name after the `.` of an expression means, as inference resolved it before the types: a member of a package or of types, or one of a value, which `FieldTargets` tells.
+    """
+    def __init__(self, __expr: ExprId, __resolution: FieldResolution):
+        """
+         for type FieldResolution, see 'loupe.hir/field_resolution.pyi'
+         for type ExprId, see 'loupe.hir/body.pyi'
+        """
+        ...
+    @property
+    def expr(self) -> ExprId:
+        """
+         for type ExprId, see 'loupe.hir/body.pyi'
+        """
+        ...
+    @property
+    def resolution(self) -> FieldResolution:
+        """
+         for type FieldResolution, see 'loupe.hir/field_resolution.pyi'
+        """
+        ...
+    def keyIndex(self) -> int:
+        """
+        The body expression index associated with this inference entry.
+        """
+        ...
+    def __eq__(self, __other: AccessTarget) -> bool:
+        ...
+    def __ne__(self, __other: AccessTarget) -> bool:
+        ...
+class InferenceDiagnostic:
+    """
+    What inference finds wrong in a body, by the expression it is about, as rust-analyzer's `InferenceDiagnostic`: where it is written is the source map's to say.
+    """
+    def __eq__(self, __other: InferenceDiagnostic) -> bool:
+        ...
+    def __ne__(self, __other: InferenceDiagnostic) -> bool:
+        ...
+    kind: Literal['TypeMismatch', 'VArraySizeMismatch', 'ArgCount', 'ArgName', 'InvalidBinaryOperator', 'CustomAnnotationPlace']
+    class TypeMismatch(InferenceDiagnostic):
+        kind: Literal['TypeMismatch'] = 'TypeMismatch'
+        def __init__(self, __p1: ExprId, __p2: Ty, __p3: Ty):
+            """
+             for type Ty, see 'loupe.hir/ty.pyi'
+             for type ExprId, see 'loupe.hir/body.pyi'
+            """
+            ...
+        @property
+        def field0(self) -> ExprId:
+            ...
+        @property
+        def field1(self) -> Ty:
+            ...
+        @property
+        def field2(self) -> Ty:
+            ...
+        __match_args__ = ('field0', 'field1', 'field2')
+    class VArraySizeMismatch(InferenceDiagnostic):
+        kind: Literal['VArraySizeMismatch'] = 'VArraySizeMismatch'
+        def __init__(self, __p1: ExprId, __p2: int, __p3: int):
+            """
+             for type ExprId, see 'loupe.hir/body.pyi'
+            """
+            ...
+        @property
+        def field0(self) -> ExprId:
+            ...
+        @property
+        def field1(self) -> int:
+            ...
+        @property
+        def field2(self) -> int:
+            ...
+        __match_args__ = ('field0', 'field1', 'field2')
+    class ArgCount(InferenceDiagnostic):
+        kind: Literal['ArgCount'] = 'ArgCount'
+        def __init__(self, __p1: ExprId, __p2: list[Ty], __p3: int):
+            """
+             for type Ty, see 'loupe.hir/ty.pyi'
+             for type ExprId, see 'loupe.hir/body.pyi'
+            """
+            ...
+        @property
+        def field0(self) -> ExprId:
+            ...
+        @property
+        def field1(self) -> list[Ty]:
+            ...
+        @property
+        def field2(self) -> int:
+            ...
+        __match_args__ = ('field0', 'field1', 'field2')
+    class ArgName(InferenceDiagnostic):
+        kind: Literal['ArgName'] = 'ArgName'
+        def __init__(self, __p1: ExprId, __p2: int, __p3: ArgNameError):
+            """
+             for type ExprId, see 'loupe.hir/body.pyi'
+            """
+            ...
+        @property
+        def field0(self) -> ExprId:
+            ...
+        @property
+        def field1(self) -> int:
+            ...
+        @property
+        def field2(self) -> ArgNameError:
+            ...
+        __match_args__ = ('field0', 'field1', 'field2')
+    class InvalidBinaryOperator(InferenceDiagnostic):
+        kind: Literal['InvalidBinaryOperator'] = 'InvalidBinaryOperator'
+        def __init__(self, __p1: ExprId, __p2: Ty, __p3: Ty):
+            """
+             for type Ty, see 'loupe.hir/ty.pyi'
+             for type ExprId, see 'loupe.hir/body.pyi'
+            """
+            ...
+        @property
+        def field0(self) -> ExprId:
+            ...
+        @property
+        def field1(self) -> Ty:
+            ...
+        @property
+        def field2(self) -> Ty:
+            ...
+        __match_args__ = ('field0', 'field1', 'field2')
+    class CustomAnnotationPlace(InferenceDiagnostic):
+        kind: Literal['CustomAnnotationPlace'] = 'CustomAnnotationPlace'
+        def __init__(self, __p1: ExprId):
+            """
+             for type ExprId, see 'loupe.hir/body.pyi'
+            """
+            ...
+        @property
+        def field0(self) -> ExprId:
+            ...
+        __match_args__ = ('field0',)
+class ArgNameError:
+    """
+    What is wrong with the name an argument is passed by (cjc's `CheckArgsWithParamName`, N156).
+    """
+    def __eq__(self, __other: ArgNameError) -> bool:
+        ...
+    def __ne__(self, __other: ArgNameError) -> bool:
+        ...
+    kind: Literal['UnknownName', 'NameTwice', 'NeedsName', 'NameOfValue']
+    class UnknownName(ArgNameError):
+        kind: Literal['UnknownName'] = 'UnknownName'
+        def __init__(self, __p1: str):
+            ...
+        @property
+        def field0(self) -> str:
+            ...
+        __match_args__ = ('field0',)
+    class NameTwice(ArgNameError):
+        kind: Literal['NameTwice'] = 'NameTwice'
+        def __init__(self, __p1: str):
+            ...
+        @property
+        def field0(self) -> str:
+            ...
+        __match_args__ = ('field0',)
+    class NeedsName(ArgNameError):
+        kind: Literal['NeedsName'] = 'NeedsName'
+        def __init__(self, __p1: list[str]):
+            ...
+        @property
+        def field0(self) -> list[str]:
+            ...
+        __match_args__ = ('field0',)
+    class NameOfValue(ArgNameError):
+        kind: Literal['NameOfValue'] = 'NameOfValue'
+        def __init__(self):
+            ...
+class ArgTarget:
+    """
+    Where each argument of a call goes, by its callee: the place of its parameter among those of what the call takes (#254).
+    """
+    def __init__(self, __expr: ExprId, __params: list[int]):
+        """
+         for type ExprId, see 'loupe.hir/body.pyi'
+        """
+        ...
+    @property
+    def expr(self) -> ExprId:
+        """
+         for type ExprId, see 'loupe.hir/body.pyi'
+        """
+        ...
+    @property
+    def params(self) -> list[int]:
+        ...
+    def keyIndex(self) -> int:
+        """
+        The body expression index associated with this inference entry.
+        """
+        ...
+    def __eq__(self, __other: ArgTarget) -> bool:
+        ...
+    def __ne__(self, __other: ArgTarget) -> bool:
+        ...
+class GenericBinding:
+    """
+    A final substitution, keyed by the binder that declared the parameter.
+    """
+    def __init__(self, __owner: GenericOwner, __index: int, __ty: Ty):
+        """
+         for type Ty, see 'loupe.hir/ty.pyi'
+         for type GenericOwner, see 'loupe.hir/ty.pyi'
+        """
+        ...
+    @property
+    def owner(self) -> GenericOwner:
+        """
+         for type GenericOwner, see 'loupe.hir/ty.pyi'
+        """
+        ...
+    @property
+    def index(self) -> int:
+        ...
+    @property
+    def ty(self) -> Ty:
+        """
+         for type Ty, see 'loupe.hir/ty.pyi'
+        """
+        ...
+    def __eq__(self, __other: GenericBinding) -> bool:
+        ...
+    def __ne__(self, __other: GenericBinding) -> bool:
+        ...
+class CallResolutionOutcome:
+    """
+    Selection outcome; unavailable input reasons remain in the inferred expression and signature types.
+    """
+    def __eq__(self, __other: CallResolutionOutcome) -> bool:
+        ...
+    def __ne__(self, __other: CallResolutionOutcome) -> bool:
+        ...
+    kind: Literal['Resolved', 'Ambiguous', 'Unresolved']
+    class Resolved(CallResolutionOutcome):
+        kind: Literal['Resolved'] = 'Resolved'
+        def __init__(self):
+            ...
+    class Ambiguous(CallResolutionOutcome):
+        kind: Literal['Ambiguous'] = 'Ambiguous'
+        def __init__(self):
+            ...
+    class Unresolved(CallResolutionOutcome):
+        kind: Literal['Unresolved'] = 'Unresolved'
+        def __init__(self):
+            ...
+class CallResolution:
+    """
+    The final inference evidence for one application, keyed by its callee.
+    """
+    def __init__(self, __expr: ExprId, __outcome: CallResolutionOutcome, *, decl: DefId | None = ..., local: LocalId | None = ..., signature: Ty | None = ..., bindings: list[GenericBinding] = ..., params: list[int] = ...):
+        """
+         for type LocalId, see 'loupe.hir/body.pyi'
+         for type DefId, see 'loupe.hir/def_map.pyi'
+         for type Ty, see 'loupe.hir/ty.pyi'
+         for type ExprId, see 'loupe.hir/body.pyi'
+        """
+        ...
+    @property
+    def expr(self) -> ExprId:
+        """
+         for type ExprId, see 'loupe.hir/body.pyi'
+        """
+        ...
+    @property
+    def outcome(self) -> CallResolutionOutcome:
+        ...
+    @property
+    def decl(self) -> DefId | None:
+        """
+         for type DefId, see 'loupe.hir/def_map.pyi'
+        """
+        ...
+    @property
+    def local(self) -> LocalId | None:
+        """
+         for type LocalId, see 'loupe.hir/body.pyi'
+        """
+        ...
+    @property
+    def signature(self) -> Ty | None:
+        """
+         for type Ty, see 'loupe.hir/ty.pyi'
+        """
+        ...
+    @property
+    def bindings(self) -> list[GenericBinding]:
+        """
+        Final substitutions of a successful call; unsuccessful candidates expose none.
+        """
+        ...
+    @property
+    def params(self) -> list[int]:
+        """
+        Argument-to-parameter mapping, in argument order, including packed variadic arguments.
+        """
+        ...
+    def keyIndex(self) -> int:
+        """
+        The body expression index associated with this inference entry.
+        """
+        ...
+    def __eq__(self, __other: CallResolution) -> bool:
+        ...
+    def __ne__(self, __other: CallResolution) -> bool:
+        ...
 class InferenceResult:
     """
     What inference finds in a body (D55), rust-analyzer's `InferenceResult`: the type of each of its expressions, patterns and locals, by id; the members found after the `.` of a value; the declaration each resolved call takes. A type not found is an error, or one the analysis cannot find, and why (D77).
@@ -176,413 +585,4 @@ class InferenceResult:
     def __eq__(self, __other: InferenceResult) -> bool:
         ...
     def __ne__(self, __other: InferenceResult) -> bool:
-        ...
-class CallResolution:
-    """
-    The final inference evidence for one application, keyed by its callee.
-    """
-    def __init__(self, __expr: ExprId, __outcome: CallResolutionOutcome, *, decl: DefId | None = ..., local: LocalId | None = ..., signature: Ty | None = ..., bindings: list[GenericBinding] = ..., params: list[int] = ...):
-        """
-         for type LocalId, see 'loupe.hir/body.pyi'
-         for type DefId, see 'loupe.hir/def_map.pyi'
-         for type Ty, see 'loupe.hir/ty.pyi'
-         for type ExprId, see 'loupe.hir/body.pyi'
-        """
-        ...
-    @property
-    def expr(self) -> ExprId:
-        """
-         for type ExprId, see 'loupe.hir/body.pyi'
-        """
-        ...
-    @property
-    def outcome(self) -> CallResolutionOutcome:
-        ...
-    @property
-    def decl(self) -> DefId | None:
-        """
-         for type DefId, see 'loupe.hir/def_map.pyi'
-        """
-        ...
-    @property
-    def local(self) -> LocalId | None:
-        """
-         for type LocalId, see 'loupe.hir/body.pyi'
-        """
-        ...
-    @property
-    def signature(self) -> Ty | None:
-        """
-         for type Ty, see 'loupe.hir/ty.pyi'
-        """
-        ...
-    @property
-    def bindings(self) -> list[GenericBinding]:
-        """
-        Final substitutions of a successful call; unsuccessful candidates expose none.
-        """
-        ...
-    @property
-    def params(self) -> list[int]:
-        """
-        Argument-to-parameter mapping, in argument order, including packed variadic arguments.
-        """
-        ...
-    def keyIndex(self) -> int:
-        """
-        The body expression index associated with this inference entry.
-        """
-        ...
-    def __eq__(self, __other: CallResolution) -> bool:
-        ...
-    def __ne__(self, __other: CallResolution) -> bool:
-        ...
-class CallResolutionOutcome:
-    """
-    Selection outcome; unavailable input reasons remain in the inferred expression and signature types.
-    """
-    def __eq__(self, __other: CallResolutionOutcome) -> bool:
-        ...
-    def __ne__(self, __other: CallResolutionOutcome) -> bool:
-        ...
-    kind: Literal['Resolved', 'Ambiguous', 'Unresolved']
-    class Resolved(CallResolutionOutcome):
-        kind: Literal['Resolved'] = 'Resolved'
-        def __init__(self):
-            ...
-    class Ambiguous(CallResolutionOutcome):
-        kind: Literal['Ambiguous'] = 'Ambiguous'
-        def __init__(self):
-            ...
-    class Unresolved(CallResolutionOutcome):
-        kind: Literal['Unresolved'] = 'Unresolved'
-        def __init__(self):
-            ...
-class AccessTarget:
-    """
-    What the name after the `.` of an expression means, as inference resolved it before the types: a member of a package or of types, or one of a value, which `FieldTargets` tells.
-    """
-    def __init__(self, __expr: ExprId, __resolution: FieldResolution):
-        """
-         for type FieldResolution, see 'loupe.hir/field_resolution.pyi'
-         for type ExprId, see 'loupe.hir/body.pyi'
-        """
-        ...
-    @property
-    def expr(self) -> ExprId:
-        """
-         for type ExprId, see 'loupe.hir/body.pyi'
-        """
-        ...
-    @property
-    def resolution(self) -> FieldResolution:
-        """
-         for type FieldResolution, see 'loupe.hir/field_resolution.pyi'
-        """
-        ...
-    def keyIndex(self) -> int:
-        """
-        The body expression index associated with this inference entry.
-        """
-        ...
-    def __eq__(self, __other: AccessTarget) -> bool:
-        ...
-    def __ne__(self, __other: AccessTarget) -> bool:
-        ...
-class NameTarget:
-    """
-    What a name the body uses as a value means, as inference resolved it: what highlighting and go to definition read, not resolving it again.
-    """
-    def __init__(self, __expr: ExprId, __resolution: BodyResolution):
-        """
-         for type BodyResolution, see 'loupe.hir/body_resolution.pyi'
-         for type ExprId, see 'loupe.hir/body.pyi'
-        """
-        ...
-    @property
-    def expr(self) -> ExprId:
-        """
-         for type ExprId, see 'loupe.hir/body.pyi'
-        """
-        ...
-    @property
-    def resolution(self) -> BodyResolution:
-        """
-         for type BodyResolution, see 'loupe.hir/body_resolution.pyi'
-        """
-        ...
-    def keyIndex(self) -> int:
-        """
-        The body expression index associated with this inference entry.
-        """
-        ...
-    def __eq__(self, __other: NameTarget) -> bool:
-        ...
-    def __ne__(self, __other: NameTarget) -> bool:
-        ...
-class FieldTargets:
-    """
-    The members the name after the `.` of a value names, found from the value's type (N75).
-    """
-    def __init__(self, __expr: ExprId, __targets: list[MemberTarget]):
-        """
-         for type MemberTarget, see 'loupe.hir/members.pyi'
-         for type ExprId, see 'loupe.hir/body.pyi'
-        """
-        ...
-    @property
-    def expr(self) -> ExprId:
-        """
-         for type ExprId, see 'loupe.hir/body.pyi'
-        """
-        ...
-    @property
-    def targets(self) -> list[MemberTarget]:
-        """
-         for type MemberTarget, see 'loupe.hir/members.pyi'
-        """
-        ...
-    def keyIndex(self) -> int:
-        """
-        The body expression index associated with this inference entry.
-        """
-        ...
-    def __eq__(self, __other: FieldTargets) -> bool:
-        ...
-    def __ne__(self, __other: FieldTargets) -> bool:
-        ...
-class CalleeTarget:
-    """
-    The declaration selected for a call, by its callee (8d); initializer targets are used only for navigation.
-    """
-    def __init__(self, __expr: ExprId, __decl: DefId, *, isInitializer: bool = ...):
-        """
-         for type DefId, see 'loupe.hir/def_map.pyi'
-         for type ExprId, see 'loupe.hir/body.pyi'
-        """
-        ...
-    @property
-    def expr(self) -> ExprId:
-        """
-         for type ExprId, see 'loupe.hir/body.pyi'
-        """
-        ...
-    @property
-    def decl(self) -> DefId:
-        """
-         for type DefId, see 'loupe.hir/def_map.pyi'
-        """
-        ...
-    @property
-    def isInitializer(self) -> bool:
-        ...
-    def keyIndex(self) -> int:
-        """
-        The body expression index associated with this inference entry.
-        """
-        ...
-    def __eq__(self, __other: CalleeTarget) -> bool:
-        ...
-    def __ne__(self, __other: CalleeTarget) -> bool:
-        ...
-class InferenceDiagnostic:
-    """
-    What inference finds wrong in a body, by the expression it is about, as rust-analyzer's `InferenceDiagnostic`: where it is written is the source map's to say.
-    """
-    def __eq__(self, __other: InferenceDiagnostic) -> bool:
-        ...
-    def __ne__(self, __other: InferenceDiagnostic) -> bool:
-        ...
-    kind: Literal['TypeMismatch', 'VArraySizeMismatch', 'ArgCount', 'ArgName', 'InvalidBinaryOperator', 'CustomAnnotationPlace']
-    class TypeMismatch(InferenceDiagnostic):
-        kind: Literal['TypeMismatch'] = 'TypeMismatch'
-        def __init__(self, __p1: ExprId, __p2: Ty, __p3: Ty):
-            """
-             for type Ty, see 'loupe.hir/ty.pyi'
-             for type ExprId, see 'loupe.hir/body.pyi'
-            """
-            ...
-        @property
-        def field0(self) -> ExprId:
-            ...
-        @property
-        def field1(self) -> Ty:
-            ...
-        @property
-        def field2(self) -> Ty:
-            ...
-        __match_args__ = ('field0', 'field1', 'field2')
-    class VArraySizeMismatch(InferenceDiagnostic):
-        kind: Literal['VArraySizeMismatch'] = 'VArraySizeMismatch'
-        def __init__(self, __p1: ExprId, __p2: int, __p3: int):
-            """
-             for type ExprId, see 'loupe.hir/body.pyi'
-            """
-            ...
-        @property
-        def field0(self) -> ExprId:
-            ...
-        @property
-        def field1(self) -> int:
-            ...
-        @property
-        def field2(self) -> int:
-            ...
-        __match_args__ = ('field0', 'field1', 'field2')
-    class ArgCount(InferenceDiagnostic):
-        kind: Literal['ArgCount'] = 'ArgCount'
-        def __init__(self, __p1: ExprId, __p2: list[Ty], __p3: int):
-            """
-             for type Ty, see 'loupe.hir/ty.pyi'
-             for type ExprId, see 'loupe.hir/body.pyi'
-            """
-            ...
-        @property
-        def field0(self) -> ExprId:
-            ...
-        @property
-        def field1(self) -> list[Ty]:
-            ...
-        @property
-        def field2(self) -> int:
-            ...
-        __match_args__ = ('field0', 'field1', 'field2')
-    class ArgName(InferenceDiagnostic):
-        kind: Literal['ArgName'] = 'ArgName'
-        def __init__(self, __p1: ExprId, __p2: int, __p3: ArgNameError):
-            """
-             for type ExprId, see 'loupe.hir/body.pyi'
-            """
-            ...
-        @property
-        def field0(self) -> ExprId:
-            ...
-        @property
-        def field1(self) -> int:
-            ...
-        @property
-        def field2(self) -> ArgNameError:
-            ...
-        __match_args__ = ('field0', 'field1', 'field2')
-    class InvalidBinaryOperator(InferenceDiagnostic):
-        kind: Literal['InvalidBinaryOperator'] = 'InvalidBinaryOperator'
-        def __init__(self, __p1: ExprId, __p2: Ty, __p3: Ty):
-            """
-             for type Ty, see 'loupe.hir/ty.pyi'
-             for type ExprId, see 'loupe.hir/body.pyi'
-            """
-            ...
-        @property
-        def field0(self) -> ExprId:
-            ...
-        @property
-        def field1(self) -> Ty:
-            ...
-        @property
-        def field2(self) -> Ty:
-            ...
-        __match_args__ = ('field0', 'field1', 'field2')
-    class CustomAnnotationPlace(InferenceDiagnostic):
-        kind: Literal['CustomAnnotationPlace'] = 'CustomAnnotationPlace'
-        def __init__(self, __p1: ExprId):
-            """
-             for type ExprId, see 'loupe.hir/body.pyi'
-            """
-            ...
-        @property
-        def field0(self) -> ExprId:
-            ...
-        __match_args__ = ('field0')
-class ArgNameError:
-    """
-    What is wrong with the name an argument is passed by (cjc's `CheckArgsWithParamName`, N156).
-    """
-    def __eq__(self, __other: ArgNameError) -> bool:
-        ...
-    def __ne__(self, __other: ArgNameError) -> bool:
-        ...
-    kind: Literal['UnknownName', 'NameTwice', 'NeedsName', 'NameOfValue']
-    class UnknownName(ArgNameError):
-        kind: Literal['UnknownName'] = 'UnknownName'
-        def __init__(self, __p1: str):
-            ...
-        @property
-        def field0(self) -> str:
-            ...
-        __match_args__ = ('field0')
-    class NameTwice(ArgNameError):
-        kind: Literal['NameTwice'] = 'NameTwice'
-        def __init__(self, __p1: str):
-            ...
-        @property
-        def field0(self) -> str:
-            ...
-        __match_args__ = ('field0')
-    class NeedsName(ArgNameError):
-        kind: Literal['NeedsName'] = 'NeedsName'
-        def __init__(self, __p1: list[str]):
-            ...
-        @property
-        def field0(self) -> list[str]:
-            ...
-        __match_args__ = ('field0')
-    class NameOfValue(ArgNameError):
-        kind: Literal['NameOfValue'] = 'NameOfValue'
-        def __init__(self):
-            ...
-class ArgTarget:
-    """
-    Where each argument of a call goes, by its callee: the place of its parameter among those of what the call takes (#254).
-    """
-    def __init__(self, __expr: ExprId, __params: list[int]):
-        """
-         for type ExprId, see 'loupe.hir/body.pyi'
-        """
-        ...
-    @property
-    def expr(self) -> ExprId:
-        """
-         for type ExprId, see 'loupe.hir/body.pyi'
-        """
-        ...
-    @property
-    def params(self) -> list[int]:
-        ...
-    def keyIndex(self) -> int:
-        """
-        The body expression index associated with this inference entry.
-        """
-        ...
-    def __eq__(self, __other: ArgTarget) -> bool:
-        ...
-    def __ne__(self, __other: ArgTarget) -> bool:
-        ...
-class GenericBinding:
-    """
-    A final substitution, keyed by the binder that declared the parameter.
-    """
-    def __init__(self, __owner: GenericOwner, __index: int, __ty: Ty):
-        """
-         for type Ty, see 'loupe.hir/ty.pyi'
-         for type GenericOwner, see 'loupe.hir/ty.pyi'
-        """
-        ...
-    @property
-    def owner(self) -> GenericOwner:
-        """
-         for type GenericOwner, see 'loupe.hir/ty.pyi'
-        """
-        ...
-    @property
-    def index(self) -> int:
-        ...
-    @property
-    def ty(self) -> Ty:
-        """
-         for type Ty, see 'loupe.hir/ty.pyi'
-        """
-        ...
-    def __eq__(self, __other: GenericBinding) -> bool:
-        ...
-    def __ne__(self, __other: GenericBinding) -> bool:
         ...

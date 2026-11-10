@@ -59,6 +59,7 @@ pkgs_with_derive_python = [
 def cjpydoc_args_for_pkg(pkg: PackageData) -> List[str]:
     return [
         "cjpydoc",
+        "--python-type=loupe.hir.BodySource=BodySource",
         *[f"--python-package-source={source.fqn}={source.src_dir()}"
           for source in pkgs_with_derive_python],
         "--import-path=target/release",

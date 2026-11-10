@@ -1,58 +1,5 @@
 from typing import Literal
 
-class CompletionResult:
-    """
-    The completions at a cursor: what the item inserted replaces, the name typed so far before the cursor, and the items, the most relevant first.
-    """
-    def __init__(self, __range: TextRange, __items: list[CompletionItem]):
-        """
-         for type TextRange, see 'ginkgo/text_range.pyi'
-        """
-        ...
-    @property
-    def range(self) -> TextRange:
-        """
-         for type TextRange, see 'ginkgo/text_range.pyi'
-        """
-        ...
-    @property
-    def items(self) -> list[CompletionItem]:
-        ...
-    def __eq__(self, __other: CompletionResult) -> bool:
-        ...
-    def __ne__(self, __other: CompletionResult) -> bool:
-        ...
-class CompletionItem:
-    """
-    One completion candidate: label, kind, ranking relevance and source for deferred details.
-    """
-    def __init__(self, __label: str, __kind: CompletionKind, __relevance: int, __source: CompletionSource):
-        ...
-    @property
-    def label(self) -> str:
-        ...
-    @property
-    def kind(self) -> CompletionKind:
-        ...
-    @property
-    def relevance(self) -> int:
-        """
-        Higher first: a local before a member before the file's scope before a keyword; the client's own match against what was typed comes on top of it.
-        """
-        ...
-    @property
-    def source(self) -> CompletionSource:
-        ...
-    @property
-    def overloadCount(self) -> int:
-        """
-        How many declarations this item offers; counting a group needs no signature query.
-        """
-        ...
-    def __eq__(self, __other: CompletionItem) -> bool:
-        ...
-    def __ne__(self, __other: CompletionItem) -> bool:
-        ...
 class CompletionKind:
     """
     What a completion item is, for the client to show it as one.
@@ -154,7 +101,7 @@ class CompletionSource:
         @property
         def field0(self) -> list[CompletionOverload]:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class LocalSource(CompletionSource):
         kind: Literal['LocalSource'] = 'LocalSource'
         def __init__(self, __p1: DefId, __p2: LocalId):
@@ -193,3 +140,56 @@ class CompletionSource:
         kind: Literal['NoSource'] = 'NoSource'
         def __init__(self):
             ...
+class CompletionItem:
+    """
+    One completion candidate: label, kind, ranking relevance and source for deferred details.
+    """
+    def __init__(self, __label: str, __kind: CompletionKind, __relevance: int, __source: CompletionSource):
+        ...
+    @property
+    def label(self) -> str:
+        ...
+    @property
+    def kind(self) -> CompletionKind:
+        ...
+    @property
+    def relevance(self) -> int:
+        """
+        Higher first: a local before a member before the file's scope before a keyword; the client's own match against what was typed comes on top of it.
+        """
+        ...
+    @property
+    def source(self) -> CompletionSource:
+        ...
+    @property
+    def overloadCount(self) -> int:
+        """
+        How many declarations this item offers; counting a group needs no signature query.
+        """
+        ...
+    def __eq__(self, __other: CompletionItem) -> bool:
+        ...
+    def __ne__(self, __other: CompletionItem) -> bool:
+        ...
+class CompletionResult:
+    """
+    The completions at a cursor: what the item inserted replaces, the name typed so far before the cursor, and the items, the most relevant first.
+    """
+    def __init__(self, __range: TextRange, __items: list[CompletionItem]):
+        """
+         for type TextRange, see 'ginkgo/text_range.pyi'
+        """
+        ...
+    @property
+    def range(self) -> TextRange:
+        """
+         for type TextRange, see 'ginkgo/text_range.pyi'
+        """
+        ...
+    @property
+    def items(self) -> list[CompletionItem]:
+        ...
+    def __eq__(self, __other: CompletionResult) -> bool:
+        ...
+    def __ne__(self, __other: CompletionResult) -> bool:
+        ...

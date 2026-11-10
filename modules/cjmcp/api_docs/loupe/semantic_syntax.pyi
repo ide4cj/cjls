@@ -1,25 +1,5 @@
 from typing import Literal
 
-class SemanticSyntaxError:
-    """
-    Parser recovery evidence bound to the tree's revision, including zero-width ranges.
-    """
-    def __init__(self, __analysis: SemanticAnalysis, __raw: SyntaxError):
-        """
-         for type SemanticAnalysis, see 'loupe/semantic.pyi'
-        """
-        ...
-    def range(self) -> TextRange:
-        """
-        Return the UTF-8 byte range of this parse error.
-         for type TextRange, see 'ginkgo/text_range.pyi'
-        """
-        ...
-    def message(self) -> str:
-        """
-        Return the human-readable parse error message.
-        """
-        ...
 class SemanticSyntaxTree:
     """
     A request-owned lossless tree. Every view operation checks the originating analysis revision. Never store this tree or its elements in tracked results (A13); retain pointer() instead.
@@ -43,34 +23,7 @@ class SemanticSyntaxPointer:
     """
     A tree-free node handle qualified by its analysis and contextual file/expansion. Construction is confined to checked views; raw kind/range pairs cannot forge provenance.
     """
-    def __init__(self, __analysis: SemanticAnalysis, __file: ItemFile, __ptr: SyntaxNodePtr):
-        """
-         for type ItemFile, see 'loupe.hir/binary.pyi'
-         for type SemanticAnalysis, see 'loupe/semantic.pyi'
-        """
-        ...
-class SemanticSyntaxOrigin:
-    """
-    Exact syntax, synthetic HIR and unavailable source remain distinct when traversing back.
-    """
     ...
-    kind: Literal['SourceSyntax', 'SyntheticSyntax', 'UnavailableSyntax']
-    class SourceSyntax(SemanticSyntaxOrigin):
-        kind: Literal['SourceSyntax'] = 'SourceSyntax'
-        def __init__(self, __p1: SemanticSyntaxElement):
-            ...
-        @property
-        def field0(self) -> SemanticSyntaxElement:
-            ...
-        __match_args__ = ('field0')
-    class SyntheticSyntax(SemanticSyntaxOrigin):
-        kind: Literal['SyntheticSyntax'] = 'SyntheticSyntax'
-        def __init__(self):
-            ...
-    class UnavailableSyntax(SemanticSyntaxOrigin):
-        kind: Literal['UnavailableSyntax'] = 'UnavailableSyntax'
-        def __init__(self):
-            ...
 class SemanticSyntaxElement:
     """
     A node or token, including trivia and recovery nodes. Copied text/ranges describe this revision; retained elements reject operations after a write. Children/descendants preserve source order.
@@ -121,6 +74,21 @@ class SemanticSyntaxElement:
         Exact node mappings, never a nearest mapped ancestor. Tokens/unmapped nodes return []; unavailable trees return none from SemanticAnalysis.syntax. Declaration, signature type, expression, pattern, local and body type mappings appear in that order, each in arena order. Macro aliases retain their call-site role and expansion object identity.
         """
         ...
+class SemanticSyntaxError:
+    """
+    Parser recovery evidence bound to the tree's revision, including zero-width ranges.
+    """
+    def range(self) -> TextRange:
+        """
+        Return the UTF-8 byte range of this parse error.
+         for type TextRange, see 'ginkgo/text_range.pyi'
+        """
+        ...
+    def message(self) -> str:
+        """
+        Return the human-readable parse error message.
+        """
+        ...
 class SemanticSyntaxRole:
     """
     Direct mappings include declarations/types/bindings and the first written expression. Later expressions of the same syntax are desugared values; aliases link call sites to expansion objects whose canonical syntax remains inside the expansion.
@@ -157,3 +125,25 @@ class SemanticSyntaxMapping:
     @property
     def role(self) -> SemanticSyntaxRole:
         ...
+class SemanticSyntaxOrigin:
+    """
+    Exact syntax, synthetic HIR and unavailable source remain distinct when traversing back.
+    """
+    ...
+    kind: Literal['SourceSyntax', 'SyntheticSyntax', 'UnavailableSyntax']
+    class SourceSyntax(SemanticSyntaxOrigin):
+        kind: Literal['SourceSyntax'] = 'SourceSyntax'
+        def __init__(self, __p1: SemanticSyntaxElement):
+            ...
+        @property
+        def field0(self) -> SemanticSyntaxElement:
+            ...
+        __match_args__ = ('field0',)
+    class SyntheticSyntax(SemanticSyntaxOrigin):
+        kind: Literal['SyntheticSyntax'] = 'SyntheticSyntax'
+        def __init__(self):
+            ...
+    class UnavailableSyntax(SemanticSyntaxOrigin):
+        kind: Literal['UnavailableSyntax'] = 'UnavailableSyntax'
+        def __init__(self):
+            ...

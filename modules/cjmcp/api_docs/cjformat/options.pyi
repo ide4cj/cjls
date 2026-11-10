@@ -4,9 +4,7 @@ class SimpleIf:
     """
     Layout of an if expression with one expression in each branch and no comments.
     """
-    @staticmethod
-    def fromToml(__v: FtValue) -> SimpleIf:
-        ...
+    ...
     kind: Literal['Compact', 'Multiline']
     class Compact(SimpleIf):
         kind: Literal['Compact'] = 'Compact'
@@ -37,7 +35,4 @@ class FormatOptions:
         ...
     @property
     def simpleIf(self) -> SimpleIf:
-        ...
-    @staticmethod
-    def fromToml(__v: FtValue) -> FormatOptions:
         ...

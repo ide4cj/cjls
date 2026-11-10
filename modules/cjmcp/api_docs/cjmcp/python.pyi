@@ -1,29 +1,5 @@
 from typing import Literal
 
-class Location:
-    """
-    A definition target: source path, full declaration range and selection range in UTF-8 bytes.
-    """
-    def __init__(self, __path: str, __range: TextRange, __selectionRange: TextRange):
-        """
-         for type TextRange, see 'ginkgo/text_range.pyi'
-        """
-        ...
-    @property
-    def path(self) -> str:
-        ...
-    @property
-    def range(self) -> TextRange:
-        """
-         for type TextRange, see 'ginkgo/text_range.pyi'
-        """
-        ...
-    @property
-    def selectionRange(self) -> TextRange:
-        """
-         for type TextRange, see 'ginkgo/text_range.pyi'
-        """
-        ...
 class Workspace:
     """
     A script-scoped view of the session workspace; reload queues preparation after the script.
@@ -107,5 +83,29 @@ class Workspace:
         """
         Capture this script's revision. Reacquire after a later workspace update.
          for type AnalysisRevision, see 'cjmcp/analysis.pyi'
+        """
+        ...
+class Location:
+    """
+    A definition target: source path, full declaration range and selection range in UTF-8 bytes.
+    """
+    def __init__(self, __path: str, __range: TextRange, __selectionRange: TextRange):
+        """
+         for type TextRange, see 'ginkgo/text_range.pyi'
+        """
+        ...
+    @property
+    def path(self) -> str:
+        ...
+    @property
+    def range(self) -> TextRange:
+        """
+         for type TextRange, see 'ginkgo/text_range.pyi'
+        """
+        ...
+    @property
+    def selectionRange(self) -> TextRange:
+        """
+         for type TextRange, see 'ginkgo/text_range.pyi'
         """
         ...

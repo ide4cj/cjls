@@ -1,41 +1,5 @@
 from typing import Literal
 
-class SemanticDependency:
-    """
-    A dependency permission, not evidence of an import statement.
-    """
-    def __init__(self, __source: SemanticModule, __name: str, __modules: list[SemanticModule], __binaries: list[BinaryModel], *, isTestOnly: bool = ..., isImplicit: bool = ...):
-        """
-         for type BinaryModel, see 'loupe.db/project.pyi'
-        """
-        ...
-    @property
-    def source(self) -> SemanticModule:
-        ...
-    @property
-    def name(self) -> str:
-        ...
-    @property
-    def modules(self) -> list[SemanticModule]:
-        ...
-    @property
-    def binaries(self) -> list[BinaryModel]:
-        """
-         for type BinaryModel, see 'loupe.db/project.pyi'
-        """
-        ...
-    @property
-    def isTestOnly(self) -> bool:
-        ...
-    @property
-    def isImplicit(self) -> bool:
-        ...
-    @property
-    def isResolved(self) -> bool:
-        """
-        False distinguishes a missing selected target from an empty package collection.
-        """
-        ...
 class SemanticProject:
     """
     Traversal of loaded inputs only. Collections preserve input order and support ordinary Array filtering. All methods use the originating snapshot and cancel after input changes.
@@ -71,24 +35,6 @@ class SemanticProject:
         """
         Return the project configuration retained in the analysis inputs.
         """
-        ...
-class SemanticImporters:
-    """
-    Reverse written-import evidence with explicit missing-source and binary graph gaps.
-    """
-    def __init__(self, __entries: list[SemanticImport], __unavailablePackages: list[SemanticPackage]):
-        """
-         for type SemanticImport, see 'loupe/semantic_scope.pyi'
-        """
-        ...
-    @property
-    def entries(self) -> list[SemanticImport]:
-        """
-         for type SemanticImport, see 'loupe/semantic_scope.pyi'
-        """
-        ...
-    @property
-    def unavailablePackages(self) -> list[SemanticPackage]:
         ...
 class SemanticConfiguration:
     """
@@ -127,6 +73,42 @@ class SemanticConfiguration:
     def hasCompleteCompilerInvocation(self) -> bool:
         """
         False: retained analysis configuration is not a complete compiler invocation.
+        """
+        ...
+class SemanticDependency:
+    """
+    A dependency permission, not evidence of an import statement.
+    """
+    def __init__(self, __source: SemanticModule, __name: str, __modules: list[SemanticModule], __binaries: list[BinaryModel], *, isTestOnly: bool = ..., isImplicit: bool = ...):
+        """
+         for type BinaryModel, see 'loupe.db/project.pyi'
+        """
+        ...
+    @property
+    def source(self) -> SemanticModule:
+        ...
+    @property
+    def name(self) -> str:
+        ...
+    @property
+    def modules(self) -> list[SemanticModule]:
+        ...
+    @property
+    def binaries(self) -> list[BinaryModel]:
+        """
+         for type BinaryModel, see 'loupe.db/project.pyi'
+        """
+        ...
+    @property
+    def isTestOnly(self) -> bool:
+        ...
+    @property
+    def isImplicit(self) -> bool:
+        ...
+    @property
+    def isResolved(self) -> bool:
+        """
+        False distinguishes a missing selected target from an empty package collection.
         """
         ...
 class SemanticModule:
@@ -304,4 +286,22 @@ class SemanticPackage:
         """
         Return the configuration available for this package, or None when unavailable.
         """
+        ...
+class SemanticImporters:
+    """
+    Reverse written-import evidence with explicit missing-source and binary graph gaps.
+    """
+    def __init__(self, __entries: list[SemanticImport], __unavailablePackages: list[SemanticPackage]):
+        """
+         for type SemanticImport, see 'loupe/semantic_scope.pyi'
+        """
+        ...
+    @property
+    def entries(self) -> list[SemanticImport]:
+        """
+         for type SemanticImport, see 'loupe/semantic_scope.pyi'
+        """
+        ...
+    @property
+    def unavailablePackages(self) -> list[SemanticPackage]:
         ...

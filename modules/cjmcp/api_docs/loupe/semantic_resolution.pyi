@@ -1,27 +1,5 @@
 from typing import Literal
 
-class SemanticGenericBinding:
-    """
-    A final instantiated generic parameter, identified by its real declaration or local binder.
-    """
-    def __init__(self, __parameter: SemanticObject, __valueType: SemanticType):
-        """
-         for type SemanticType, see 'loupe/semantic_type.pyi'
-         for type SemanticObject, see 'loupe/semantic.pyi'
-        """
-        ...
-    @property
-    def parameter(self) -> SemanticObject:
-        """
-         for type SemanticObject, see 'loupe/semantic.pyi'
-        """
-        ...
-    @property
-    def valueType(self) -> SemanticType:
-        """
-         for type SemanticType, see 'loupe/semantic_type.pyi'
-        """
-        ...
 class SemanticResolutionStatus:
     """
     Resolution completeness, independent of whether navigation source is available. MissingResolutionReason states that inference retained no more precise failure explanation.
@@ -75,7 +53,7 @@ class SemanticResolutionReason:
         @property
         def field0(self) -> UnknownReason:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class UnsupportedResolution(SemanticResolutionReason):
         kind: Literal['UnsupportedResolution'] = 'UnsupportedResolution'
         def __init__(self, __p1: Todo):
@@ -86,7 +64,7 @@ class SemanticResolutionReason:
         @property
         def field0(self) -> Todo:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class ImportResolutionFailure(SemanticResolutionReason):
         kind: Literal['ImportResolutionFailure'] = 'ImportResolutionFailure'
         def __init__(self, __p1: ImportError):
@@ -97,7 +75,29 @@ class SemanticResolutionReason:
         @property
         def field0(self) -> ImportError:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
+class SemanticGenericBinding:
+    """
+    A final instantiated generic parameter, identified by its real declaration or local binder.
+    """
+    def __init__(self, __parameter: SemanticObject, __valueType: SemanticType):
+        """
+         for type SemanticType, see 'loupe/semantic_type.pyi'
+         for type SemanticObject, see 'loupe/semantic.pyi'
+        """
+        ...
+    @property
+    def parameter(self) -> SemanticObject:
+        """
+         for type SemanticObject, see 'loupe/semantic.pyi'
+        """
+        ...
+    @property
+    def valueType(self) -> SemanticType:
+        """
+         for type SemanticType, see 'loupe/semantic_type.pyi'
+        """
+        ...
 class SemanticResolutionDiagnostic:
     """
     An inference diagnostic and its owner-qualified anchor in the originating snapshot.

@@ -1,19 +1,5 @@
 from typing import Literal
 
-class SemanticType:
-    """
-    A resolved type bound to the same snapshot as its semantic object. Used from one thread at a time; operations throw CancelledException after an input write or request cancellation. Nested types retain this context without creating another snapshot or exposing interned ids.
-    """
-    def kind(self) -> SemanticTypeKind:
-        """
-        Structure with aliases resolved; related definitions and child types need no database argument. Invalid, unsupported and unavailable types retain their distinct meanings and reasons.
-        """
-        ...
-    def display(self) -> str:
-        """
-        Type display read from this revision; unknown/error details remain available through kind().
-        """
-        ...
 class SemanticTypeKind:
     """
     Resolved type structure. Child types and definitions share the originating snapshot; copied names, sizes and reasons remain descriptions of that revision after cancellation. FunctionType carries parameter types, return type and whether it uses the C calling convention. FixedArrayType carries its element type and length. TypeParameterType names the binder's parameter.
@@ -27,7 +13,7 @@ class SemanticTypeKind:
         @property
         def field0(self) -> str:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class DeclaredType(SemanticTypeKind):
         kind: Literal['DeclaredType'] = 'DeclaredType'
         def __init__(self, __p1: SemanticObject, __p2: list[SemanticType]):
@@ -63,7 +49,7 @@ class SemanticTypeKind:
         @property
         def field0(self) -> list[SemanticType]:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class FunctionType(SemanticTypeKind):
         kind: Literal['FunctionType'] = 'FunctionType'
         def __init__(self, __p1: list[SemanticType], __p2: SemanticType, __p3: bool):
@@ -99,7 +85,7 @@ class SemanticTypeKind:
         @property
         def field0(self) -> SemanticObject:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class SelfType(SemanticTypeKind):
         kind: Literal['SelfType'] = 'SelfType'
         def __init__(self):
@@ -118,7 +104,7 @@ class SemanticTypeKind:
         @property
         def field0(self) -> Todo:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class UnavailableType(SemanticTypeKind):
         kind: Literal['UnavailableType'] = 'UnavailableType'
         def __init__(self, __p1: UnknownReason):
@@ -129,8 +115,22 @@ class SemanticTypeKind:
         @property
         def field0(self) -> UnknownReason:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class InferenceVariableType(SemanticTypeKind):
         kind: Literal['InferenceVariableType'] = 'InferenceVariableType'
         def __init__(self):
             ...
+class SemanticType:
+    """
+    A resolved type bound to the same snapshot as its semantic object. Used from one thread at a time; operations throw CancelledException after an input write or request cancellation. Nested types retain this context without creating another snapshot or exposing interned ids.
+    """
+    def kind(self) -> SemanticTypeKind:
+        """
+        Structure with aliases resolved; related definitions and child types need no database argument. Invalid, unsupported and unavailable types retain their distinct meanings and reasons.
+        """
+        ...
+    def display(self) -> str:
+        """
+        Type display read from this revision; unknown/error details remain available through kind().
+        """
+        ...

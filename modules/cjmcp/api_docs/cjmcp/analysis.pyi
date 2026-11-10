@@ -155,6 +155,7 @@ class AnalysisRevision:
         ...
     def substituteType(self, __ty: Ty, __owner: DefId, __args: list[Ty]) -> Ty:
         """
+        Substitute owner generic parameters with args in ty.
          for type DefId, see 'loupe.hir/def_map.pyi'
          for type Ty, see 'loupe.hir/ty.pyi'
         """

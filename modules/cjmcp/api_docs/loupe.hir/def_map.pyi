@@ -1,52 +1,5 @@
 from typing import Literal
 
-class ScopeStage:
-    """
-    What a package's scope is read at (#175): what its files write, or that and what the macro calls in them add. A macro's name is looked up in the first, since no macro is ever generated and what is expanded depends on it: the second is a function of the first, and never a cycle of queries.
-    """
-    def __eq__(self, __other: ScopeStage) -> bool:
-        ...
-    def __ne__(self, __other: ScopeStage) -> bool:
-        ...
-    def __hash__(self) -> int:
-        ...
-    kind: Literal['Written', 'Expanded']
-    class Written(ScopeStage):
-        kind: Literal['Written'] = 'Written'
-        def __init__(self):
-            ...
-    class Expanded(ScopeStage):
-        kind: Literal['Expanded'] = 'Expanded'
-        def __init__(self):
-            ...
-class CalcaFields_DefId:
-    """
-    An item across files: its file and its id there, interned, so that what is keyed by a definition (its signature, its body) is keyed by one number.
-    """
-    ...
-class DefId:
-    """
-    An item across files: its file and its id there, interned, so that what is keyed by a definition (its signature, its body) is keyed by one number.
-    """
-    ...
-class Redefinition:
-    """
-    A declaration whose name another of its package took first: anything but a function sharing a name with any other declaration (N19, N20, N22). The declaration ID is exposed as definition in Python.
-    """
-    def __init__(self, __def: DefId, __name: str):
-        ...
-    @property
-    def definition(self) -> DefId:
-        ...
-    @property
-    def name(self) -> str:
-        ...
-    def __repr__(self) -> str:
-        ...
-    def __eq__(self, __other: Redefinition) -> bool:
-        ...
-    def __ne__(self, __other: Redefinition) -> bool:
-        ...
 class PackageRef:
     """
     A package of either kind, as name resolution takes it: one of the project's sources, or one compiled already (D38). What resolves in it does not ask which.
@@ -70,7 +23,7 @@ class PackageRef:
         @property
         def field0(self) -> Package:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class Binary(PackageRef):
         kind: Literal['Binary'] = 'Binary'
         def __init__(self, __p1: BinaryPackageFile):
@@ -81,7 +34,12 @@ class PackageRef:
         @property
         def field0(self) -> BinaryPackageFile:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
+class DefId:
+    """
+    An item across files: its file and its id there, interned, so that what is keyed by a definition (its signature, its body) is keyed by one number.
+    """
+    ...
 class Visibility:
     """
     Who sees a declaration (N1–N4): `private` its file, `internal` its package and those under it by name, `protected` the packages of its first segment, `public` anyone.
@@ -127,3 +85,40 @@ class Def:
         ...
     def __ne__(self, __other: Def) -> bool:
         ...
+class Redefinition:
+    """
+    A declaration whose name another of its package took first: anything but a function sharing a name with any other declaration (N19, N20, N22). The declaration ID is exposed as definition in Python.
+    """
+    def __init__(self, __def: DefId, __name: str):
+        ...
+    @property
+    def definition(self) -> DefId:
+        ...
+    @property
+    def name(self) -> str:
+        ...
+    def __repr__(self) -> str:
+        ...
+    def __eq__(self, __other: Redefinition) -> bool:
+        ...
+    def __ne__(self, __other: Redefinition) -> bool:
+        ...
+class ScopeStage:
+    """
+    What a package's scope is read at (#175): what its files write, or that and what the macro calls in them add. A macro's name is looked up in the first, since no macro is ever generated and what is expanded depends on it: the second is a function of the first, and never a cycle of queries.
+    """
+    def __eq__(self, __other: ScopeStage) -> bool:
+        ...
+    def __ne__(self, __other: ScopeStage) -> bool:
+        ...
+    def __hash__(self) -> int:
+        ...
+    kind: Literal['Written', 'Expanded']
+    class Written(ScopeStage):
+        kind: Literal['Written'] = 'Written'
+        def __init__(self):
+            ...
+    class Expanded(ScopeStage):
+        kind: Literal['Expanded'] = 'Expanded'
+        def __init__(self):
+            ...

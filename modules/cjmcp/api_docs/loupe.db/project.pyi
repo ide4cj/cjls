@@ -1,40 +1,48 @@
 from typing import Literal
 
-class BinaryPackageFile:
+class CfgOption:
     """
-    A package compiled already, as the analysis sees it: the bytes of its `.cjo`, kept out of the `Vfs`, which holds what an editor may open and edit as text (D38). One per binary, package and file, never dropped: a package gone is no longer in `Project.binaryPackages`, and holds no bytes.
+    One option `@When` is evaluated against: `os == "Linux"` reads the option `os`.
     """
-    ...
-class Package:
-    """
-    A package of the project, one per name in a module, never dropped: a package gone is no longer in its module. Its files are an input of their own, not found from their texts: a file deleted is an empty text (A5), which nothing tells from an empty file.
-    """
-    ...
-class NativeLibrary:
-    """
-    A native linker name and search directory; it supplies no Cangjie declarations.
-    """
-    def __init__(self, __name: str, __dir: VfsPath):
-        """
-         for type VfsPath, see 'loupe.vfs/path.pyi'
-        """
+    def __init__(self, __key: str, __value: str):
         ...
     @property
-    def name(self) -> str:
+    def key(self) -> str:
         ...
     @property
-    def dir(self) -> VfsPath:
+    def value(self) -> str:
+        ...
+    def __eq__(self, __other: CfgOption) -> bool:
+        ...
+    def __ne__(self, __other: CfgOption) -> bool:
+        ...
+class Cfg:
+    """
+    What `@When` is evaluated against: `os`, `arch`, `backend` and whatever else a build sets, each key once, in the order of the keys.
+    """
+    @property
+    def options(self) -> list[CfgOption]:
+        ...
+    def __init__(self, __options: list[tuple[str, str]]):
         """
-         for type VfsPath, see 'loupe.vfs/path.pyi'
+
+        A later option of a key replaces an earlier one.
+
         """
         ...
-    def __eq__(self, __other: NativeLibrary) -> bool:
+    def get(self, __key: str) -> str | None:
+        """
+        The value of `key`, `None` if this sets none.
+        """
         ...
-    def __ne__(self, __other: NativeLibrary) -> bool:
+    def overriddenBy(self, __overrides: Cfg) -> Cfg:
+        """
+        These options, with those of `overrides` in place of any of the same key.
+        """
         ...
-    def __hash__(self) -> int:
+    def __eq__(self, __other: Cfg) -> bool:
         ...
-    def __repr__(self) -> str:
+    def __ne__(self, __other: Cfg) -> bool:
         ...
 class PackageModel:
     """
@@ -86,44 +94,31 @@ class PackageModel:
         ...
     def __ne__(self, __other: PackageModel) -> bool:
         ...
-class CfgOption:
+class NativeLibrary:
     """
-    One option `@When` is evaluated against: `os == "Linux"` reads the option `os`.
+    A native linker name and search directory; it supplies no Cangjie declarations.
     """
-    def __init__(self, __key: str, __value: str):
+    def __init__(self, __name: str, __dir: VfsPath):
+        """
+         for type VfsPath, see 'loupe.vfs/path.pyi'
+        """
         ...
     @property
-    def key(self) -> str:
+    def name(self) -> str:
         ...
     @property
-    def value(self) -> str:
-        ...
-    def __eq__(self, __other: CfgOption) -> bool:
-        ...
-    def __ne__(self, __other: CfgOption) -> bool:
-        ...
-class Cfg:
-    """
-    What `@When` is evaluated against: `os`, `arch`, `backend` and whatever else a build sets, each key once, in the order of the keys.
-    """
-    @property
-    def options(self) -> list[CfgOption]:
-        ...
-    def __init__(self, __options: list[tuple[str, str]]):
-        ...
-    def get(self, __key: str) -> str | None:
+    def dir(self) -> VfsPath:
         """
-        The value of `key`, `None` if this sets none.
+         for type VfsPath, see 'loupe.vfs/path.pyi'
         """
         ...
-    def overriddenBy(self, __overrides: Cfg) -> Cfg:
-        """
-        These options, with those of `overrides` in place of any of the same key.
-        """
+    def __eq__(self, __other: NativeLibrary) -> bool:
         ...
-    def __eq__(self, __other: Cfg) -> bool:
+    def __ne__(self, __other: NativeLibrary) -> bool:
         ...
-    def __ne__(self, __other: Cfg) -> bool:
+    def __hash__(self) -> int:
+        ...
+    def __repr__(self) -> str:
         ...
 class BinaryPackage:
     """
@@ -234,3 +229,13 @@ class InactiveSourceFile:
         ...
     def __ne__(self, __other: InactiveSourceFile) -> bool:
         ...
+class Package:
+    """
+    A package of the project, one per name in a module, never dropped: a package gone is no longer in its module. Its files are an input of their own, not found from their texts: a file deleted is an empty text (A5), which nothing tells from an empty file.
+    """
+    ...
+class BinaryPackageFile:
+    """
+    A package compiled already, as the analysis sees it: the bytes of its `.cjo`, kept out of the `Vfs`, which holds what an editor may open and edit as text (D38). One per binary, package and file, never dropped: a package gone is no longer in `Project.binaryPackages`, and holds no bytes.
+    """
+    ...

@@ -1,46 +1,5 @@
 from typing import Literal
 
-class ExpandedMacro:
-    """
-    What a macro call expands to, as the analysis reads it.
-    """
-    def __init__(self, __name: str, __range: TextRange, __text: str, __kind: ExpansionKind, *, declaration: str | None = ...):
-        """
-         for type TextRange, see 'ginkgo/text_range.pyi'
-        """
-        ...
-    @property
-    def name(self) -> str:
-        """
-        The macro's name as the call writes it, `@` and its path, its attribute left out: `@Derive`, `@m.M`.
-        """
-        ...
-    @property
-    def range(self) -> TextRange:
-        """
-        The head of the call in its file (`MacroCallAt.range`).
-         for type TextRange, see 'ginkgo/text_range.pyi'
-        """
-        ...
-    @property
-    def text(self) -> str:
-        """
-        The text of the expansion, which `hoverInExpansion` and `definitionInExpansion` take offsets in and `NavigationTarget.expansion` gives ranges of.
-        """
-        ...
-    @property
-    def kind(self) -> ExpansionKind:
-        ...
-    @property
-    def declaration(self) -> str | None:
-        """
-        The declaration the call is on, as written after the call's head, for an expansion that adds after it rather than replaces it, which cjc's output starts with: one of std's but `@Strategy`'s. `None` otherwise.
-        """
-        ...
-    def __eq__(self, __other: ExpandedMacro) -> bool:
-        ...
-    def __ne__(self, __other: ExpandedMacro) -> bool:
-        ...
 class MacroCallAt:
     """
     The macro call at a position (`macroCallAt`): the call whose expansion shows it, and where the call at the position is.
@@ -95,3 +54,44 @@ class ExpansionKind:
         kind: Literal['OwnExpansion'] = 'OwnExpansion'
         def __init__(self):
             ...
+class ExpandedMacro:
+    """
+    What a macro call expands to, as the analysis reads it.
+    """
+    def __init__(self, __name: str, __range: TextRange, __text: str, __kind: ExpansionKind, *, declaration: str | None = ...):
+        """
+         for type TextRange, see 'ginkgo/text_range.pyi'
+        """
+        ...
+    @property
+    def name(self) -> str:
+        """
+        The macro's name as the call writes it, `@` and its path, its attribute left out: `@Derive`, `@m.M`.
+        """
+        ...
+    @property
+    def range(self) -> TextRange:
+        """
+        The head of the call in its file (`MacroCallAt.range`).
+         for type TextRange, see 'ginkgo/text_range.pyi'
+        """
+        ...
+    @property
+    def text(self) -> str:
+        """
+        The text of the expansion, which `hoverInExpansion` and `definitionInExpansion` take offsets in and `NavigationTarget.expansion` gives ranges of.
+        """
+        ...
+    @property
+    def kind(self) -> ExpansionKind:
+        ...
+    @property
+    def declaration(self) -> str | None:
+        """
+        The declaration the call is on, as written after the call's head, for an expansion that adds after it rather than replaces it, which cjc's output starts with: one of std's but `@Strategy`'s. `None` otherwise.
+        """
+        ...
+    def __eq__(self, __other: ExpandedMacro) -> bool:
+        ...
+    def __ne__(self, __other: ExpandedMacro) -> bool:
+        ...

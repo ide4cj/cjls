@@ -1,59 +1,10 @@
 from typing import Literal
 
-class UnknownReason:
+class Ty:
     """
-    Why a type is unknown given the available inputs, inference progress and resources.
+    A type as inference takes it, rust-analyzer's `Ty`: its names resolved, its aliases expanded, `?T` an `Option<T>`. Interned (D54), as R1's and cjc's are (`TypeManager` hands out one `Ty` for one declaration and arguments): two equal types are one id, compared and hashed as a number.
     """
-    def __repr__(self) -> str:
-        ...
-    def __eq__(self, __other: UnknownReason) -> bool:
-        ...
-    def __ne__(self, __other: UnknownReason) -> bool:
-        ...
-    def __hash__(self) -> int:
-        ...
-    kind: Literal['BinaryType', 'NotInferred', 'NoStd', 'GenericBoundsLimit', 'LambdaCandidatesLimit']
-    class BinaryType(UnknownReason):
-        kind: Literal['BinaryType'] = 'BinaryType'
-        def __init__(self):
-            ...
-    class NotInferred(UnknownReason):
-        kind: Literal['NotInferred'] = 'NotInferred'
-        def __init__(self):
-            ...
-    class NoStd(UnknownReason):
-        kind: Literal['NoStd'] = 'NoStd'
-        def __init__(self):
-            ...
-    class GenericBoundsLimit(UnknownReason):
-        kind: Literal['GenericBoundsLimit'] = 'GenericBoundsLimit'
-        def __init__(self):
-            ...
-    class LambdaCandidatesLimit(UnknownReason):
-        kind: Literal['LambdaCandidatesLimit'] = 'LambdaCandidatesLimit'
-        def __init__(self):
-            ...
-class Todo:
-    """
-    Why the analysis cannot find a type (D77): what it does not do yet, each a gap of its own.
-    """
-    def __repr__(self) -> str:
-        ...
-    def __eq__(self, __other: Todo) -> bool:
-        ...
-    def __ne__(self, __other: Todo) -> bool:
-        ...
-    def __hash__(self) -> int:
-        ...
-    kind: Literal['MacroCall', 'MacroMember']
-    class MacroCall(Todo):
-        kind: Literal['MacroCall'] = 'MacroCall'
-        def __init__(self):
-            ...
-    class MacroMember(Todo):
-        kind: Literal['MacroMember'] = 'MacroMember'
-        def __init__(self):
-            ...
+    ...
 class GenericOwner:
     """
     A generic binder: a declaration, or a local function within its owner's body (D50). Local function indices are body-local, so the enclosing declaration is part of identity.
@@ -75,7 +26,7 @@ class GenericOwner:
         @property
         def field0(self) -> DefId:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class LocalFunction(GenericOwner):
         kind: Literal['LocalFunction'] = 'LocalFunction'
         def __init__(self, __p1: DefId, __p2: int):
@@ -90,16 +41,6 @@ class GenericOwner:
         def field1(self) -> int:
             ...
         __match_args__ = ('field0', 'field1')
-class CalcaFields_Ty:
-    """
-    A type as inference takes it, rust-analyzer's `Ty`: its names resolved, its aliases expanded, `?T` an `Option<T>`. Interned (D54), as R1's and cjc's are (`TypeManager` hands out one `Ty` for one declaration and arguments): two equal types are one id, compared and hashed as a number.
-    """
-    ...
-class Ty:
-    """
-    A type as inference takes it, rust-analyzer's `Ty`: its names resolved, its aliases expanded, `?T` an `Option<T>`. Interned (D54), as R1's and cjc's are (`TypeManager` hands out one `Ty` for one declaration and arguments): two equal types are one id, compared and hashed as a number.
-    """
-    ...
 class TyKind:
     """
     What a `Ty` is: resolved signature types, unknown types and call-local inference variables.
@@ -121,7 +62,7 @@ class TyKind:
         @property
         def field0(self) -> str:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class DeclTy(TyKind):
         kind: Literal['DeclTy'] = 'DeclTy'
         def __init__(self, __p1: DefId, __p2: list[Ty]):
@@ -157,7 +98,7 @@ class TyKind:
         @property
         def field0(self) -> list[Ty]:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class FuncTy(TyKind):
         kind: Literal['FuncTy'] = 'FuncTy'
         def __init__(self, __p1: list[Ty], __p2: Ty, __p3: bool):
@@ -209,7 +150,7 @@ class TyKind:
         @property
         def field0(self) -> Todo:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class UnknownTy(TyKind):
         kind: Literal['UnknownTy'] = 'UnknownTy'
         def __init__(self, __p1: UnknownReason):
@@ -217,7 +158,7 @@ class TyKind:
         @property
         def field0(self) -> UnknownReason:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
     class InferTy(TyKind):
         kind: Literal['InferTy'] = 'InferTy'
         def __init__(self, __p1: int):
@@ -225,4 +166,58 @@ class TyKind:
         @property
         def field0(self) -> int:
             ...
-        __match_args__ = ('field0')
+        __match_args__ = ('field0',)
+class Todo:
+    """
+    Why the analysis cannot find a type (D77): what it does not do yet, each a gap of its own.
+    """
+    def __repr__(self) -> str:
+        ...
+    def __eq__(self, __other: Todo) -> bool:
+        ...
+    def __ne__(self, __other: Todo) -> bool:
+        ...
+    def __hash__(self) -> int:
+        ...
+    kind: Literal['MacroCall', 'MacroMember']
+    class MacroCall(Todo):
+        kind: Literal['MacroCall'] = 'MacroCall'
+        def __init__(self):
+            ...
+    class MacroMember(Todo):
+        kind: Literal['MacroMember'] = 'MacroMember'
+        def __init__(self):
+            ...
+class UnknownReason:
+    """
+    Why a type is unknown given the available inputs, inference progress and resources.
+    """
+    def __repr__(self) -> str:
+        ...
+    def __eq__(self, __other: UnknownReason) -> bool:
+        ...
+    def __ne__(self, __other: UnknownReason) -> bool:
+        ...
+    def __hash__(self) -> int:
+        ...
+    kind: Literal['BinaryType', 'NotInferred', 'NoStd', 'GenericBoundsLimit', 'LambdaCandidatesLimit']
+    class BinaryType(UnknownReason):
+        kind: Literal['BinaryType'] = 'BinaryType'
+        def __init__(self):
+            ...
+    class NotInferred(UnknownReason):
+        kind: Literal['NotInferred'] = 'NotInferred'
+        def __init__(self):
+            ...
+    class NoStd(UnknownReason):
+        kind: Literal['NoStd'] = 'NoStd'
+        def __init__(self):
+            ...
+    class GenericBoundsLimit(UnknownReason):
+        kind: Literal['GenericBoundsLimit'] = 'GenericBoundsLimit'
+        def __init__(self):
+            ...
+    class LambdaCandidatesLimit(UnknownReason):
+        kind: Literal['LambdaCandidatesLimit'] = 'LambdaCandidatesLimit'
+        def __init__(self):
+            ...
