@@ -1,9 +1,8 @@
+from typing import Literal
+
 class NoSpecific:
     """
-    
-    A `common` declaration no `specific` one completes, though it needs one, as cjc says it: `'common'
-    function 'f' can not find 'specific' match`.
-    
+    A `common` declaration no `specific` one completes, though it needs one, as cjc says it: `'common' function 'f' can not find 'specific' match`. The declaration ID is exposed as definition in Python.
     """
     def __init__(self, __def: DefId, __message: str):
         """
@@ -11,7 +10,7 @@ class NoSpecific:
         """
         ...
     @property
-    def def(self) -> DefId:
+    def definition(self) -> DefId:
         """
          for type DefId, see 'loupe.hir/def_map.pyi'
         """

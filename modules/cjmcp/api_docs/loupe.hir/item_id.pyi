@@ -1,10 +1,8 @@
+from typing import Literal
+
 class ItemKind:
     """
-    
-    What an item is: a declaration the item tree holds, an import, or a macro call on no declaration;
-    `BuiltIn` gives a compiler-owned type a scoped name, from std.core's binary or synthetic source
-    declarations; its semantic type does not depend on this identity (D154).
-    
+    What an item is: a declaration the item tree holds, an import, or a macro call on no declaration; `BuiltIn` gives a compiler-owned type a scoped name, from std.core's binary or synthetic source declarations; its semantic type does not depend on this identity (D154).
     """
     def __repr__(self) -> str:
         ...
@@ -14,7 +12,7 @@ class ItemKind:
         ...
     def __hash__(self) -> int:
         ...
-    kind: Literal['Import'] | Literal['Func'] | Literal['Main'] | Literal['Macro'] | Literal['Class'] | Literal['Interface'] | Literal['Struct'] | Literal['Enum'] | Literal['Extend'] | Literal['TypeAlias'] | Literal['Var'] | Literal['Prop'] | Literal['Init'] | Literal['Finalizer'] | Literal['PrimaryInit'] | Literal['EnumCtor'] | Literal['MacroCall'] | Literal['BuiltIn']
+    kind: Literal['Import', 'Func', 'Main', 'Macro', 'Class', 'Interface', 'Struct', 'Enum', 'Extend', 'TypeAlias', 'Var', 'Prop', 'Init', 'Finalizer', 'PrimaryInit', 'EnumCtor', 'MacroCall', 'BuiltIn']
     class Import(ItemKind):
         kind: Literal['Import'] = 'Import'
         def __init__(self):
@@ -89,13 +87,7 @@ class ItemKind:
             ...
 class ItemId:
     """
-    
-    An item of a file, named so that an edit elsewhere leaves it as it is (D34): its kind, a hash of
-    its parent's id and its name, and its place among the items of the file with the same kind and
-    hash. An edit inside a body, a blank line, an item added or removed or moved leaves the ids of the
-    other items alone; only an overload added before one moves it. It means something only in its
-    file, and goes back to a node through the file's `ItemIdMap`.
-    
+    An item of a file, named so that an edit elsewhere leaves it as it is (D34): its kind, a hash of its parent's id and its name, and its place among the items of the file with the same kind and hash. An edit inside a body, a blank line, an item added or removed or moved leaves the ids of the other items alone; only an overload added before one moves it. It means something only in its file, and goes back to a node through the file's `ItemIdMap`.
     """
     def __init__(self, __kind: ItemKind, __hash: int, __index: int):
         ...

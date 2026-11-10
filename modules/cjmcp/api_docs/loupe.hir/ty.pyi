@@ -1,8 +1,8 @@
+from typing import Literal
+
 class UnknownReason:
     """
-    
     Why a type is unknown given the available inputs, inference progress and resources.
-    
     """
     def __repr__(self) -> str:
         ...
@@ -12,7 +12,7 @@ class UnknownReason:
         ...
     def __hash__(self) -> int:
         ...
-    kind: Literal['BinaryType'] | Literal['NotInferred'] | Literal['NoStd'] | Literal['GenericBoundsLimit']
+    kind: Literal['BinaryType', 'NotInferred', 'NoStd', 'GenericBoundsLimit', 'LambdaCandidatesLimit']
     class BinaryType(UnknownReason):
         kind: Literal['BinaryType'] = 'BinaryType'
         def __init__(self):
@@ -29,11 +29,13 @@ class UnknownReason:
         kind: Literal['GenericBoundsLimit'] = 'GenericBoundsLimit'
         def __init__(self):
             ...
+    class LambdaCandidatesLimit(UnknownReason):
+        kind: Literal['LambdaCandidatesLimit'] = 'LambdaCandidatesLimit'
+        def __init__(self):
+            ...
 class Todo:
     """
-    
     Why the analysis cannot find a type (D77): what it does not do yet, each a gap of its own.
-    
     """
     def __repr__(self) -> str:
         ...
@@ -43,7 +45,7 @@ class Todo:
         ...
     def __hash__(self) -> int:
         ...
-    kind: Literal['MacroCall'] | Literal['MacroMember']
+    kind: Literal['MacroCall', 'MacroMember']
     class MacroCall(Todo):
         kind: Literal['MacroCall'] = 'MacroCall'
         def __init__(self):
@@ -52,23 +54,9 @@ class Todo:
         kind: Literal['MacroMember'] = 'MacroMember'
         def __init__(self):
             ...
-class CalcaFields_Ty:
-    ...
-class Ty:
-    """
-    
-    A type as inference takes it, rust-analyzer's `Ty`: its names resolved, its aliases expanded,
-    `?T` an `Option<T>`. Interned (D54), as R1's and cjc's are (`TypeManager` hands out one `Ty` for
-    one declaration and arguments): two equal types are one id, compared and hashed as a number.
-    
-    """
-    ...
 class GenericOwner:
     """
-    
-    A generic binder: a declaration, or a local function within its owner's body (D50).
-    Local function indices are body-local, so the enclosing declaration is part of identity.
-    
+    A generic binder: a declaration, or a local function within its owner's body (D50). Local function indices are body-local, so the enclosing declaration is part of identity.
     """
     def __eq__(self, __other: GenericOwner) -> bool:
         ...
@@ -76,7 +64,7 @@ class GenericOwner:
         ...
     def __hash__(self) -> int:
         ...
-    kind: Literal['Declaration'] | Literal['LocalFunction']
+    kind: Literal['Declaration', 'LocalFunction']
     class Declaration(GenericOwner):
         kind: Literal['Declaration'] = 'Declaration'
         def __init__(self, __p1: DefId):
@@ -84,8 +72,9 @@ class GenericOwner:
              for type DefId, see 'loupe.hir/def_map.pyi'
             """
             ...
-        @readonly
-        field0: DefId
+        @property
+        def field0(self) -> DefId:
+            ...
         __match_args__ = ('field0')
     class LocalFunction(GenericOwner):
         kind: Literal['LocalFunction'] = 'LocalFunction'
@@ -94,16 +83,26 @@ class GenericOwner:
              for type DefId, see 'loupe.hir/def_map.pyi'
             """
             ...
-        @readonly
-        field0: DefId
-        @readonly
-        field1: int
+        @property
+        def field0(self) -> DefId:
+            ...
+        @property
+        def field1(self) -> int:
+            ...
         __match_args__ = ('field0', 'field1')
+class CalcaFields_Ty:
+    """
+    A type as inference takes it, rust-analyzer's `Ty`: its names resolved, its aliases expanded, `?T` an `Option<T>`. Interned (D54), as R1's and cjc's are (`TypeManager` hands out one `Ty` for one declaration and arguments): two equal types are one id, compared and hashed as a number.
+    """
+    ...
+class Ty:
+    """
+    A type as inference takes it, rust-analyzer's `Ty`: its names resolved, its aliases expanded, `?T` an `Option<T>`. Interned (D54), as R1's and cjc's are (`TypeManager` hands out one `Ty` for one declaration and arguments): two equal types are one id, compared and hashed as a number.
+    """
+    ...
 class TyKind:
     """
-    
     What a `Ty` is: resolved signature types, unknown types and call-local inference variables.
-    
     """
     def __hash__(self) -> int:
         """
@@ -114,13 +113,14 @@ class TyKind:
         ...
     def __ne__(self, __other: TyKind) -> bool:
         ...
-    kind: Literal['PrimTy'] | Literal['DeclTy'] | Literal['BuiltInTy'] | Literal['TupleTy'] | Literal['FuncTy'] | Literal['VArrayTy'] | Literal['ParamTy'] | Literal['ThisTy'] | Literal['ErrorTy'] | Literal['TodoTy'] | Literal['UnknownTy'] | Literal['InferTy']
+    kind: Literal['PrimTy', 'DeclTy', 'BuiltInTy', 'TupleTy', 'FuncTy', 'VArrayTy', 'ParamTy', 'ThisTy', 'ErrorTy', 'TodoTy', 'UnknownTy', 'InferTy']
     class PrimTy(TyKind):
         kind: Literal['PrimTy'] = 'PrimTy'
         def __init__(self, __p1: str):
             ...
-        @readonly
-        field0: str
+        @property
+        def field0(self) -> str:
+            ...
         __match_args__ = ('field0')
     class DeclTy(TyKind):
         kind: Literal['DeclTy'] = 'DeclTy'
@@ -129,10 +129,12 @@ class TyKind:
              for type DefId, see 'loupe.hir/def_map.pyi'
             """
             ...
-        @readonly
-        field0: DefId
-        @readonly
-        field1: list[Ty]
+        @property
+        def field0(self) -> DefId:
+            ...
+        @property
+        def field1(self) -> list[Ty]:
+            ...
         __match_args__ = ('field0', 'field1')
     class BuiltInTy(TyKind):
         kind: Literal['BuiltInTy'] = 'BuiltInTy'
@@ -141,46 +143,56 @@ class TyKind:
              for type CompilerType, see 'loupe.hir/compiler_types.pyi'
             """
             ...
-        @readonly
-        field0: CompilerType
-        @readonly
-        field1: list[Ty]
+        @property
+        def field0(self) -> CompilerType:
+            ...
+        @property
+        def field1(self) -> list[Ty]:
+            ...
         __match_args__ = ('field0', 'field1')
     class TupleTy(TyKind):
         kind: Literal['TupleTy'] = 'TupleTy'
         def __init__(self, __p1: list[Ty]):
             ...
-        @readonly
-        field0: list[Ty]
+        @property
+        def field0(self) -> list[Ty]:
+            ...
         __match_args__ = ('field0')
     class FuncTy(TyKind):
         kind: Literal['FuncTy'] = 'FuncTy'
         def __init__(self, __p1: list[Ty], __p2: Ty, __p3: bool):
             ...
-        @readonly
-        field0: list[Ty]
-        @readonly
-        field1: Ty
-        @readonly
-        field2: bool
+        @property
+        def field0(self) -> list[Ty]:
+            ...
+        @property
+        def field1(self) -> Ty:
+            ...
+        @property
+        def field2(self) -> bool:
+            ...
         __match_args__ = ('field0', 'field1', 'field2')
     class VArrayTy(TyKind):
         kind: Literal['VArrayTy'] = 'VArrayTy'
         def __init__(self, __p1: Ty, __p2: int):
             ...
-        @readonly
-        field0: Ty
-        @readonly
-        field1: int
+        @property
+        def field0(self) -> Ty:
+            ...
+        @property
+        def field1(self) -> int:
+            ...
         __match_args__ = ('field0', 'field1')
     class ParamTy(TyKind):
         kind: Literal['ParamTy'] = 'ParamTy'
         def __init__(self, __p1: GenericOwner, __p2: int):
             ...
-        @readonly
-        field0: GenericOwner
-        @readonly
-        field1: int
+        @property
+        def field0(self) -> GenericOwner:
+            ...
+        @property
+        def field1(self) -> int:
+            ...
         __match_args__ = ('field0', 'field1')
     class ThisTy(TyKind):
         kind: Literal['ThisTy'] = 'ThisTy'
@@ -194,20 +206,23 @@ class TyKind:
         kind: Literal['TodoTy'] = 'TodoTy'
         def __init__(self, __p1: Todo):
             ...
-        @readonly
-        field0: Todo
+        @property
+        def field0(self) -> Todo:
+            ...
         __match_args__ = ('field0')
     class UnknownTy(TyKind):
         kind: Literal['UnknownTy'] = 'UnknownTy'
         def __init__(self, __p1: UnknownReason):
             ...
-        @readonly
-        field0: UnknownReason
+        @property
+        def field0(self) -> UnknownReason:
+            ...
         __match_args__ = ('field0')
     class InferTy(TyKind):
         kind: Literal['InferTy'] = 'InferTy'
         def __init__(self, __p1: int):
             ...
-        @readonly
-        field0: int
+        @property
+        def field0(self) -> int:
+            ...
         __match_args__ = ('field0')

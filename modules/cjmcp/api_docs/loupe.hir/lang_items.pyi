@@ -1,30 +1,28 @@
+from typing import Literal
+
 class LangItem:
     """
-    
-    A declaration of std the language itself means, whatever a file's scope names: what the syntax is
-    sugar for or is of. cjc's `GetCoreDecl`, R1's lang items (8f). Not the compiler's own types
-    (`CPointer`, `CString`): a file names those, through its scope.
-    
+    A declaration of std the language itself means, whatever a file's scope names: what the syntax is sugar for or is of. cjc's `GetCoreDecl`, R1's lang items (8f). Not the compiler's own types (`CPointer`, `CString`): a file names those, through its scope.
     """
     def name(self) -> str:
+        """
+        Return the language-defined name used to recognize this item.
+        """
         ...
     def kind(self) -> ItemKind:
         """
+        Return the declaration kind expected for this language item.
          for type ItemKind, see 'loupe.hir/item_id.pyi'
         """
         ...
     def pkg(self) -> str:
         """
-        
         The package of std it is declared in.
-        
         """
         ...
     def owner(self) -> LangItem | None:
         """
-        
         The lang item it is a member of: an enum's of a constructor.
-        
         """
         ...
     def __eq__(self, __other: LangItem) -> bool:
@@ -33,7 +31,7 @@ class LangItem:
         ...
     def __hash__(self) -> int:
         ...
-    kind: Literal['OptionEnum'] | Literal['OptionSome'] | Literal['OptionNone'] | Literal['CompositionFunc'] | Literal['ObjectClass'] | Literal['StringStruct'] | Literal['FutureClass'] | Literal['IterableInterface'] | Literal['RangeStruct'] | Literal['ArrayStruct'] | Literal['ExceptionClass'] | Literal['TokensClass'] | Literal['AnyInterface']
+    kind: Literal['OptionEnum', 'OptionSome', 'OptionNone', 'CompositionFunc', 'ObjectClass', 'StringStruct', 'FutureClass', 'IterableInterface', 'RangeStruct', 'ArrayStruct', 'ExceptionClass', 'TokensClass', 'AnyInterface']
     class OptionEnum(LangItem):
         kind: Literal['OptionEnum'] = 'OptionEnum'
         def __init__(self):

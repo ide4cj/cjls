@@ -1,11 +1,16 @@
+from typing import Literal
+
 class StructureKind:
+    """
+    The declaration category of a source structure node.
+    """
     def __repr__(self) -> str:
         ...
     def __eq__(self, __other: StructureKind) -> bool:
         ...
     def __ne__(self, __other: StructureKind) -> bool:
         ...
-    kind: Literal['Class'] | Literal['Interface'] | Literal['Struct'] | Literal['Enum'] | Literal['EnumConstructor'] | Literal['Extension'] | Literal['Function'] | Literal['Method'] | Literal['Macro'] | Literal['Main'] | Literal['Constructor'] | Literal['Finalizer'] | Literal['Property'] | Literal['Variable'] | Literal['Field'] | Literal['Constant'] | Literal['TypeAlias']
+    kind: Literal['Class', 'Interface', 'Struct', 'Enum', 'EnumConstructor', 'Extension', 'Function', 'Method', 'Macro', 'Main', 'Constructor', 'Finalizer', 'Property', 'Variable', 'Field', 'Constant', 'TypeAlias']
     class Class(StructureKind):
         kind: Literal['Class'] = 'Class'
         def __init__(self):
@@ -76,10 +81,7 @@ class StructureKind:
             ...
 class StructureNode:
     """
-    
-    One declaration of a file's outline. `range` is the whole of it, doc comment included;
-    `selectionRange`, inside it, is its name.
-    
+    One declaration of a file's outline. `range` is the whole of it, doc comment included; `selectionRange`, inside it, is its name.
     """
     def __init__(self, __name: str, __kind: StructureKind, __range: TextRange, __selectionRange: TextRange, __children: list[StructureNode]):
         """

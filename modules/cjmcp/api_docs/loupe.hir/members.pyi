@@ -1,8 +1,8 @@
+from typing import Literal
+
 class ExtendedType:
     """
-    
     A type an `extend` extends: one declared, or a type of the language by its keyword (`Int64`).
-    
     """
     def __repr__(self) -> str:
         ...
@@ -12,7 +12,7 @@ class ExtendedType:
         ...
     def __hash__(self) -> int:
         ...
-    kind: Literal['DeclType'] | Literal['PrimType'] | Literal['BuiltInHead']
+    kind: Literal['DeclType', 'PrimType', 'BuiltInHead']
     class DeclType(ExtendedType):
         kind: Literal['DeclType'] = 'DeclType'
         def __init__(self, __p1: DefId):
@@ -20,15 +20,17 @@ class ExtendedType:
              for type DefId, see 'loupe.hir/def_map.pyi'
             """
             ...
-        @readonly
-        field0: DefId
+        @property
+        def field0(self) -> DefId:
+            ...
         __match_args__ = ('field0')
     class PrimType(ExtendedType):
         kind: Literal['PrimType'] = 'PrimType'
         def __init__(self, __p1: str):
             ...
-        @readonly
-        field0: str
+        @property
+        def field0(self) -> str:
+            ...
         __match_args__ = ('field0')
     class BuiltInHead(ExtendedType):
         kind: Literal['BuiltInHead'] = 'BuiltInHead'
@@ -37,15 +39,13 @@ class ExtendedType:
              for type CompilerType, see 'loupe.hir/compiler_types.pyi'
             """
             ...
-        @readonly
-        field0: CompilerType
+        @property
+        def field0(self) -> CompilerType:
+            ...
         __match_args__ = ('field0')
 class MemberTarget:
     """
-    
-    What a name of the type a body is in stands for: a declaration among its members, or a member
-    parameter of its primary constructor (N69).
-    
+    What a name of the type a body is in stands for: a declaration among its members, or a member parameter of its primary constructor (N69).
     """
     def __repr__(self) -> str:
         ...
@@ -55,7 +55,7 @@ class MemberTarget:
         ...
     def __hash__(self) -> int:
         ...
-    kind: Literal['MemberDecl'] | Literal['MemberParam']
+    kind: Literal['MemberDecl', 'MemberParam']
     class MemberDecl(MemberTarget):
         kind: Literal['MemberDecl'] = 'MemberDecl'
         def __init__(self, __p1: DefId):
@@ -63,8 +63,9 @@ class MemberTarget:
              for type DefId, see 'loupe.hir/def_map.pyi'
             """
             ...
-        @readonly
-        field0: DefId
+        @property
+        def field0(self) -> DefId:
+            ...
         __match_args__ = ('field0')
     class MemberParam(MemberTarget):
         kind: Literal['MemberParam'] = 'MemberParam'
@@ -74,8 +75,10 @@ class MemberTarget:
              for type DefId, see 'loupe.hir/def_map.pyi'
             """
             ...
-        @readonly
-        field0: DefId
-        @readonly
-        field1: LocalId
+        @property
+        def field0(self) -> DefId:
+            ...
+        @property
+        def field1(self) -> LocalId:
+            ...
         __match_args__ = ('field0', 'field1')

@@ -1,9 +1,8 @@
+from typing import Literal
+
 class Definition:
     """
-    
-    What a name means, rust-analyzer's `Definition`: what go to definition goes to, and what highlighting tells a
-    name by.
-    
+    What a name means, rust-analyzer's `Definition`: what go to definition goes to, and what highlighting tells a name by.
     """
     def __repr__(self) -> str:
         ...
@@ -11,7 +10,7 @@ class Definition:
         ...
     def __ne__(self, __other: Definition) -> bool:
         ...
-    kind: Literal['DeclDef'] | Literal['LocalDef'] | Literal['MemberParamDef'] | Literal['TypeParamDef'] | Literal['PackageDef']
+    kind: Literal['DeclDef', 'LocalDef', 'MemberParamDef', 'TypeParamDef', 'PackageDef']
     class DeclDef(Definition):
         kind: Literal['DeclDef'] = 'DeclDef'
         def __init__(self, __p1: DefId):
@@ -19,8 +18,9 @@ class Definition:
              for type DefId, see 'loupe.hir/def_map.pyi'
             """
             ...
-        @readonly
-        field0: DefId
+        @property
+        def field0(self) -> DefId:
+            ...
         __match_args__ = ('field0')
     class LocalDef(Definition):
         kind: Literal['LocalDef'] = 'LocalDef'
@@ -30,10 +30,12 @@ class Definition:
              for type DefId, see 'loupe.hir/def_map.pyi'
             """
             ...
-        @readonly
-        field0: DefId
-        @readonly
-        field1: LocalId
+        @property
+        def field0(self) -> DefId:
+            ...
+        @property
+        def field1(self) -> LocalId:
+            ...
         __match_args__ = ('field0', 'field1')
     class MemberParamDef(Definition):
         kind: Literal['MemberParamDef'] = 'MemberParamDef'
@@ -43,10 +45,12 @@ class Definition:
              for type DefId, see 'loupe.hir/def_map.pyi'
             """
             ...
-        @readonly
-        field0: DefId
-        @readonly
-        field1: LocalId
+        @property
+        def field0(self) -> DefId:
+            ...
+        @property
+        def field1(self) -> LocalId:
+            ...
         __match_args__ = ('field0', 'field1')
     class TypeParamDef(Definition):
         kind: Literal['TypeParamDef'] = 'TypeParamDef'
@@ -55,8 +59,9 @@ class Definition:
              for type TypeTarget, see 'loupe.hir/type_path.pyi'
             """
             ...
-        @readonly
-        field0: TypeTarget
+        @property
+        def field0(self) -> TypeTarget:
+            ...
         __match_args__ = ('field0')
     class PackageDef(Definition):
         kind: Literal['PackageDef'] = 'PackageDef'
@@ -65,6 +70,7 @@ class Definition:
              for type PackageRef, see 'loupe.hir/def_map.pyi'
             """
             ...
-        @readonly
-        field0: PackageRef
+        @property
+        def field0(self) -> PackageRef:
+            ...
         __match_args__ = ('field0')

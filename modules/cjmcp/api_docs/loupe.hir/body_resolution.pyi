@@ -1,8 +1,8 @@
+from typing import Literal
+
 class ValueTarget:
     """
-    
     What a name used in a body stands for.
-    
     """
     def __repr__(self) -> str:
         ...
@@ -10,7 +10,7 @@ class ValueTarget:
         ...
     def __ne__(self, __other: ValueTarget) -> bool:
         ...
-    kind: Literal['LocalOf'] | Literal['MemberOf'] | Literal['DeclOf'] | Literal['TypeParamOf']
+    kind: Literal['LocalOf', 'MemberOf', 'DeclOf', 'TypeParamOf']
     class LocalOf(ValueTarget):
         kind: Literal['LocalOf'] = 'LocalOf'
         def __init__(self, __p1: LocalId):
@@ -18,8 +18,9 @@ class ValueTarget:
              for type LocalId, see 'loupe.hir/body.pyi'
             """
             ...
-        @readonly
-        field0: LocalId
+        @property
+        def field0(self) -> LocalId:
+            ...
         __match_args__ = ('field0')
     class MemberOf(ValueTarget):
         kind: Literal['MemberOf'] = 'MemberOf'
@@ -28,8 +29,9 @@ class ValueTarget:
              for type MemberTarget, see 'loupe.hir/members.pyi'
             """
             ...
-        @readonly
-        field0: MemberTarget
+        @property
+        def field0(self) -> MemberTarget:
+            ...
         __match_args__ = ('field0')
     class DeclOf(ValueTarget):
         kind: Literal['DeclOf'] = 'DeclOf'
@@ -38,8 +40,9 @@ class ValueTarget:
              for type DefId, see 'loupe.hir/def_map.pyi'
             """
             ...
-        @readonly
-        field0: DefId
+        @property
+        def field0(self) -> DefId:
+            ...
         __match_args__ = ('field0')
     class TypeParamOf(ValueTarget):
         kind: Literal['TypeParamOf'] = 'TypeParamOf'
@@ -48,14 +51,13 @@ class ValueTarget:
              for type TypeTarget, see 'loupe.hir/type_path.pyi'
             """
             ...
-        @readonly
-        field0: TypeTarget
+        @property
+        def field0(self) -> TypeTarget:
+            ...
         __match_args__ = ('field0')
 class BodyResolution:
     """
-    
     What a name used in a body means.
-    
     """
     def __repr__(self) -> str:
         ...
@@ -63,13 +65,14 @@ class BodyResolution:
         ...
     def __ne__(self, __other: BodyResolution) -> bool:
         ...
-    kind: Literal['Values'] | Literal['InFile']
+    kind: Literal['Values', 'InFile']
     class Values(BodyResolution):
         kind: Literal['Values'] = 'Values'
         def __init__(self, __p1: list[ValueTarget]):
             ...
-        @readonly
-        field0: list[ValueTarget]
+        @property
+        def field0(self) -> list[ValueTarget]:
+            ...
         __match_args__ = ('field0')
     class InFile(BodyResolution):
         kind: Literal['InFile'] = 'InFile'
@@ -78,6 +81,7 @@ class BodyResolution:
              for type Resolution, see 'loupe.hir/scope.pyi'
             """
             ...
-        @readonly
-        field0: Resolution
+        @property
+        def field0(self) -> Resolution:
+            ...
         __match_args__ = ('field0')

@@ -1,8 +1,8 @@
+from typing import Literal
+
 class CompilerType:
     """
-    
     Compiler-owned type heads; declaration identities only provide scoped names and navigation.
-    
     """
     def __eq__(self, __other: CompilerType) -> bool:
         ...
@@ -12,7 +12,7 @@ class CompilerType:
         ...
     def __repr__(self) -> str:
         ...
-    kind: Literal['PointerType'] | Literal['CStringType'] | Literal['RawArrayType'] | Literal['CFuncType'] | Literal['VArrayType']
+    kind: Literal['PointerType', 'CStringType', 'RawArrayType', 'CFuncType', 'VArrayType']
     class PointerType(CompilerType):
         kind: Literal['PointerType'] = 'PointerType'
         def __init__(self):

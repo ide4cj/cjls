@@ -1,8 +1,8 @@
+from typing import Literal
+
 class HighlightedRange:
     """
-    
     A token of a file and what it is. `range` is in UTF-8 bytes (A6).
-    
     """
     def __init__(self, __range: TextRange, __tag: HighlightTag, *, modifiers: HighlightModifiers = ...):
         """
@@ -23,9 +23,9 @@ class HighlightedRange:
         ...
     def __repr__(self) -> str:
         """
-        
+
         `tag[modifiers]@start..end`.
-        
+
         """
         ...
     def __eq__(self, __other: HighlightedRange) -> bool:
@@ -34,15 +34,22 @@ class HighlightedRange:
         ...
 class HighlightModifiers:
     """
-    
     A set of `HighlightModifier`s.
-    
     """
     def plus(self, __modifier: HighlightModifier) -> HighlightModifiers:
+        """
+        Return a modifier set including modifier.
+        """
         ...
     def contains(self, __modifier: HighlightModifier) -> bool:
+        """
+        Whether this set includes modifier.
+        """
         ...
     def isEmpty(self) -> bool:
+        """
+        Whether this set contains no modifiers.
+        """
         ...
     def __repr__(self) -> str:
         ...
@@ -52,10 +59,7 @@ class HighlightModifiers:
         ...
 class HighlightTag:
     """
-    
-    What a token is: by the tree, and a name at its use by what it means (D72). In a file of no
-    package, which names do not resolve in, a name inside a type is taken for one.
-    
+    What a token is: by the tree, and a name at its use by what it means (D72). In a file of no package, which names do not resolve in, a name inside a type is taken for one.
     """
     def __repr__(self) -> str:
         ...
@@ -63,7 +67,7 @@ class HighlightTag:
         ...
     def __ne__(self, __other: HighlightTag) -> bool:
         ...
-    kind: Literal['Keyword'] | Literal['Comment'] | Literal['StringLiteral'] | Literal['NumberLiteral'] | Literal['Operator'] | Literal['InterpolationDelimiter'] | Literal['BuiltinAnnotation'] | Literal['MacroCall'] | Literal['BuiltinType'] | Literal['TypeName'] | Literal['TypeParameter'] | Literal['Parameter'] | Literal['Symbol'] | Literal['Namespace'] | Literal['UnresolvedReference']
+    kind: Literal['Keyword', 'Comment', 'StringLiteral', 'NumberLiteral', 'Operator', 'InterpolationDelimiter', 'BuiltinAnnotation', 'MacroCall', 'BuiltinType', 'TypeName', 'TypeParameter', 'Parameter', 'Symbol', 'Namespace', 'UnresolvedReference']
     class Keyword(HighlightTag):
         kind: Literal['Keyword'] = 'Keyword'
         def __init__(self):
@@ -119,8 +123,9 @@ class HighlightTag:
              for type StructureKind, see 'loupe/structure.pyi'
             """
             ...
-        @readonly
-        field0: StructureKind
+        @property
+        def field0(self) -> StructureKind:
+            ...
         __match_args__ = ('field0')
     class Namespace(HighlightTag):
         kind: Literal['Namespace'] = 'Namespace'
@@ -131,7 +136,13 @@ class HighlightTag:
         def __init__(self):
             ...
 class HighlightModifier:
+    """
+    A semantic highlighting modifier such as declaration, readonly or deprecated.
+    """
     def bit(self) -> int:
+        """
+        Return the bit mask used by HighlightModifiers for this modifier.
+        """
         ...
     def __repr__(self) -> str:
         ...
@@ -139,7 +150,7 @@ class HighlightModifier:
         ...
     def __ne__(self, __other: HighlightModifier) -> bool:
         ...
-    kind: Literal['Declaration'] | Literal['Documentation'] | Literal['Readonly'] | Literal['Static'] | Literal['Deprecated'] | Literal['DefaultLibrary'] | Literal['Mutable']
+    kind: Literal['Declaration', 'Documentation', 'Readonly', 'Static', 'Deprecated', 'DefaultLibrary', 'Mutable']
     class Declaration(HighlightModifier):
         kind: Literal['Declaration'] = 'Declaration'
         def __init__(self):

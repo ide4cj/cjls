@@ -114,6 +114,12 @@ The archive supplies the checked-in reference; building and packaging do not
 run the local `cjpydoc` generator. See [API documentation](python-api.md#api-documentation)
 for lookup and output-budget behavior.
 
+To refresh the checked-in reference after building the workspace, run
+`python3 scripts/generate_pyi.py -o modules/cjmcp/api_docs` in the SDK environment.
+Use a `cjpydoc` supporting `--python-package-source`; the script supplies source
+roots for imported type links. Descriptions prefer `@PyDoc`, then source comments;
+`@PyIgnore` and `@PyName` follow the runtime bindings. Review the generated diff.
+
 Read the [API reference](python-api.md) only for detailed contracts:
 [source changes](python-api.md#applying-source-changes),
 [HIR and inference](python-api.md#hir-and-inference),

@@ -1,8 +1,8 @@
+from typing import Literal
+
 class Receiver:
     """
-    
     What the left of a `.` in a body stands for, as far as names tell (N75–N79).
-    
     """
     def __repr__(self) -> str:
         ...
@@ -10,7 +10,7 @@ class Receiver:
         ...
     def __ne__(self, __other: Receiver) -> bool:
         ...
-    kind: Literal['PackageReceiver'] | Literal['TypesReceiver'] | Literal['ValueReceiver'] | Literal['NoReceiver']
+    kind: Literal['PackageReceiver', 'TypesReceiver', 'ValueReceiver', 'NoReceiver']
     class PackageReceiver(Receiver):
         kind: Literal['PackageReceiver'] = 'PackageReceiver'
         def __init__(self, __p1: PackageRef):
@@ -18,8 +18,9 @@ class Receiver:
              for type PackageRef, see 'loupe.hir/def_map.pyi'
             """
             ...
-        @readonly
-        field0: PackageRef
+        @property
+        def field0(self) -> PackageRef:
+            ...
         __match_args__ = ('field0')
     class TypesReceiver(Receiver):
         kind: Literal['TypesReceiver'] = 'TypesReceiver'
@@ -28,8 +29,9 @@ class Receiver:
              for type ExtendedType, see 'loupe.hir/members.pyi'
             """
             ...
-        @readonly
-        field0: list[ExtendedType]
+        @property
+        def field0(self) -> list[ExtendedType]:
+            ...
         __match_args__ = ('field0')
     class ValueReceiver(Receiver):
         kind: Literal['ValueReceiver'] = 'ValueReceiver'
@@ -41,9 +43,7 @@ class Receiver:
             ...
 class FieldResolution:
     """
-    
     What the name after a `.` in a body means.
-    
     """
     def __repr__(self) -> str:
         ...
@@ -51,7 +51,7 @@ class FieldResolution:
         ...
     def __ne__(self, __other: FieldResolution) -> bool:
         ...
-    kind: Literal['PackageMembers'] | Literal['TypeMembers'] | Literal['OfValue'] | Literal['NoField']
+    kind: Literal['PackageMembers', 'TypeMembers', 'OfValue', 'NoField']
     class PackageMembers(FieldResolution):
         kind: Literal['PackageMembers'] = 'PackageMembers'
         def __init__(self, __p1: list[DefId]):
@@ -59,8 +59,9 @@ class FieldResolution:
              for type DefId, see 'loupe.hir/def_map.pyi'
             """
             ...
-        @readonly
-        field0: list[DefId]
+        @property
+        def field0(self) -> list[DefId]:
+            ...
         __match_args__ = ('field0')
     class TypeMembers(FieldResolution):
         kind: Literal['TypeMembers'] = 'TypeMembers'
@@ -69,8 +70,9 @@ class FieldResolution:
              for type MemberTarget, see 'loupe.hir/members.pyi'
             """
             ...
-        @readonly
-        field0: list[MemberTarget]
+        @property
+        def field0(self) -> list[MemberTarget]:
+            ...
         __match_args__ = ('field0')
     class OfValue(FieldResolution):
         kind: Literal['OfValue'] = 'OfValue'

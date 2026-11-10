@@ -1,43 +1,32 @@
+from typing import Literal
+
 class SemanticType:
     """
-    
-    A resolved type bound to the same snapshot as its semantic object. Used from one thread
-    at a time; operations throw CancelledException after an input write or request cancellation.
-    Nested types retain this context without creating another snapshot or exposing interned ids.
-    
+    A resolved type bound to the same snapshot as its semantic object. Used from one thread at a time; operations throw CancelledException after an input write or request cancellation. Nested types retain this context without creating another snapshot or exposing interned ids.
     """
     def kind(self) -> SemanticTypeKind:
         """
-        
-        Structure with aliases resolved; related definitions and child types need no database argument.
-        Invalid, unsupported and unavailable types retain their distinct meanings and reasons.
-        
+        Structure with aliases resolved; related definitions and child types need no database argument. Invalid, unsupported and unavailable types retain their distinct meanings and reasons.
         """
         ...
     def display(self) -> str:
         """
-        
         Type display read from this revision; unknown/error details remain available through kind().
-        
         """
         ...
 class SemanticTypeKind:
     """
-    
-    Resolved type structure. Child types and definitions share the originating snapshot;
-    copied names, sizes and reasons remain descriptions of that revision after cancellation.
-    FunctionType carries parameter types, return type and whether it uses the C calling convention.
-    FixedArrayType carries its element type and length. TypeParameterType names the binder's parameter.
-    
+    Resolved type structure. Child types and definitions share the originating snapshot; copied names, sizes and reasons remain descriptions of that revision after cancellation. FunctionType carries parameter types, return type and whether it uses the C calling convention. FixedArrayType carries its element type and length. TypeParameterType names the binder's parameter.
     """
     ...
-    kind: Literal['PrimitiveType'] | Literal['DeclaredType'] | Literal['CompilerOwnedType'] | Literal['TupleType'] | Literal['FunctionType'] | Literal['FixedArrayType'] | Literal['TypeParameterType'] | Literal['SelfType'] | Literal['InvalidType'] | Literal['UnsupportedType'] | Literal['UnavailableType'] | Literal['InferenceVariableType']
+    kind: Literal['PrimitiveType', 'DeclaredType', 'CompilerOwnedType', 'TupleType', 'FunctionType', 'FixedArrayType', 'TypeParameterType', 'SelfType', 'InvalidType', 'UnsupportedType', 'UnavailableType', 'InferenceVariableType']
     class PrimitiveType(SemanticTypeKind):
         kind: Literal['PrimitiveType'] = 'PrimitiveType'
         def __init__(self, __p1: str):
             ...
-        @readonly
-        field0: str
+        @property
+        def field0(self) -> str:
+            ...
         __match_args__ = ('field0')
     class DeclaredType(SemanticTypeKind):
         kind: Literal['DeclaredType'] = 'DeclaredType'
@@ -46,10 +35,12 @@ class SemanticTypeKind:
              for type SemanticObject, see 'loupe/semantic.pyi'
             """
             ...
-        @readonly
-        field0: SemanticObject
-        @readonly
-        field1: list[SemanticType]
+        @property
+        def field0(self) -> SemanticObject:
+            ...
+        @property
+        def field1(self) -> list[SemanticType]:
+            ...
         __match_args__ = ('field0', 'field1')
     class CompilerOwnedType(SemanticTypeKind):
         kind: Literal['CompilerOwnedType'] = 'CompilerOwnedType'
@@ -58,37 +49,45 @@ class SemanticTypeKind:
              for type CompilerType, see 'loupe.hir/compiler_types.pyi'
             """
             ...
-        @readonly
-        field0: CompilerType
-        @readonly
-        field1: list[SemanticType]
+        @property
+        def field0(self) -> CompilerType:
+            ...
+        @property
+        def field1(self) -> list[SemanticType]:
+            ...
         __match_args__ = ('field0', 'field1')
     class TupleType(SemanticTypeKind):
         kind: Literal['TupleType'] = 'TupleType'
         def __init__(self, __p1: list[SemanticType]):
             ...
-        @readonly
-        field0: list[SemanticType]
+        @property
+        def field0(self) -> list[SemanticType]:
+            ...
         __match_args__ = ('field0')
     class FunctionType(SemanticTypeKind):
         kind: Literal['FunctionType'] = 'FunctionType'
         def __init__(self, __p1: list[SemanticType], __p2: SemanticType, __p3: bool):
             ...
-        @readonly
-        field0: list[SemanticType]
-        @readonly
-        field1: SemanticType
-        @readonly
-        field2: bool
+        @property
+        def field0(self) -> list[SemanticType]:
+            ...
+        @property
+        def field1(self) -> SemanticType:
+            ...
+        @property
+        def field2(self) -> bool:
+            ...
         __match_args__ = ('field0', 'field1', 'field2')
     class FixedArrayType(SemanticTypeKind):
         kind: Literal['FixedArrayType'] = 'FixedArrayType'
         def __init__(self, __p1: SemanticType, __p2: int):
             ...
-        @readonly
-        field0: SemanticType
-        @readonly
-        field1: int
+        @property
+        def field0(self) -> SemanticType:
+            ...
+        @property
+        def field1(self) -> int:
+            ...
         __match_args__ = ('field0', 'field1')
     class TypeParameterType(SemanticTypeKind):
         kind: Literal['TypeParameterType'] = 'TypeParameterType'
@@ -97,8 +96,9 @@ class SemanticTypeKind:
              for type SemanticObject, see 'loupe/semantic.pyi'
             """
             ...
-        @readonly
-        field0: SemanticObject
+        @property
+        def field0(self) -> SemanticObject:
+            ...
         __match_args__ = ('field0')
     class SelfType(SemanticTypeKind):
         kind: Literal['SelfType'] = 'SelfType'
@@ -115,8 +115,9 @@ class SemanticTypeKind:
              for type Todo, see 'loupe.hir/ty.pyi'
             """
             ...
-        @readonly
-        field0: Todo
+        @property
+        def field0(self) -> Todo:
+            ...
         __match_args__ = ('field0')
     class UnavailableType(SemanticTypeKind):
         kind: Literal['UnavailableType'] = 'UnavailableType'
@@ -125,8 +126,9 @@ class SemanticTypeKind:
              for type UnknownReason, see 'loupe.hir/ty.pyi'
             """
             ...
-        @readonly
-        field0: UnknownReason
+        @property
+        def field0(self) -> UnknownReason:
+            ...
         __match_args__ = ('field0')
     class InferenceVariableType(SemanticTypeKind):
         kind: Literal['InferenceVariableType'] = 'InferenceVariableType'

@@ -1,9 +1,14 @@
+from typing import Literal
+
 class Severity:
+    """
+    Diagnostic severity: Error, Warning, or informational Hint.
+    """
     def __eq__(self, __other: Severity) -> bool:
         ...
     def __ne__(self, __other: Severity) -> bool:
         ...
-    kind: Literal['Error'] | Literal['Warning'] | Literal['Hint']
+    kind: Literal['Error', 'Warning', 'Hint']
     class Error(Severity):
         kind: Literal['Error'] = 'Error'
         def __init__(self):
@@ -18,11 +23,7 @@ class Severity:
             ...
 class Diagnostic:
     """
-    
-    Something wrong in a file, or worth knowing of it. `range` is where its source put it, empty ones
-    included, as "expected `}`" at the end of a file (A12). `unnecessary` for code a build leaves
-    out, which an editor shows faded.
-    
+    Something wrong in a file, or worth knowing of it. `range` is where its source put it, empty ones included, as "expected `}`" at the end of a file (A12). `unnecessary` for code a build leaves out, which an editor shows faded.
     """
     def __init__(self, __range: TextRange, __severity: Severity, __message: str, *, unnecessary: bool = ...):
         """

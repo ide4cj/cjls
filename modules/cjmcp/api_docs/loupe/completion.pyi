@@ -1,9 +1,8 @@
+from typing import Literal
+
 class CompletionResult:
     """
-    
-    The completions at a cursor: what the item inserted replaces, the name typed so far before the
-    cursor, and the items, the most relevant first.
-    
+    The completions at a cursor: what the item inserted replaces, the name typed so far before the cursor, and the items, the most relevant first.
     """
     def __init__(self, __range: TextRange, __items: list[CompletionItem]):
         """
@@ -24,6 +23,9 @@ class CompletionResult:
     def __ne__(self, __other: CompletionResult) -> bool:
         ...
 class CompletionItem:
+    """
+    One completion candidate: label, kind, ranking relevance and source for deferred details.
+    """
     def __init__(self, __label: str, __kind: CompletionKind, __relevance: int, __source: CompletionSource):
         ...
     @property
@@ -34,6 +36,9 @@ class CompletionItem:
         ...
     @property
     def relevance(self) -> int:
+        """
+        Higher first: a local before a member before the file's scope before a keyword; the client's own match against what was typed comes on top of it.
+        """
         ...
     @property
     def source(self) -> CompletionSource:
@@ -41,9 +46,7 @@ class CompletionItem:
     @property
     def overloadCount(self) -> int:
         """
-        
         How many declarations this item offers; counting a group needs no signature query.
-        
         """
         ...
     def __eq__(self, __other: CompletionItem) -> bool:
@@ -52,9 +55,7 @@ class CompletionItem:
         ...
 class CompletionKind:
     """
-    
     What a completion item is, for the client to show it as one.
-    
     """
     def __eq__(self, __other: CompletionKind) -> bool:
         ...
@@ -62,7 +63,7 @@ class CompletionKind:
         ...
     def __repr__(self) -> str:
         ...
-    kind: Literal['LocalItem'] | Literal['ParamItem'] | Literal['FuncItem'] | Literal['VarItem'] | Literal['PropItem'] | Literal['CtorItem'] | Literal['ClassItem'] | Literal['InterfaceItem'] | Literal['StructItem'] | Literal['EnumItem'] | Literal['TypeAliasItem'] | Literal['PkgItem'] | Literal['TypeParamItem'] | Literal['KeywordItem']
+    kind: Literal['LocalItem', 'ParamItem', 'FuncItem', 'VarItem', 'PropItem', 'CtorItem', 'ClassItem', 'InterfaceItem', 'StructItem', 'EnumItem', 'TypeAliasItem', 'PkgItem', 'TypeParamItem', 'KeywordItem']
     class LocalItem(CompletionKind):
         kind: Literal['LocalItem'] = 'LocalItem'
         def __init__(self):
@@ -121,18 +122,13 @@ class CompletionKind:
             ...
 class CompletionSource:
     """
-    
-    What a completion item stands for, for its detail and documentation when a client asks for them
-    (`completionDetails`): a declaration, as a member of a value of a type if one's; a group of
-    overloads with their receiver types; a local of a body; a member parameter of a primary
-    constructor; nothing, for a keyword or a package.
-    
+    What a completion item stands for, for its detail and documentation when a client asks for them (`completionDetails`): a declaration, as a member of a value of a type if one's; a group of overloads with their receiver types; a local of a body; a member parameter of a primary constructor; nothing, for a keyword or a package.
     """
     def __eq__(self, __other: CompletionSource) -> bool:
         ...
     def __ne__(self, __other: CompletionSource) -> bool:
         ...
-    kind: Literal['DeclSource'] | Literal['OverloadSource'] | Literal['LocalSource'] | Literal['MemberParamSource'] | Literal['NoSource']
+    kind: Literal['DeclSource', 'OverloadSource', 'LocalSource', 'MemberParamSource', 'NoSource']
     class DeclSource(CompletionSource):
         kind: Literal['DeclSource'] = 'DeclSource'
         def __init__(self, __p1: DefId, __p2: Ty | None):
@@ -141,10 +137,12 @@ class CompletionSource:
              for type DefId, see 'loupe.hir/def_map.pyi'
             """
             ...
-        @readonly
-        field0: DefId
-        @readonly
-        field1: Ty | None
+        @property
+        def field0(self) -> DefId:
+            ...
+        @property
+        def field1(self) -> Ty | None:
+            ...
         __match_args__ = ('field0', 'field1')
     class OverloadSource(CompletionSource):
         kind: Literal['OverloadSource'] = 'OverloadSource'
@@ -153,8 +151,9 @@ class CompletionSource:
              for type CompletionOverload, see 'loupe/completion_overloads.pyi'
             """
             ...
-        @readonly
-        field0: list[CompletionOverload]
+        @property
+        def field0(self) -> list[CompletionOverload]:
+            ...
         __match_args__ = ('field0')
     class LocalSource(CompletionSource):
         kind: Literal['LocalSource'] = 'LocalSource'
@@ -164,10 +163,12 @@ class CompletionSource:
              for type DefId, see 'loupe.hir/def_map.pyi'
             """
             ...
-        @readonly
-        field0: DefId
-        @readonly
-        field1: LocalId
+        @property
+        def field0(self) -> DefId:
+            ...
+        @property
+        def field1(self) -> LocalId:
+            ...
         __match_args__ = ('field0', 'field1')
     class MemberParamSource(CompletionSource):
         kind: Literal['MemberParamSource'] = 'MemberParamSource'
@@ -178,12 +179,15 @@ class CompletionSource:
              for type DefId, see 'loupe.hir/def_map.pyi'
             """
             ...
-        @readonly
-        field0: DefId
-        @readonly
-        field1: LocalId
-        @readonly
-        field2: Ty | None
+        @property
+        def field0(self) -> DefId:
+            ...
+        @property
+        def field1(self) -> LocalId:
+            ...
+        @property
+        def field2(self) -> Ty | None:
+            ...
         __match_args__ = ('field0', 'field1', 'field2')
     class NoSource(CompletionSource):
         kind: Literal['NoSource'] = 'NoSource'

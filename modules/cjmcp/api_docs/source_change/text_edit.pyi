@@ -1,8 +1,8 @@
+from typing import Literal
+
 class TextEdit:
     """
-    
     A replacement in UTF-8 byte offsets into the original text, with an exclusive end.
-    
     """
     def __init__(self, __range: TextRange, __text: str):
         """

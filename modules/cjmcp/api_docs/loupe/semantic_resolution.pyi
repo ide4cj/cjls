@@ -1,32 +1,8 @@
-class SemanticResolutionDiagnostic:
-    """
-    
-    An inference diagnostic and its owner-qualified anchor in the originating snapshot.
-    
-    """
-    def __init__(self, __anchor: SemanticObject, __diagnostic: InferenceDiagnostic):
-        """
-         for type InferenceDiagnostic, see 'loupe.hir/infer.pyi'
-         for type SemanticObject, see 'loupe/semantic.pyi'
-        """
-        ...
-    @property
-    def anchor(self) -> SemanticObject:
-        """
-         for type SemanticObject, see 'loupe/semantic.pyi'
-        """
-        ...
-    @property
-    def diagnostic(self) -> InferenceDiagnostic:
-        """
-         for type InferenceDiagnostic, see 'loupe.hir/infer.pyi'
-        """
-        ...
+from typing import Literal
+
 class SemanticGenericBinding:
     """
-    
     A final instantiated generic parameter, identified by its real declaration or local binder.
-    
     """
     def __init__(self, __parameter: SemanticObject, __valueType: SemanticType):
         """
@@ -48,16 +24,13 @@ class SemanticGenericBinding:
         ...
 class SemanticResolutionStatus:
     """
-    
-    Resolution completeness, independent of whether navigation source is available.
-    MissingResolutionReason states that inference retained no more precise failure explanation.
-    
+    Resolution completeness, independent of whether navigation source is available. MissingResolutionReason states that inference retained no more precise failure explanation.
     """
     def __eq__(self, __other: SemanticResolutionStatus) -> bool:
         ...
     def __ne__(self, __other: SemanticResolutionStatus) -> bool:
         ...
-    kind: Literal['ResolvedMeaning'] | Literal['AmbiguousMeaning'] | Literal['UnresolvedMeaning'] | Literal['UnavailableMeaning']
+    kind: Literal['ResolvedMeaning', 'AmbiguousMeaning', 'UnresolvedMeaning', 'UnavailableMeaning']
     class ResolvedMeaning(SemanticResolutionStatus):
         kind: Literal['ResolvedMeaning'] = 'ResolvedMeaning'
         def __init__(self):
@@ -76,12 +49,10 @@ class SemanticResolutionStatus:
             ...
 class SemanticResolutionReason:
     """
-    
     Preserved analysis gaps, or an explicit absence of a retained failure explanation.
-    
     """
     ...
-    kind: Literal['MissingResolutionReason'] | Literal['MissingResolutionData'] | Literal['UnavailableBodySource'] | Literal['MissingResolutionInput'] | Literal['UnsupportedResolution'] | Literal['ImportResolutionFailure']
+    kind: Literal['MissingResolutionReason', 'MissingResolutionData', 'UnavailableBodySource', 'MissingResolutionInput', 'UnsupportedResolution', 'ImportResolutionFailure']
     class MissingResolutionReason(SemanticResolutionReason):
         kind: Literal['MissingResolutionReason'] = 'MissingResolutionReason'
         def __init__(self):
@@ -101,8 +72,9 @@ class SemanticResolutionReason:
              for type UnknownReason, see 'loupe.hir/ty.pyi'
             """
             ...
-        @readonly
-        field0: UnknownReason
+        @property
+        def field0(self) -> UnknownReason:
+            ...
         __match_args__ = ('field0')
     class UnsupportedResolution(SemanticResolutionReason):
         kind: Literal['UnsupportedResolution'] = 'UnsupportedResolution'
@@ -111,8 +83,9 @@ class SemanticResolutionReason:
              for type Todo, see 'loupe.hir/ty.pyi'
             """
             ...
-        @readonly
-        field0: Todo
+        @property
+        def field0(self) -> Todo:
+            ...
         __match_args__ = ('field0')
     class ImportResolutionFailure(SemanticResolutionReason):
         kind: Literal['ImportResolutionFailure'] = 'ImportResolutionFailure'
@@ -121,15 +94,35 @@ class SemanticResolutionReason:
              for type ImportError, see 'loupe.hir/imports.pyi'
             """
             ...
-        @readonly
-        field0: ImportError
+        @property
+        def field0(self) -> ImportError:
+            ...
         __match_args__ = ('field0')
+class SemanticResolutionDiagnostic:
+    """
+    An inference diagnostic and its owner-qualified anchor in the originating snapshot.
+    """
+    def __init__(self, __anchor: SemanticObject, __diagnostic: InferenceDiagnostic):
+        """
+         for type InferenceDiagnostic, see 'loupe.hir/infer.pyi'
+         for type SemanticObject, see 'loupe/semantic.pyi'
+        """
+        ...
+    @property
+    def anchor(self) -> SemanticObject:
+        """
+         for type SemanticObject, see 'loupe/semantic.pyi'
+        """
+        ...
+    @property
+    def diagnostic(self) -> InferenceDiagnostic:
+        """
+         for type InferenceDiagnostic, see 'loupe.hir/infer.pyi'
+        """
+        ...
 class SemanticCallResolution:
     """
-    
-    Retained call evidence. A resolved function value has no declaration target; local named
-    functions keep their body-qualified local identity. Initializers and named types stay separate.
-    
+    Retained call evidence. A resolved function value has no declaration target; local named functions keep their body-qualified local identity. Initializers and named types stay separate.
     """
     @property
     def isSetter(self) -> bool:
@@ -137,43 +130,47 @@ class SemanticCallResolution:
     @property
     def callee(self) -> SemanticObject:
         """
+        The semantic expression whose call resolution is described.
          for type SemanticObject, see 'loupe/semantic.pyi'
         """
         ...
     @property
     def status(self) -> SemanticResolutionStatus:
+        """
+        The resolved, ambiguous, unresolved or unavailable status of this call.
+        """
         ...
     def callable(self) -> SemanticObject | None:
         """
+        Return the selected declaration or local callable, or None when unresolved.
          for type SemanticObject, see 'loupe/semantic.pyi'
         """
         ...
     def initializer(self) -> SemanticObject | None:
         """
+        Return the selected initializer declaration, or None when absent.
          for type SemanticObject, see 'loupe/semantic.pyi'
         """
         ...
     def signature(self) -> SemanticType | None:
         """
+        Return the retained callable signature type, or None when unavailable.
          for type SemanticType, see 'loupe/semantic_type.pyi'
         """
         ...
     def argumentParameters(self) -> list[int] | None:
         """
-        
         Parameter indices in written argument order, including variadic and trailing-lambda arguments.
-        
         """
         ...
     def bindings(self) -> list[SemanticGenericBinding]:
+        """
+        Return generic parameter bindings retained for this call.
+        """
         ...
 class SemanticResolution:
     """
-    
-    One source occurrence's retained name, member, import or type-segment meaning and call evidence.
-    Status describes identity selection; a resolved declaration may still have an incomplete type.
-    Path identities and diagnostic payloads belong to occurrence's snapshot, like SemanticIdentity.
-    
+    One source occurrence's retained name, member, import or type-segment meaning and call evidence. Status describes identity selection; a resolved declaration may still have an incomplete type. Path identities and diagnostic payloads belong to occurrence's snapshot, like SemanticIdentity.
     """
     def __init__(self, __occurrence: SemanticOccurrence, __status: SemanticResolutionStatus, __reason: SemanticResolutionReason | None, __call: SemanticCallResolution | None, __setterCall: SemanticCallResolution | None, __diagnostics: list[SemanticResolutionDiagnostic], __path: PathResolution | None):
         """
@@ -210,10 +207,7 @@ class SemanticResolution:
         ...
 class SemanticBodyResolutions:
     """
-    
-    A declaration's retained body results and whether its source was available to analysis.
-    Empty records alone never establish that an unavailable binary body has no references or calls.
-    
+    A declaration's retained body results and whether its source was available to analysis. Empty records alone never establish that an unavailable binary body has no references or calls.
     """
     def __init__(self, __owner: SemanticObject, __status: SemanticResolutionStatus, __reason: SemanticResolutionReason | None, __occurrences: list[SemanticResolution], __calls: list[SemanticCallResolution]):
         """

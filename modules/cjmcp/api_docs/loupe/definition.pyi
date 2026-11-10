@@ -1,11 +1,8 @@
+from typing import Literal
+
 class NavigationTarget:
     """
-    
-    A declaration a request goes to: its file, its whole node, and its name, what an editor selects;
-    rust-analyzer's `NavigationTarget`. One a macro wrote, which a request in an expansion goes to
-    (`definitionInExpansion`), is in the text of that expansion: `expansion` is its call, the ranges are
-    of `expandedMacro`'s text, `fileId` the call's file.
-    
+    A declaration a request goes to: its file, its whole node, and its name, what an editor selects; rust-analyzer's `NavigationTarget`. One a macro wrote, which a request in an expansion goes to (`definitionInExpansion`), is in the text of that expansion: `expansion` is its call, the ranges are of `expandedMacro`'s text, `fileId` the call's file.
     """
     def __init__(self, __fileId: FileId, __fullRange: TextRange, __focusRange: TextRange, *, expansion: MacroCallId | None = ...):
         """

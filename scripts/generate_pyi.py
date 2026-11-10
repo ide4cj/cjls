@@ -47,6 +47,7 @@ pkgs_with_derive_python = [
     PackageData("cjformat"),
     PackageData("cjmcp"),
     PackageData("ginkgo"),
+    PackageData("project_model"),
     PackageData("loupe"),
     PackageData("loupe.db"),
     PackageData("loupe.hir"),
@@ -58,6 +59,8 @@ pkgs_with_derive_python = [
 def cjpydoc_args_for_pkg(pkg: PackageData) -> List[str]:
     return [
         "cjpydoc",
+        *[f"--python-package-source={source.fqn}={source.src_dir()}"
+          for source in pkgs_with_derive_python],
         "--import-path=target/release",
         f"--import-path={CANGJIE_STDX_PATH}",
         "-Woff",
@@ -80,12 +83,17 @@ def main(argv: List[str]) -> int:
         processes.append(proc)
 
     output_dir.mkdir(parents=True, exist_ok=True)
+    status = 0
     for i, pkg in enumerate(pkgs_with_derive_python):
-        processes[i].wait()
+        if processes[i].wait() != 0:
+            print(f"error: cjpydoc for package `{pkg.fqn}` failed", file=sys.stderr)
+            status = 1
+            continue
         cjpydoc_pkg_output_dir = Path(pkg.fqn)
 
         if not cjpydoc_pkg_output_dir.exists() or not cjpydoc_pkg_output_dir.is_dir():
-            print(f"error: cjpydoc for package `{pkg.fqn}` failed", file=sys.stderr)
+            print(f"error: cjpydoc for package `{pkg.fqn}` produced no directory", file=sys.stderr)
+            status = 1
             continue
 
         remove_empty_files(cjpydoc_pkg_output_dir)
@@ -93,11 +101,13 @@ def main(argv: List[str]) -> int:
             cjpydoc_pkg_output_dir.rmdir()
             continue
 
-        shutil.rmtree(output_dir / cjpydoc_pkg_output_dir)
+        dist_pkg_pyi_dir = output_dir / cjpydoc_pkg_output_dir
+        if dist_pkg_pyi_dir.exists():
+            shutil.rmtree(dist_pkg_pyi_dir)
 
         cjpydoc_pkg_output_dir.move_into(output_dir)
 
-    return 0
+    return status
 
 
 if __name__ == "__main__":

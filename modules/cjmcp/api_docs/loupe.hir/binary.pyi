@@ -1,11 +1,8 @@
+from typing import Literal
+
 class ItemFile:
     """
-    
-    Where an item is declared: a source file, a file of a package compiled already, by its index
-    among the package's files, or the expansion of a macro call on an item of a source file (#175).
-    CompilerBuiltIns supplies std.core's compiler-owned declarations without inventing source text.
-    Name resolution takes each alike.
-    
+    Where an item is declared: a source file, a file of a package compiled already, by its index among the package's files, or the expansion of a macro call on an item of a source file (#175). CompilerBuiltIns supplies std.core's compiler-owned declarations without inventing source text. Name resolution takes each alike.
     """
     def __eq__(self, __other: ItemFile) -> bool:
         ...
@@ -13,7 +10,7 @@ class ItemFile:
         ...
     def __hash__(self) -> int:
         ...
-    kind: Literal['Source'] | Literal['Binary'] | Literal['Expansion'] | Literal['CompilerBuiltIns']
+    kind: Literal['Source', 'Binary', 'Expansion', 'CompilerBuiltIns']
     class Source(ItemFile):
         kind: Literal['Source'] = 'Source'
         def __init__(self, __p1: SourceFile):
@@ -21,8 +18,9 @@ class ItemFile:
              for type SourceFile, see 'loupe.db/db.pyi'
             """
             ...
-        @readonly
-        field0: SourceFile
+        @property
+        def field0(self) -> SourceFile:
+            ...
         __match_args__ = ('field0')
     class Binary(ItemFile):
         kind: Literal['Binary'] = 'Binary'
@@ -31,10 +29,12 @@ class ItemFile:
              for type BinaryPackageFile, see 'loupe.db/project.pyi'
             """
             ...
-        @readonly
-        field0: BinaryPackageFile
-        @readonly
-        field1: int
+        @property
+        def field0(self) -> BinaryPackageFile:
+            ...
+        @property
+        def field1(self) -> int:
+            ...
         __match_args__ = ('field0', 'field1')
     class Expansion(ItemFile):
         kind: Literal['Expansion'] = 'Expansion'
@@ -43,8 +43,9 @@ class ItemFile:
              for type MacroCallId, see 'loupe.hir/expansion.pyi'
             """
             ...
-        @readonly
-        field0: MacroCallId
+        @property
+        def field0(self) -> MacroCallId:
+            ...
         __match_args__ = ('field0')
     class CompilerBuiltIns(ItemFile):
         kind: Literal['CompilerBuiltIns'] = 'CompilerBuiltIns'
@@ -53,14 +54,13 @@ class ItemFile:
              for type Package, see 'loupe.db/project.pyi'
             """
             ...
-        @readonly
-        field0: Package
+        @property
+        def field0(self) -> Package:
+            ...
         __match_args__ = ('field0')
 class BinaryItem:
     """
-    
     An item of a package compiled already: the index of its file, and its id there.
-    
     """
     def __init__(self, __file: int, __id: ItemId):
         """

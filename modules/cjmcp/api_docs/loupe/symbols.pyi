@@ -1,8 +1,8 @@
+from typing import Literal
+
 class FoundSymbol:
     """
-    
     A declaration of the workspace a search found, and the file it is in.
-    
     """
     def __init__(self, __fileId: FileId, __symbol: FileSymbol):
         """
@@ -20,10 +20,7 @@ class FoundSymbol:
         ...
 class FileSymbol:
     """
-    
-    A declaration of a file, as a search of the workspace sees it: an entry of its outline, and the
-    name of the one it is under, if any.
-    
+    A declaration of a file, as a search of the workspace sees it: an entry of its outline, and the name of the one it is under, if any.
     """
     def __init__(self, __name: str, __kind: StructureKind, __range: TextRange, __selectionRange: TextRange, __containerName: str | None):
         """

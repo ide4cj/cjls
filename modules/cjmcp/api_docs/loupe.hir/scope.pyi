@@ -1,8 +1,8 @@
+from typing import Literal
+
 class Resolution:
     """
-    
     What a name means in a file's scope.
-    
     """
     def __repr__(self) -> str:
         ...
@@ -10,7 +10,7 @@ class Resolution:
         ...
     def __ne__(self, __other: Resolution) -> bool:
         ...
-    kind: Literal['Found'] | Literal['FoundPackage'] | Literal['Ambiguous'] | Literal['Ctors'] | Literal['NotFound']
+    kind: Literal['Found', 'FoundPackage', 'Ambiguous', 'Ctors', 'NotFound']
     class Found(Resolution):
         kind: Literal['Found'] = 'Found'
         def __init__(self, __p1: list[DefId]):
@@ -18,8 +18,9 @@ class Resolution:
              for type DefId, see 'loupe.hir/def_map.pyi'
             """
             ...
-        @readonly
-        field0: list[DefId]
+        @property
+        def field0(self) -> list[DefId]:
+            ...
         __match_args__ = ('field0')
     class FoundPackage(Resolution):
         kind: Literal['FoundPackage'] = 'FoundPackage'
@@ -28,15 +29,17 @@ class Resolution:
              for type PackageRef, see 'loupe.hir/def_map.pyi'
             """
             ...
-        @readonly
-        field0: PackageRef
+        @property
+        def field0(self) -> PackageRef:
+            ...
         __match_args__ = ('field0')
     class Ambiguous(Resolution):
         kind: Literal['Ambiguous'] = 'Ambiguous'
         def __init__(self, __p1: list[ScopeTarget]):
             ...
-        @readonly
-        field0: list[ScopeTarget]
+        @property
+        def field0(self) -> list[ScopeTarget]:
+            ...
         __match_args__ = ('field0')
     class Ctors(Resolution):
         kind: Literal['Ctors'] = 'Ctors'
@@ -45,10 +48,12 @@ class Resolution:
              for type DefId, see 'loupe.hir/def_map.pyi'
             """
             ...
-        @readonly
-        field0: list[DefId]
-        @readonly
-        field1: list[DefId]
+        @property
+        def field0(self) -> list[DefId]:
+            ...
+        @property
+        def field1(self) -> list[DefId]:
+            ...
         __match_args__ = ('field0', 'field1')
     class NotFound(Resolution):
         kind: Literal['NotFound'] = 'NotFound'
@@ -56,11 +61,7 @@ class Resolution:
             ...
 class Namespace:
     """
-    
-    Where a name is used: as a type, or as a value (N41), or as the macro of a call. A type does not
-    see functions or variables; neither sees a macro, nor a macro anything else (a function `Derive`
-    leaves `@Derive` the imported macro).
-    
+    Where a name is used: as a type, or as a value (N41), or as the macro of a call. A type does not see functions or variables; neither sees a macro, nor a macro anything else (a function `Derive` leaves `@Derive` the imported macro).
     """
     def __eq__(self, __other: Namespace) -> bool:
         ...
@@ -68,7 +69,7 @@ class Namespace:
         ...
     def __hash__(self) -> int:
         ...
-    kind: Literal['Types'] | Literal['Values'] | Literal['Macros']
+    kind: Literal['Types', 'Values', 'Macros']
     class Types(Namespace):
         kind: Literal['Types'] = 'Types'
         def __init__(self):
@@ -83,9 +84,7 @@ class Namespace:
             ...
 class ScopeTarget:
     """
-    
     What a name of a scope stands for: a declaration, or a package imported by its name (N7, N43).
-    
     """
     def __repr__(self) -> str:
         ...
@@ -95,7 +94,7 @@ class ScopeTarget:
         ...
     def __hash__(self) -> int:
         ...
-    kind: Literal['OfDecl'] | Literal['OfPackage']
+    kind: Literal['OfDecl', 'OfPackage']
     class OfDecl(ScopeTarget):
         kind: Literal['OfDecl'] = 'OfDecl'
         def __init__(self, __p1: DefId):
@@ -103,8 +102,9 @@ class ScopeTarget:
              for type DefId, see 'loupe.hir/def_map.pyi'
             """
             ...
-        @readonly
-        field0: DefId
+        @property
+        def field0(self) -> DefId:
+            ...
         __match_args__ = ('field0')
     class OfPackage(ScopeTarget):
         kind: Literal['OfPackage'] = 'OfPackage'
@@ -113,15 +113,13 @@ class ScopeTarget:
              for type PackageRef, see 'loupe.hir/def_map.pyi'
             """
             ...
-        @readonly
-        field0: PackageRef
+        @property
+        def field0(self) -> PackageRef:
+            ...
         __match_args__ = ('field0')
 class ImportSite:
     """
-    
-    The path of an import a name came by: its file, its import, the path's index in it, and the
-    visibility it re-exports with.
-    
+    The path of an import a name came by: its file, its import, the path's index in it, and the visibility it re-exports with.
     """
     def __init__(self, __file: ItemFile, __item: ItemId, __path: int, __level: Visibility):
         """
@@ -157,9 +155,7 @@ class ImportSite:
         ...
 class Imported:
     """
-    
     A name an import brings, and the path it came by; `None` for the prelude.
-    
     """
     def __init__(self, __target: ScopeTarget, __site: ImportSite | None):
         ...
@@ -175,9 +171,7 @@ class Imported:
         ...
 class Glob:
     """
-    
     An import of every name of a package, kept as the package: its names are read at a lookup.
-    
     """
     def __init__(self, __pkg: PackageRef, __relation: PackageRelation, __level: Visibility, __site: ImportSite | None):
         """
@@ -195,6 +189,7 @@ class Glob:
     @property
     def relation(self) -> PackageRelation:
         """
+        How the importer stands to it, for what it sees (N2–N4).
          for type PackageRelation, see 'loupe.hir/imports.pyi'
         """
         ...
