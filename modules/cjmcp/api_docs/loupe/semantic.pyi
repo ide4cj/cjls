@@ -154,6 +154,23 @@ class SemanticAnalysis:
          for type ItemFile, see 'loupe.hir/binary.pyi'
         """
         ...
+    def project(self) -> SemanticProject | None:
+        """
+        The single merged loaded project, or none before project inputs are installed. Original workspace-root grouping is not retained by the merged input.
+        """
+        ...
+    def syntaxAt(self, __fileId: FileId) -> SemanticSyntaxTree | None:
+        """
+        Lossless source in the editor's preferred context; none for an unavailable file.
+         for type FileId, see 'loupe.vfs/vfs.pyi'
+        """
+        ...
+    def syntax(self, __file: ItemFile) -> SemanticSyntaxTree | None:
+        """
+        Preserves explicit source/expansion context. Binary/compiler declarations have no tree; missing/failed macro output is unavailable, rather than a successful empty expansion. ItemFile must originate from this database/revision, as for inFile().
+         for type ItemFile, see 'loupe.hir/binary.pyi'
+        """
+        ...
 class SemanticOccurrence:
     """
     Occurrence and targets are distinct. Definitions preserves zero/one/many meanings: none is unavailable/inapplicable classification, an empty array a known empty result. Objects contains the nearest mapped node of each HIR category. Written type references retain their own identity.
@@ -169,6 +186,17 @@ class SemanticOccurrence:
         ...
     @property
     def objects(self) -> list[SemanticObject]:
+        ...
+    def contextualFile(self) -> SemanticFile:
+        """
+        Return the file with the lookup context of this occurrence.
+         for type SemanticFile, see 'loupe/semantic_scope.pyi'
+        """
+        ...
+    def resolution(self) -> SemanticResolution:
+        """
+        Uses the same classification and selected identities as navigation, with explicit non-success. No rejection trace is synthesized when inference did not retain one.
+        """
         ...
 class SemanticObject:
     """
@@ -191,6 +219,67 @@ class SemanticObject:
     def typeDisplay(self) -> str | None:
         """
         Type display from this object's revision; none when it has no type.
+        """
+        ...
+    def contextualPackage(self) -> SemanticPackage | None:
+        """
+        Context of the identity itself; never reconstructed through its navigation location.
+        """
+        ...
+    def usages(self, *, inPackages: list[SemanticPackage] | None = ...) -> SemanticUsages | None:
+        """
+        On-demand identity search, reusing reference scopes, aliases and word filtering. None means the object is not a searchable named identity (packages included). Empty entries apply within the returned gaps. Inactive code is excluded. Macro arguments retain written identity; generated usages are currently unavailable, matching findReferences rather than pretending expansion completeness. Explicit inPackages searches those contextual files instead of the default reference scope. It also reads scope aliases, allowing reverse import traversal through renamed re-exports. Binaries have no written usages. @throws IllegalArgumentException - if a package belongs to another SemanticAnalysis.
+         for type SemanticPackage, see 'loupe/semantic_project.pyi'
+        """
+        ...
+    def outgoingCalls(self) -> SemanticCalls:
+        """
+        Reuses directCalls and every A39 gap. Nested named functions/lambdas are scanned only when explicitly selected as the owner; declaring them contributes no calls to the outer body. Attached binary bodies are used when checked source is available; otherwise unavailable-body.
+        """
+        ...
+    def incomingCalls(self) -> list[SemanticCallEdge]:
+        """
+        Incoming evidence over loaded workspace source contexts, using directCalls' partial model. Repeated sites and candidate targets survive. Unavailable callers and callback/value flow are not enumerated; inspect each caller's outgoingCalls gaps before making reachability claims.
+        """
+        ...
+    def directSupertypes(self) -> list[SemanticHierarchyEdge]:
+        """
+        Immediate supertypes, including extensions visible from the declaration context. Every extension keeps its own owner; never returns the transitive closure.
+        """
+        ...
+    def directSubtypes(self) -> list[SemanticHierarchyEdge]:
+        """
+        Immediate reverse edges from the existing package subtype cache. Distinct extend owners remain distinct even when they implement the same type-to-interface relationship.
+        """
+        ...
+    def directImplementations(self) -> list[SemanticImplementationEdge]:
+        """
+        Immediate member relationships: a candidate overridden through a nearer matching member is excluded. Shared ancestors in a diamond appear once by declaration identity.
+        """
+        ...
+    def directImplementers(self) -> list[SemanticImplementationEdge]:
+        """
+        Immediate reverse implementation edges. The candidate search is transitive, but each returned edge passes the same nearest-member rule as directImplementations.
+        """
+        ...
+    def bodyResolutions(self) -> SemanticBodyResolutions:
+        """
+        Body records with explicit source availability. Checked binary attachments use their source body while declaration, generic and callable targets retain canonical identities.
+        """
+        ...
+    def calls(self) -> list[SemanticCallResolution]:
+        """
+        Retained calls, including synthetic operators and function values. Use bodyResolutions() to distinguish unavailable bodies from bodies with no calls.
+        """
+        ...
+    def resolutions(self) -> list[SemanticResolution]:
+        """
+        Written name and operator occurrences belonging to this declaration, in source order per source context. Signature segments and body expansions are included; source-less bodies have no written occurrences.
+        """
+        ...
+    def syntaxOrigins(self) -> list[SemanticSyntaxOrigin]:
+        """
+        Written syntax followed by distinct expansion call-site aliases in lowering order. Synthetic/unavailable nodes stay explicit. The canonical origin returned by origins() is unchanged; this traversal additionally exposes the many-to-one expansion bridge.
         """
         ...
 class SemanticLocation:
@@ -243,5 +332,11 @@ class SemanticLocation:
     def source(self) -> SemanticLocation | None:
         """
         Physical/attached source or an exact copied expansion span; none for generated text.
+        """
+        ...
+    def contextualFile(self) -> SemanticFile:
+        """
+        Return the file with the lookup context retained by this location.
+         for type SemanticFile, see 'loupe/semantic_scope.pyi'
         """
         ...

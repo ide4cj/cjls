@@ -60,8 +60,10 @@ def cjpydoc_args_for_pkg(pkg: PackageData) -> List[str]:
     return [
         "cjpydoc",
         "--python-type=loupe.hir.BodySource=BodySource",
-        *[f"--python-package-source={source.fqn}={source.src_dir()}"
-          for source in pkgs_with_derive_python],
+        *[
+            f"--python-package-source={source.fqn}={source.src_dir()}"
+            for source in pkgs_with_derive_python
+        ],
         "--import-path=target/release",
         f"--import-path={CANGJIE_STDX_PATH}",
         "-Woff",
@@ -93,7 +95,10 @@ def main(argv: List[str]) -> int:
         cjpydoc_pkg_output_dir = Path(pkg.fqn)
 
         if not cjpydoc_pkg_output_dir.exists() or not cjpydoc_pkg_output_dir.is_dir():
-            print(f"error: cjpydoc for package `{pkg.fqn}` produced no directory", file=sys.stderr)
+            print(
+                f"error: cjpydoc for package `{pkg.fqn}` produced no directory",
+                file=sys.stderr,
+            )
             status = 1
             continue
 
