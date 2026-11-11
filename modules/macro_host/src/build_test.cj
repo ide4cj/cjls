@@ -66,6 +66,38 @@ func unit(src: Path, name: String, isMacro!: Bool = false, deps!: Array<String> 
 @Test
 class MacroBuilderTest {
     @TestCase
+    func obsoleteStdRuntimeArtifactsAreRemovedWithoutDeletingMacroLibraries() {
+        let (src, out) = sources(["ms"])
+        try {
+            let std = out.join("std")
+            Directory.create(std, recursive: true)
+            let obsolete = ["libstd.ast.a", "std.ast.cjo", "std.ast.stamp"]
+            let kept =
+                [
+                    "lib-macro_std.deriving${sharedLibrarySuffix()}",
+                    "std.deriving.cjo",
+                    "std.deriving.stamp"
+                ]
+            for (name in obsolete.concat(kept)) {
+                File.writeTo(std.join(name), [])
+            }
+            let toolchain = FakeToolchain()
+
+            MacroBuilder(out, "cjc 1", toolchain).build([unit(src, "ms", isMacro: true)])
+
+            @Expect(toolchain.names(), ["ms"])
+            for (name in obsolete) {
+                @Expect(!exists(std.join(name)))
+            }
+            for (name in kept) {
+                @Expect(exists(std.join(name)))
+            }
+        } finally {
+            remove(src.parent, recursive: true)
+        }
+    }
+
+    @TestCase
     func conflictingNativeNamesReportABuildFailureBeforeLinking(): Unit {
         // arrange
         let (src, out) = sources(["ms"])

@@ -25,7 +25,13 @@ SDK risk ([K28](../../docs/sdk-issues.md#k28)). Std keeps its separate process.
 Unchanged stamps skip rebuilding. Tests use a fake toolchain as well as SDK cjc.
 Source macro dependencies are built and included in stamps, but are not passed
 to the linker as runtime libraries: cjc loads them during compilation. Runtime
-source dependencies remain statically linked into macro libraries.
+source dependencies remain statically linked into macro libraries. Ordinary `std`
+packages are always supplied by the selected SDK, including when their sources
+are workspace packages. In particular, rebuilding `std.ast` as an ordinary
+library omits compiler-facing declarations needed by macro wrappers and `quote`.
+Source macro packages in `std` are still built, so edits to their implementations
+are reflected in expansions. Under the build lock, obsolete runtime artifacts in
+`out/std` are removed before compiling; cached macro libraries are retained.
 
 Native libraries from the module model and transitive source imports are linked
 with `-L`/`-l` when building a macro library; they never become Cangjie import

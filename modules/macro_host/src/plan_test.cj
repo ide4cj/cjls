@@ -263,3 +263,49 @@ class BuildPlanTest {
         @Expect(projects.libraryOf(built, "b", "ms"), libraryIn(projects.outOf("b"), "b", "b.ms"))
     }
 }
+
+@Test
+class BuildPlanSdkTest {
+    @TestCase
+    func sourceStdAstDoesNotReplaceTheSdkWhenCompilingAMacro() {
+        let ast = "package std.ast\npublic class Tokens {}\n"
+        let macros =
+            #"
+            macro package m.ms
+            import std.ast.*
+            public macro M(input: Tokens): Tokens { input }
+            public macro Q(input: Tokens): Tokens { quote(1) }
+            "#
+        let projects = Projects()
+            .module("runtime", "std", [("std.ast", "ast", ast)])
+            .module("macros", "m", [("m.ms", "ms", macros)], deps: ["std"])
+        try {
+            for ((project, dir, text) in [("runtime", "ast", ast), ("macros", "ms", macros)]) {
+                let path = projects.root.join(project).join(dir)
+                Directory.create(path, recursive: true)
+                File.writeTo(path.join("${dir}.cj"), text.toArray())
+            }
+            let db = projects.database()
+            let toolchain = SdkToolchain(testSdkPaths())
+
+            let built = buildPlan(
+                db,
+                macroBuildPlan(db),
+                projects.outs(db),
+                toolchain.version().getOrThrow(),
+                toolchain
+            )
+
+            @Expect(built.libraries.size, 1)
+            for ((_, library) in built.libraries) {
+                match (library) {
+                    case Built(path, _) => @Expect(exists(path))
+                    case NotBuilt(reason) => @Fail(reason)
+                }
+            }
+            @Expect(!exists(projects.outOf("macros").join("std").join("std.ast.cjo")))
+        } finally {
+            remove(projects.root, recursive: true)
+        }
+    }
+}

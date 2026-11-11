@@ -99,7 +99,10 @@ class MacroBuildPlanner {
         let binaries = ArrayList<VfsPath>()
         for (target in importedPackages(pkg)) {
             match (target) {
-                case Source(dep) where modules.contains(dep) =>
+                // The SDK's std runtime includes compiler-facing declarations and native libraries
+                // that an ordinary source build cannot reproduce. Source macro packages remain editable.
+                case Source(dep) where modules.contains(dep) &&
+                        (modules[dep] != "std" || isMacroPackage(db, dep)) =>
                     let (depDeps, depBinaries) = visit(dep)
                     for (one in depDeps.concat([dep]) where !deps.contains(one)) {
                         deps.add(one)
