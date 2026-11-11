@@ -1,11 +1,11 @@
 # cjmcp Python API
 
-Use the supplied [generated reference](#api-documentation) for signatures,
-defaults, fields and per-member documentation. This guide covers session lifetime,
+Use the server instructions for common queries and one short
+[task recipe](skills/cangjie-mcp/SKILL.md) for an unfamiliar operation. Consult the
+[generated reference](#api-documentation) only for an unresolved signature,
+default, field or per-member contract. This guide covers session lifetime,
 revisions, source coordinates, serialization and effects across API calls.
-[Task recipes](skills/cangjie-mcp/SKILL.md) provide traversal examples; the server's
-initialization instructions cover common queries. For connection configuration,
-see [agent setup](agent-setup.md).
+For connection configuration, see [agent setup](agent-setup.md).
 
 ## Server identity
 
@@ -31,15 +31,16 @@ Each script receives `api_docs`, which reads the generated `.pyi` reference
 supplied with the server. It is independent of the selected workspace and revision:
 
 ```python
-result = api_docs.files()
-# In a separate call, read the file needed for the task:
-# result = api_docs.read("cjmcp/python.pyi")
+result = api_docs.read_symbol("cjmcp/analysis.pyi", "AnalysisRevision.symbols")
 ```
 
 `files()` returns sorted paths relative to the documentation root. `read(path)`
 returns UTF-8 text; paths in declaration comments use the same root, for example
-`loupe.hir/def_map.pyi`. Start with `cjmcp/python.pyi` for `Workspace` and
-`cjmcp/analysis.pyi` for `AnalysisRevision`. Native objects are injected into
+`loupe.hir/def_map.pyi`. `Workspace` members are in `cjmcp/python.pyi`;
+`AnalysisRevision` members are in `cjmcp/analysis.pyi`. Select a known member
+directly by name to get its signature and short contract; skip discovery when
+the path and name are known. Follow returned-type links only for fields or
+contracts needed by the task. Native objects are injected into
 scripts; these paths do not identify importable Python modules. A type documented
 for a returned value need not be a global name in the script: inspect `type(value)`
 when needed. Namespace registration is separate from type documentation.
@@ -52,14 +53,19 @@ Missing documentation/files raise `FileNotFoundError`; absolute paths, parent
 traversal, non-`.pyi` paths and links outside the documentation root are rejected
 with `ValueError`. Non-string paths raise `TypeError`.
 
-For large files, select declarations without returning the whole reference:
+If the path or name is unknown, filter `files()` or `outline(path, class_name)`
+inside Python and return only matching names. For a known member-name fragment:
 
 ```python
-result = api_docs.outline("loupe.hir/body.pyi")
-# In subsequent calls, inspect a class and then read the relevant declaration:
-# result = api_docs.outline("loupe.hir/body.pyi", "Expr")
-# result = api_docs.read_symbol("loupe.hir/body.pyi", "Expr.CallExpr")
+result = [entry["symbol"] for entry in api_docs.outline(
+    "cjmcp/analysis.pyi", "AnalysisRevision")
+    if "signature" in entry["symbol"].lower()]
 ```
+
+Then select the relevant member with `read_symbol`. Avoid returning whole files
+or classes. Use a top-level `outline(path)` only if the container is unknown.
+A known nested declaration can be selected directly, for example
+`api_docs.read_symbol("loupe.hir/body.pyi", "Expr.CallExpr")`.
 
 `outline(path, symbol=None)` lists immediate declarations in source order, at the
 file level or inside the named class. Each entry contains `symbol` (a dotted
@@ -117,9 +123,9 @@ Python imports and process state are shared; these are independent analysis
 sessions, not isolated Python interpreters or processes. Modules used to retain
 objects across calls must keep their producing session identity too.
 
-Native node/range values are objects, not JSON dictionaries. Discover workspace
-members in `cjmcp/python.pyi` through `api_docs`; use `cjmcp/analysis.pyi` for
-revision-bound queries.
+Native node/range values are objects, not JSON dictionaries. Use task recipes
+for traversal and targeted [reference lookups](#api-documentation) for unresolved
+member contracts.
 
 ### Project build inputs
 
