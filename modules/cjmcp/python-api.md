@@ -57,7 +57,7 @@ If the path or name is unknown, filter `files()` or `outline(path, class_name)`
 inside Python and return only matching names. For a known member-name fragment:
 
 ```python
-result = [entry for entry in api_docs.outline(
+result = [entry["symbol"] for entry in api_docs.outline(
     "cjmcp/analysis.pyi", "AnalysisRevision")
     if "signature" in entry["symbol"].lower()]
 ```

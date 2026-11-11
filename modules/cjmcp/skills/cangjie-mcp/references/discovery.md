@@ -24,7 +24,7 @@ If the name or path is unknown, filter `api_docs.files()` or
 For example, to find a revision query by a name fragment:
 
 ```python
-result = [entry for entry in api_docs.outline(
+result = [entry["symbol"] for entry in api_docs.outline(
     "cjmcp/analysis.pyi", "AnalysisRevision")
     if "signature" in entry["symbol"].lower()]
 ```
