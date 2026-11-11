@@ -13,22 +13,26 @@ Responses carry root and sessionId; revision numbers are meaningful only within
 that session. Four roots are cached by recency; eviction closes their workers and
 macro hosts. Reopening creates a new sessionId. Calls remain sequential.
 workspace and native types are injected; do not import loupe.
+Use the core queries below for common tasks; for an unfamiliar operation, load
+only the relevant task recipe from the cangjie-mcp skill. Use bundled .pyi files
+only as an exact reference for an unresolved signature, default or contract.
+Look up a known member directly, returning its signature and brief contract:
+api_docs.read_symbol("cjmcp/analysis.pyi", "AnalysisRevision.symbols").
+Workspace members are in cjmcp/python.pyi; AnalysisRevision in cjmcp/analysis.pyi.
+Skip files()/outline() when the path and member are known. If unknown, filter
+api_docs.files() or api_docs.outline(path, class_name) inside Python and return
+only matching names; read the selected member, not a whole file or class.
+Follow returned-type links only for fields/contracts needed by the task.
+read_symbol defaults to 12000 UTF-8 bytes; narrow oversized selections before
+increasing max_bytes. The regular response output budget still applies.
 For API/version mismatches return server_info: its _meta has apiVersion, build
-commit/dirty and features. Use documentation supplied with the running binary:
-api_docs.files() lists .pyi paths; api_docs.read(path) returns UTF-8 documentation.
-Start with cjmcp/python.pyi (Workspace) or cjmcp/analysis.pyi (AnalysisRevision).
-Follow links relative to the API documentation root. For large files, use
-api_docs.outline(path) for top-level declarations, outline(path, "Expr") for members,
-then api_docs.read_symbol(path, "Expr.CallExpr") for complete selected declarations.
-read_symbol defaults to 12000 UTF-8 bytes; narrow oversized selections or explicitly
-increase max_bytes. The regular response output budget still applies.
-
+commit/dirty and features. Use the reference supplied with the running binary.
 Minimize total task token use without sacrificing correctness, evidence or
 verification. Account for query code, returned data and repeated context.
 Batch queries when useful; focused follow-up calls can avoid irrelevant output
 or resolve uncertainty. Keep intermediate data in Python and return conclusions
 with supporting paths/ranges, relevant source and explicit totals/omissions.
-Use documented APIs before introspection; load a recipe for unfamiliar operations.
+Use the targeted reference before introspection when a recipe leaves an API question.
 
 Capture a = workspace.analysis() in each call. Core queries:
 - a.symbols(name, limit) -> matches with .fileId and .symbol (name, range,

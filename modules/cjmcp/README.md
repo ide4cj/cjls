@@ -104,11 +104,14 @@ Use the server instructions for common queries and one
 [task recipe](skills/cangjie-mcp/SKILL.md) for an unfamiliar operation. Configure
 the connection with [agent setup](agent-setup.md).
 
-The supplied `.pyi` reference documents signatures, fields and member contracts.
-Read it through `api_docs`: discover files with `files()`, list declarations with
-`outline(path)` and select one with `read_symbol(path, symbol)`. Start with
-`cjmcp/python.pyi` (`Workspace`) or `cjmcp/analysis.pyi` (`AnalysisRevision`).
-These describe native objects injected into scripts, not importable modules.
+Use the supplied `.pyi` reference only for a signature, default, field or contract
+left unclear by a task recipe. Select a known member directly, for example
+`api_docs.read_symbol("cjmcp/analysis.pyi", "AnalysisRevision.symbols")`.
+`Workspace` members are in `cjmcp/python.pyi`; `AnalysisRevision` members are in
+`cjmcp/analysis.pyi`. When the path or name is unknown, filter `files()` or
+`outline(path, class_name)` inside Python and return only matching names.
+Avoid reading whole reference files or classes. These describe injected native
+objects, not importable modules.
 See [API documentation](python-api.md#api-documentation) for lookup and budgets.
 
 The [runtime guide](python-api.md) covers workspace sessions, revision freshness,

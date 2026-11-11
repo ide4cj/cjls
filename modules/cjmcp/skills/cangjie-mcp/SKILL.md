@@ -9,7 +9,9 @@ and last_output belong to that session, which can be evicted from the four-root
 cache. Do not pass native IDs between sessions.
 
 Follow server instructions for common queries; discover `runPython` if deferred.
-Use this skill for an unfamiliar operation, loading only its relevant recipe.
+For an unfamiliar operation, start with its short task recipe below. Consult the
+bundled .pyi reference only for an unresolved signature, default, field or contract;
+select the member directly by name and avoid reading whole reference files.
 Minimize total task token use without sacrificing correctness, evidence or
 verification. Batching queries is one technique; use additional calls when they
 reduce irrelevant output or resolve uncertainty. Keep intermediate data in Python.
