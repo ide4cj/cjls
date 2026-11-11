@@ -100,7 +100,10 @@ process. Incoming messages must end in a newline and are limited to 8 MiB.
 
 ## Python API
 
-Use the server instructions for common queries and one
+The server instructions contain a compact query map, including macro expansion,
+navigation, inference, members and formatting. Use it directly; the
+[Python query map](python-api.md#query-map) is the readable counterpart.
+Use one
 [task recipe](skills/cangjie-mcp/SKILL.md) for an unfamiliar operation. Configure
 the connection with [agent setup](agent-setup.md).
 
@@ -177,6 +180,13 @@ Update affected recipes and server instructions alongside binding changes. Keep
 examples focused on tasks and native names rather than a handwritten type catalog.
 Validate discovery and examples with the real-process MCP tests above; load only
 the relevant recipe when evaluating an agent task.
+
+The macro process test executes the shipped expansion/navigation recipe in one
+tool call. This verifies the example's API use and result serialization, not
+agent efficiency. Compare guidance using identical tasks in fresh agent sessions,
+with the same model/settings, project revision and server binary. Retain tool
+scripts, responses and actual usage when available; compare answer completeness,
+errors and documentation-only calls before interpreting call/token reductions.
 
 ### Immediate call evidence
 

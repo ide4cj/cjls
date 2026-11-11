@@ -8,7 +8,9 @@ always uses the server's --dir. Verify the returned root and sessionId; revision
 and last_output belong to that session, which can be evicted from the four-root
 cache. Do not pass native IDs between sessions.
 
-Follow server instructions for common queries; discover `runPython` if deferred.
+The server instructions supply a compact query map with signatures and result
+fields for common operations, including macro expansion and navigation.
+Use that map directly; discover `runPython` if deferred.
 Use the supplied queries and recipes directly. For an unfamiliar operation, read
 its short task recipe below. Open [API discovery](references/discovery.md) only
 when a specific missing API detail blocks the next query; reference browsing is

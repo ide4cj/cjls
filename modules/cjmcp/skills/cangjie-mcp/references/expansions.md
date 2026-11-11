@@ -1,5 +1,11 @@
 # Navigate macro expansions
 
+`call = analysis.macroCall(path, offset)` finds a call at a source UTF-8 byte
+offset, or returns `None`. `analysis.expansion(call.call)` returns an expansion
+with `.text`, or `None` when unavailable. These two queries suffice to inspect
+one macro. `analysis.expandedFile(path, header)` is for whole-file output and
+requires an explicit header string; it is not needed before `expansion`.
+
 Expansion queries use byte offsets into `analysis.expansion(call).text`:
 `hoverInExpansion`, `definitionInExpansion` and `typeDefinitionInExpansion`.
 They reject missing expansion text or invalid byte positions. A hover range

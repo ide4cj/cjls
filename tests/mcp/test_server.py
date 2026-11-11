@@ -1185,6 +1185,19 @@ main() { generated() }
         """)
         self.assertGreater(changed['revision'], expanded['revision'])
         self.assertEqual(changed['result'], changed['revision'])
+        # Execute the shipped recipe as one tool call; separate API probes would
+        # hide missing signatures or non-serializable result fields in the example.
+        recipe = (ROOT / 'modules/cjmcp/skills/cangjie-mcp/references/expansions.md').read_text(encoding='utf-8')
+        script = recipe.split('```python', 1)[1].split('```', 1)[0].strip()
+        script = script.replace('/src/config/cjc_dependency.cj', '/src/main.cj')
+        inspected = run(script)
+        self.assertNotIn('gap', inspected['result'])
+        self.assertEqual(inspected['result']['loadDiagnostics'], [])
+        self.assertEqual(inspected['result']['macros'], {'state': 'settled', 'diagnostics': []})
+        self.assertIn('extend Value', inspected['result']['expansion'])
+        self.assertTrue(inspected['result']['targets'])
+        self.assertTrue(any('operator func ==' in target['declaration']
+                            for target in inspected['result']['targets']))
         unchanged = run('result = workspace.macros')
         self.assertEqual(unchanged['result'], {'state': 'settled', 'diagnostics': []})
         self.assertEqual(unchanged['revision'], changed['revision'])
