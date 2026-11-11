@@ -1,10 +1,11 @@
 # cjmcp Python API
 
 Use the server instructions for common queries and one short
-[task recipe](skills/cangjie-mcp/SKILL.md) for an unfamiliar operation. Consult the
-[generated reference](#api-documentation) only for an unresolved signature,
-default, field or per-member contract. This guide covers session lifetime,
-revisions, source coordinates, serialization and effects across API calls.
+[task recipe](skills/cangjie-mcp/SKILL.md) for an unfamiliar operation. Use their
+examples directly; consult the [generated reference](#api-documentation) only
+when a specific missing API detail blocks the next query. This guide covers
+session lifetime, revisions, source coordinates, serialization and effects across
+API calls.
 For connection configuration, see [agent setup](agent-setup.md).
 
 ## Server identity
