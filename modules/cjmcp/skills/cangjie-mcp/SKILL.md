@@ -13,9 +13,16 @@ Use the supplied queries and recipes directly. For an unfamiliar operation, read
 its short task recipe below. Open [API discovery](references/discovery.md) only
 when a specific missing API detail blocks the next query; reference browsing is
 not a preparation step. Reuse answers already available in the task context.
-Minimize total task token use without sacrificing correctness, evidence or
-verification. Batching queries is one technique; use additional calls when they
-reduce irrelevant output or resolve uncertainty. Keep intermediate data in Python.
+Plan each read-only script around the user's requested evidence, not one API
+operation. When the supplied API is sufficient, carry selection, analysis and
+verification through in one call; keep intermediate objects in Python and return
+the answer with supporting source/ranges. Include workspace health in that call.
+Use follow-ups for a concrete missing contract, partial result, excessive output
+or a decision that depends on seeing the result, rather than exposing each step.
+Minimize total task token use, including query code and returned data, without
+sacrificing correctness or verification. A call-count target must not truncate
+the search or weaken evidence. Separate post-edit verification as required by
+the editing recipe.
 
 Read only the recipe needed for an unfamiliar operation:
 
