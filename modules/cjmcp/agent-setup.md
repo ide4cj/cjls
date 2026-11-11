@@ -102,9 +102,9 @@ the selection rule and give the agent the recipes path when a task needs details
 Keep only the short selection rule persistent; do not paste the setup guide,
 API reference or every recipe into project instructions. The server instructions
 cover common queries; a simple lookup should need neither skill loading nor API
-introspection. Load one relevant recipe for an unfamiliar operation. Consult the
-bundled .pyi reference only for a remaining API question, selecting a known member
-directly with read_symbol; avoid reading whole reference files.
+introspection. Use supplied queries and examples directly. Load one relevant
+recipe for an unfamiliar operation. If a specific missing API detail blocks the
+next query, use [API discovery](skills/cangjie-mcp/references/discovery.md).
 
 ## Verify actual use
 
