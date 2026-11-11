@@ -76,7 +76,7 @@ public class MacroBuilder {
         }
     }
 
-    private func removeObsoleteStdRuntime(units: Array<BuildUnit>) {
+    private func removeObsoleteStdRuntime(units: Array<BuildUnit>): Unit {
         let dir = out.join("std")
         if (!exists(dir)) {
             return

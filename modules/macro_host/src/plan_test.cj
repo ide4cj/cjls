@@ -267,9 +267,10 @@ class BuildPlanTest {
 @Test
 class BuildPlanSdkTest {
     @TestCase
-    func sourceStdAstDoesNotReplaceTheSdkWhenCompilingAMacro() {
-        let ast = "package std.ast\npublic class Tokens {}\n"
-        let macros =
+    func sourceStdAstDoesNotReplaceTheSdkWhenCompilingAMacro(): Unit {
+        // arrange
+        const AST = "package std.ast\npublic class Tokens {}\n"
+        const MACROS =
             #"
             macro package m.ms
             import std.ast.*
@@ -277,25 +278,27 @@ class BuildPlanSdkTest {
             public macro Q(input: Tokens): Tokens { quote(1) }
             "#
         let projects = Projects()
-            .module("runtime", "std", [("std.ast", "ast", ast)])
-            .module("macros", "m", [("m.ms", "ms", macros)], deps: ["std"])
+            .module("runtime", "std", [("std.ast", "ast", AST)])
+            .module("macros", "m", [("m.ms", "ms", MACROS)], deps: ["std"])
         try {
-            for ((project, dir, text) in [("runtime", "ast", ast), ("macros", "ms", macros)]) {
+            for ((project, dir, text) in [("runtime", "ast", AST), ("macros", "ms", MACROS)]) {
                 let path = projects.root.join(project).join(dir)
                 Directory.create(path, recursive: true)
                 File.writeTo(path.join("${dir}.cj"), text.toArray())
             }
             let db = projects.database()
             let toolchain = SdkToolchain(testSdkPaths())
-
-            let built = buildPlan(
-                db,
-                macroBuildPlan(db),
-                projects.outs(db),
-                toolchain.version().getOrThrow(),
+            let version =
                 toolchain
-            )
+                    .version()
+                    .getOrThrow {
+                        IllegalStateException("The test SDK must provide a compiler version")
+                    }
 
+            // act
+            let built = buildPlan(db, macroBuildPlan(db), projects.outs(db), version, toolchain)
+
+            // assert
             @Expect(built.libraries.size, 1)
             for ((_, library) in built.libraries) {
                 match (library) {

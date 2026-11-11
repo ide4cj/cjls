@@ -66,7 +66,8 @@ func unit(src: Path, name: String, isMacro!: Bool = false, deps!: Array<String> 
 @Test
 class MacroBuilderTest {
     @TestCase
-    func obsoleteStdRuntimeArtifactsAreRemovedWithoutDeletingMacroLibraries() {
+    func obsoleteStdRuntimeArtifactsAreRemovedWithoutDeletingMacroLibraries(): Unit {
+        // arrange
         let (src, out) = sources(["ms"])
         try {
             let std = out.join("std")
@@ -83,8 +84,10 @@ class MacroBuilderTest {
             }
             let toolchain = FakeToolchain()
 
+            // act
             MacroBuilder(out, "cjc 1", toolchain).build([unit(src, "ms", isMacro: true)])
 
+            // assert
             @Expect(toolchain.names(), ["ms"])
             for (name in obsolete) {
                 @Expect(!exists(std.join(name)))

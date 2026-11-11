@@ -63,7 +63,8 @@ class MacroBuildPlanTest {
         @Expect(plan.size, 0)
     }
     @TestCase
-    func sourceStdRuntimePackagesStayInTheSdkWhenBuildingMacros() {
+    func sourceStdRuntimePackagesStayInTheSdkWhenBuildingMacros(): Unit {
+        // arrange
         let fixture = Fixture.parse(
             #"
             //- /ast/ast.cj module=std package=std.ast
@@ -91,8 +92,10 @@ class MacroBuildPlanTest {
         )
         let db = fixture.database()
 
+        // act
         let plan = macroBuildPlan(db)
 
+        // assert
         @Expect(plan.map { unit => unit.pkg.name(db) }, ["std.deriving", "stdxx.util", "m.ms"])
         @Expect(plan[0].deps.size, 0)
         @Expect(plan[2].deps.map { pkg => pkg.name(db) }, ["std.deriving", "stdxx.util"])
