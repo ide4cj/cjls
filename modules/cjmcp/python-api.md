@@ -3,10 +3,50 @@
 Use the server instructions for common queries and one short
 [task recipe](skills/cangjie-mcp/SKILL.md) for an unfamiliar operation. Use their
 examples directly; consult the [generated reference](#api-documentation) only
-when a specific missing API detail blocks the next query. This guide covers
-session lifetime, revisions, source coordinates, serialization and effects across
-API calls.
+when a specific missing API detail blocks the next query. The query map below
+is enough to choose operations without browsing the reference. Compose selection,
+analysis and evidence checks in Python before returning the result.
 For connection configuration, see [agent setup](agent-setup.md).
+
+## Query map
+
+Capture `a = workspace.analysis()` once per script. Paths refer to loaded files;
+offsets and ranges are zero-based UTF-8 bytes, with exclusive ends. Keep native
+objects inside Python and project the fields needed for the answer. Only the
+documented diagnostic/status/range/severity values serialize automatically.
+
+| Task | Query and result |
+|---|---|
+| Check the selected project | `workspace.root`, `workspace.loadDiagnostics`, `workspace.macros`; include these with the first useful query |
+| Read snapshot text | `a.text(path)`; `workspace.files()` includes dependencies, so filter to the project when needed |
+| Find declarations | `a.symbols(name, limit)` returns matches with `.fileId` and `.symbol`; resolve paths with `a.path(fileId)`. A full limit may omit matches |
+| Inspect a file outline | `a.fileSymbols(path)` returns symbols with `.name`, `.range`, `.selectionRange`; `workspace.structure(path)` has nested `.children` |
+| Find source usages | `a.references(path, offset)` returns `.fileId`, `.range`, `.isDeclaration` |
+| Inspect same-file occurrences | `a.related(path, offset)` retains read/write relationships |
+| Navigate source | `workspace.definition(path, offset)`, `workspace.hover(path, offset)`, `workspace.diagnostics(path)` |
+| Inspect members | `a.allMembers(defId)` includes inherited and visible extension members; `a.members(defId, name)`, `a.supertypes(defId)` narrow the query |
+| Inspect member access | `a.field(defId, exprId)`, `a.receiver(defId, exprId)`, `a.receiverType(defId, exprId)` inspect resolution in the selected declaration |
+| Inspect a macro | `a.macroCall(path, offset)` returns a value with `.call` or `None`; `a.expansion(call.call)` returns a value with `.text` or `None` |
+| Expand a whole file | `a.expandedFile(path, header)` requires an explicit header string; a single macro uses `expansion` instead |
+| Navigate generated code | `a.definitionInExpansion(call.call, offset)`, `a.hoverInExpansion(call.call, offset)`, `a.typeDefinitionInExpansion(call.call, offset)`; offsets belong to the expansion text |
+| Inspect HIR and types | `a.declarations(path)` returns DefIds; `a.item(defId)`, `a.body(defId)`, `a.infer(defId)`, `a.typeText(ty)`, `a.typeKind(ty)`. Inference `.exprs` and `.locals` align with the body's arrays; `a.expressionRanges(defId)` uses the same expression indices. Null types mean non-value expressions; null ranges mean unavailable source locations |
+| Inspect selected callees | `a.infer(defId).callees` has `.expr`, `.decl`, `.isInitializer`; `.expr.index` identifies the callee expression, which need not be the outer call expression |
+| Locate written signature types | `a.signatureWithSourceMap(defId)` returns `.signature` and `.sourceMap.ranges`; index by `TypeRefId.index` |
+| Compose semantic queries | `s = a.semantic()`; `s.at(a.fileId(path), offset)`, `s.syntaxAt(a.fileId(path))`, `s.project()` retain lookup context |
+| Follow call hierarchy | `a.prepareCallHierarchy(path, offset)` returns entries; `a.incomingCalls(entry)`, `a.outgoingCalls(entry)` return grouped call sites |
+| Query completion/type navigation | `a.completions(path, offset)`, `a.completionDetails(path, offset, item)`, `a.typeDefinition(path, offset)`, `a.implementations(path, offset)` |
+| Inspect editor structure | `a.highlights(path)`, `a.folding(path)`, `a.selection(path, offset)` return highlighting, folds and enclosing selections |
+| Preview formatting | `a.formatting(path)`, `a.rangeFormatting(path, TextRange(start, end))` return edits or `None`; optional `options=FormatOptions(indentWidth=2)` |
+| Read builtin docs | `a.builtinTypeDoc(name)`, `a.builtinAnnotationDoc(name)`, `a.builtinMacroDoc(name)` return docs or `None`; names exclude `@` |
+| Suggest a package header | `a.newFilePackageLine(path)` returns a string or `None`, without creating the file |
+
+Navigation targets expose `.fileId`, `.fullRange`, `.focusRange` and `.expansion`.
+For source targets read `a.text(a.path(target.fileId))`; for expansion targets
+read `a.expansion(target.expansion).text` before slicing their ranges. Check for
+unavailable text. Return explicit target fields, not the native target object.
+See the [macro recipe](skills/cangjie-mcp/references/expansions.md) for a complete
+expansion-and-navigation script and the other
+[task recipes](skills/cangjie-mcp/SKILL.md) for traversal examples.
 
 ## Server identity
 
@@ -25,72 +65,6 @@ apiVersion changes for incompatible Python contract changes; additive features
 can be checked individually. Missing server_info identifies an older server
 without this discovery contract. Do not use a newer checkout's docs as proof of
 its capabilities. For example: result = server_info.
-
-## API documentation
-
-Each script receives `api_docs`, which reads the generated `.pyi` reference
-supplied with the server. It is independent of the selected workspace and revision:
-
-```python
-result = api_docs.read_symbol("cjmcp/analysis.pyi", "AnalysisRevision.symbols")
-```
-
-`files()` returns sorted paths relative to the documentation root. `read(path)`
-returns UTF-8 text; paths in declaration comments use the same root, for example
-`loupe.hir/def_map.pyi`. `Workspace` members are in `cjmcp/python.pyi`;
-`AnalysisRevision` members are in `cjmcp/analysis.pyi`. Select a known member
-directly by name to get its signature and short contract; skip discovery when
-the path and name are known. Follow returned-type links only for fields or
-contracts needed by the task. Native objects are injected into
-scripts; these paths do not identify importable Python modules. A type documented
-for a returned value need not be a global name in the script: inspect `type(value)`
-when needed. Namespace registration is separate from type documentation.
-
-The server first uses `api_docs/` beside its executable. A source build in
-`<checkout>/target/<profile>/bin/` falls back to that checkout's
-`modules/cjmcp/api_docs/`. It never selects documentation from the analyzed
-workspace or working directory. Keep `api_docs/` beside a relocated executable.
-Missing documentation/files raise `FileNotFoundError`; absolute paths, parent
-traversal, non-`.pyi` paths and links outside the documentation root are rejected
-with `ValueError`. Non-string paths raise `TypeError`.
-
-If the path or name is unknown, filter `files()` or `outline(path, class_name)`
-inside Python and return only matching names. For a known member-name fragment:
-
-```python
-result = [entry["symbol"] for entry in api_docs.outline(
-    "cjmcp/analysis.pyi", "AnalysisRevision")
-    if "signature" in entry["symbol"].lower()]
-```
-
-Then select the relevant member with `read_symbol`. Avoid returning whole files
-or classes. Use a top-level `outline(path)` only if the container is unknown.
-A known nested declaration can be selected directly, for example
-`api_docs.read_symbol("loupe.hir/body.pyi", "Expr.CallExpr")`.
-
-`outline(path, symbol=None)` lists immediate declarations in source order, at the
-file level or inside the named class. Each entry contains `symbol` (a dotted
-qualified name), `kind` (`class`, `function` or `attribute`), `line` and `end_line`.
-Line numbers are one-based, inclusive and include decorators. Nested classes are
-listed without expanding their members. Overloads and property accessors have
-separate entries with the same qualified name.
-
-`read_symbol(path, symbol, *, max_bytes=12000)` returns complete declarations as
-dedented text, including decorators and docstrings. All overloads or accessors
-with the selected name are returned together, in source order. It parses the
-reference with Python's AST; it never imports or executes a stub. Missing symbols
-raise `KeyError`; malformed names raise `ValueError`, and non-string names raise
-`TypeError`. An outline container must be a class. Both operations use the same
-path validation and server-owned documentation as `read()`.
-
-The selection limit counts UTF-8 bytes. An oversized selection raises `ValueError`
-with its required size and guidance to select a member or increase `max_bytes`;
-it never returns a truncated declaration. The limit must be a positive integer.
-The regular `maxOutputBytes` response budget also applies, including JSON overhead.
-Use `last_output` to recover an oversized response without repeating work.
-
-The reference is generated and reviewed locally, then committed. Neither builds
-nor artifact packaging run `cjpydoc`; the supplied files can lag binding changes.
 
 ## Selecting a project or worktree
 
@@ -369,6 +343,72 @@ threads that use them before returning from the tool.
 Native filesystem watchers, editor buffers, cancellation, HTTP and parallel tool
 requests are outside this experiment. The existing macro host limitations,
 including K28's conflicting loaded libraries within a load, still apply.
+
+## API documentation
+
+Each script receives `api_docs`, which reads the generated `.pyi` reference
+supplied with the server. It is independent of the selected workspace and revision:
+
+```python
+result = api_docs.read_symbol("cjmcp/analysis.pyi", "AnalysisRevision.symbols")
+```
+
+`files()` returns sorted paths relative to the documentation root. `read(path)`
+returns UTF-8 text; paths in declaration comments use the same root, for example
+`loupe.hir/def_map.pyi`. `Workspace` members are in `cjmcp/python.pyi`;
+`AnalysisRevision` members are in `cjmcp/analysis.pyi`. Select a known member
+directly by name to get its signature and short contract; skip discovery when
+the path and name are known. Follow returned-type links only for fields or
+contracts needed by the task. Native objects are injected into
+scripts; these paths do not identify importable Python modules. A type documented
+for a returned value need not be a global name in the script: inspect `type(value)`
+when needed. Namespace registration is separate from type documentation.
+
+The server first uses `api_docs/` beside its executable. A source build in
+`<checkout>/target/<profile>/bin/` falls back to that checkout's
+`modules/cjmcp/api_docs/`. It never selects documentation from the analyzed
+workspace or working directory. Keep `api_docs/` beside a relocated executable.
+Missing documentation/files raise `FileNotFoundError`; absolute paths, parent
+traversal, non-`.pyi` paths and links outside the documentation root are rejected
+with `ValueError`. Non-string paths raise `TypeError`.
+
+If the path or name is unknown, filter `files()` or `outline(path, class_name)`
+inside Python and return only matching names. For a known member-name fragment:
+
+```python
+result = [entry["symbol"] for entry in api_docs.outline(
+    "cjmcp/analysis.pyi", "AnalysisRevision")
+    if "signature" in entry["symbol"].lower()]
+```
+
+Then select the relevant member with `read_symbol`. Avoid returning whole files
+or classes. Use a top-level `outline(path)` only if the container is unknown.
+A known nested declaration can be selected directly, for example
+`api_docs.read_symbol("loupe.hir/body.pyi", "Expr.CallExpr")`.
+
+`outline(path, symbol=None)` lists immediate declarations in source order, at the
+file level or inside the named class. Each entry contains `symbol` (a dotted
+qualified name), `kind` (`class`, `function` or `attribute`), `line` and `end_line`.
+Line numbers are one-based, inclusive and include decorators. Nested classes are
+listed without expanding their members. Overloads and property accessors have
+separate entries with the same qualified name.
+
+`read_symbol(path, symbol, *, max_bytes=12000)` returns complete declarations as
+dedented text, including decorators and docstrings. All overloads or accessors
+with the selected name are returned together, in source order. It parses the
+reference with Python's AST; it never imports or executes a stub. Missing symbols
+raise `KeyError`; malformed names raise `ValueError`, and non-string names raise
+`TypeError`. An outline container must be a class. Both operations use the same
+path validation and server-owned documentation as `read()`.
+
+The selection limit counts UTF-8 bytes. An oversized selection raises `ValueError`
+with its required size and guidance to select a member or increase `max_bytes`;
+it never returns a truncated declaration. The limit must be a positive integer.
+The regular `maxOutputBytes` response budget also applies, including JSON overhead.
+Use `last_output` to recover an oversized response without repeating work.
+
+The reference is generated and reviewed locally, then committed. Neither builds
+nor artifact packaging run `cjpydoc`; the supplied files can lag binding changes.
 
 ## Binding implementation constraints
 

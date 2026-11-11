@@ -17,11 +17,13 @@ Use the core queries below directly for common tasks; no API documentation looku
 is needed before using them. Start with a query that advances the task, including
 the workspace health fields below in the same call. For an unfamiliar operation,
 load only the relevant task recipe from the cangjie-mcp skill.
-Minimize total task token use without sacrificing correctness, evidence or
-verification. Account for query code, returned data and repeated context.
-Batch queries when useful; focused follow-up calls can avoid irrelevant output
-or resolve uncertainty. Keep intermediate data in Python and return conclusions
-with supporting paths/ranges, relevant source and explicit totals/omissions.
+Compose read-only tasks in Python: select candidates, inspect them and verify
+the requested evidence in one script when the queries below are sufficient.
+Keep intermediate objects in Python; return conclusions with supporting
+paths/ranges, relevant source and explicit totals/omissions. Use follow-ups for
+a concrete missing contract, partial result or a decision needing user input.
+Minimize total task token use, including code and output, without truncating
+searches or weakening verification. Post-edit verification needs a fresh call.
 
 Capture a = workspace.analysis() in each call. Core queries:
 - a.symbols(name, limit) -> matches with .fileId and .symbol (name, range,
@@ -35,13 +37,31 @@ Capture a = workspace.analysis() in each call. Core queries:
 - a.declarations(path) -> DefIds; a.item(defId), a.infer(defId), a.typeText(ty).
 - s = a.semantic() -> snapshot views; s.at(fileId, offset), s.project(), s.syntaxAt(fileId).
   Compose occurrence.resolution(), contextualFile() and object relationships; retain gaps.
-- workspace.sdk -> selected SDK path/source/version/channel, or None, for this revision.
-  s.project().modules(): module.nativeLibraries() gives linker names/search directories.
-
-If a specific missing API detail blocks the next query, use the skill's
-references/discovery.md recipe for a targeted lookup in the bundled .pyi reference.
-Otherwise continue with the task; reference browsing is not a preparation step.
-For API/version mismatches return server_info and use this binary's reference.
+- a.macroCall(path, byteOffset) -> call or None; a.expansion(call.call) -> expansion
+  or None, with .text. a.expandedFile(path, header) needs an explicit header string.
+  a.definitionInExpansion(call.call, offset), hoverInExpansion(call.call, offset),
+  typeDefinitionInExpansion(call.call, offset) use UTF-8 bytes in expansion.text.
+  Navigation targets have .fileId, .fullRange, .focusRange and .expansion; use that
+  target's expansion text when .expansion is present, otherwise a.text(a.path(fileId)).
+- a.body(defId), a.infer(defId) -> matching .locals/.exprs arrays;
+  a.expressionRanges(defId) uses the same expression indices. Null inferred entries
+  mean non-value expressions; null ranges mean unavailable source locations.
+  a.infer(defId).callees entries expose .expr, .decl and .isInitializer; .expr.index
+  identifies the callee expression, not necessarily the outer call expression.
+  a.typeKind(ty) preserves native variants; a.typeText(ty) gives display text.
+  a.signatureWithSourceMap(defId) -> .signature and .sourceMap.ranges.
+- a.allMembers(defId) -> native MemberTarget variants, including inherited/extend members.
+  a.members(defId, name), a.supertypes(defId) narrow member/type queries.
+- a.prepareCallHierarchy(path, offset) -> entries; a.incomingCalls(entry),
+  a.outgoingCalls(entry) -> caller/callee groups with call-site ranges.
+- a.completions(path, offset), a.completionDetails(path, offset, item);
+  a.typeDefinition(path, offset), a.implementations(path, offset).
+- a.formatting(path), a.rangeFormatting(path, TextRange(start, end)) -> edits or None.
+  options=FormatOptions(indentWidth=2) overrides defaults; these queries never write.
+- a.builtinTypeDoc(name), a.builtinAnnotationDoc(name), a.builtinMacroDoc(name) -> doc
+  or None; annotation/macro names exclude @. a.newFilePackageLine(path) -> header or None.
+- workspace.sdk -> selected SDK or None; project path/source/version/channel fields
+  explicitly for JSON. s.project().modules(): module.nativeLibraries() gives linker inputs.
 
 Select declarations/members before returning source:
 result = source_excerpts(a, [(path, symbol.range)], max_bytes=12000)
@@ -53,6 +73,8 @@ For rankings, sort before limiting; compute global maxima first and preserve tie
 
 Include workspace.root, workspace.loadDiagnostics and workspace.macros with the
 first useful query. These and workspace.diagnostics(path) serialize directly.
+Other native objects (structure nodes, navigation targets, SDK values) need
+explicit JSON field projection; returning them directly fails serialization.
 MacroState.Pending()/Settled() describe completion; inspect severity independently.
 Report mismatched roots or partial analysis. Retry missing expansion-dependent
 queries when needed; no blanket expansion wait is required.
@@ -72,4 +94,9 @@ runPython defaults to maxOutputBytes=24000 UTF-8 JSON bytes across all channels.
 OutputBudgetExceeded occurs after execution: select from last_output in a new
 call without replaying effects. Saved output may describe an older revision.
 Explicit maxOutputBytes=0 allows unlimited output; larger limits are supported.
+
+If a specific missing API detail blocks the next query, use the skill's
+references/discovery.md recipe for a targeted lookup in the bundled .pyi reference.
+Otherwise continue with the task; reference browsing is not a preparation step.
+For API/version mismatches return server_info and use this binary's reference.
 "#

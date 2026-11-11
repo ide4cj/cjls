@@ -1185,6 +1185,45 @@ main() { generated() }
         """)
         self.assertGreater(changed['revision'], expanded['revision'])
         self.assertEqual(changed['result'], changed['revision'])
+        # Execute the shipped recipe as one tool call; separate API probes would
+        # hide missing signatures or non-serializable result fields in the example.
+        recipe = (ROOT / 'modules/cjmcp/skills/cangjie-mcp/references/expansions.md').read_text(encoding='utf-8')
+        script = recipe.split('```python', 1)[1].split('```', 1)[0].strip()
+        script = script.replace('/src/config/cjc_dependency.cj', '/src/main.cj')
+        script += '\n' + textwrap.dedent('''
+            # A preview boundary inside a multibyte character must preserve both
+            # valid UTF-8 and the byte coordinates used to retrieve more evidence.
+            data = ('x' + 'я' * 2000).encode('utf-8')
+            preview = excerpt(data, TextRange(1, len(data)), max_bytes=3)
+            assert preview['text'] == 'я'
+            assert preview['range'] == TextRange(1, 3)
+            assert preview['total_bytes'] == 4000
+            assert preview['omitted_bytes'] == 3998
+            preview = excerpt(data, TextRange(1, len(data)))
+            assert len(preview['text'].encode('utf-8')) == 1200
+            assert preview['omitted_bytes'] == 2800
+        ''')
+        inspected = run(script)
+        self.assertNotIn('gap', inspected['result'])
+        self.assertEqual(inspected['result']['loadDiagnostics'], [])
+        self.assertEqual(inspected['result']['macros'], {'state': 'settled', 'diagnostics': []})
+        preview = inspected['result']['expansion']
+        self.assertIn('this == other', preview['text'])
+        preview_bytes = len(preview['text'].encode('utf-8'))
+        self.assertLessEqual(preview_bytes, 1200)
+        self.assertEqual(preview['range']['end'] - preview['range']['start'], preview_bytes)
+        self.assertEqual(preview['total_bytes'], inspected['result']['expansion_bytes'])
+        self.assertEqual(preview['omitted_bytes'], preview['total_bytes'] - preview_bytes)
+        self.assertTrue(inspected['result']['targets'])
+        self.assertEqual(inspected['result']['targets_total'],
+                         len(inspected['result']['targets']) + inspected['result']['targets_omitted'])
+        self.assertTrue(any('operator func ==' in target['declaration']['text']
+                            for target in inspected['result']['targets']))
+        for target in inspected['result']['targets']:
+            declaration = target['declaration']
+            size = len(declaration['text'].encode('utf-8'))
+            self.assertLessEqual(size, 1200)
+            self.assertEqual(declaration['total_bytes'] - size, declaration['omitted_bytes'])
         unchanged = run('result = workspace.macros')
         self.assertEqual(unchanged['result'], {'state': 'settled', 'diagnostics': []})
         self.assertEqual(unchanged['revision'], changed['revision'])
