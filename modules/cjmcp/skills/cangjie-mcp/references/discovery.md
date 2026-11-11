@@ -1,9 +1,10 @@
 # Discover an unfamiliar member
 
-Use the server's core queries for common tasks and one relevant task recipe for
-an unfamiliar operation. Consult the running binary's bundled `.pyi` reference
-only when a signature, default, field or contract remains unclear. Reuse a
-reference declaration already available in the task context.
+Use this recipe when a specific missing signature, default, field or contract
+blocks the next task query. The server's core queries and task recipes can be
+used directly, without checking their signatures first. Reuse a reference
+declaration already available in the task context. Once the missing detail is
+resolved, return to the task rather than exploring adjacent API types.
 
 When the path and member are known, select that member directly; no file listing
 or outline is needed. The result includes its signature and short contract:

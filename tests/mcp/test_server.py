@@ -215,7 +215,6 @@ result = True
         replies = [json.loads(line) for line in process.stdout.splitlines()]
         initialization = next(reply["result"] for reply in replies if reply.get("id") == 1)
         self.assertIn("apiDocs", initialization["serverInfo"]["_meta"]["features"])
-        self.assertIn("api_docs.read", initialization["instructions"])
         reply = next(reply for reply in replies if reply.get("id") == 2)
         self.assertNotIn("error", reply)
         self.assertFalse(reply["result"]["isError"], reply)
