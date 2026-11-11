@@ -14,6 +14,7 @@ chmod +x "$work/$name/cjmcp"
 cp modules/cjmcp/README.md LICENSE-MIT LICENSE-APACHE .cangjie-version .cangjie-sha256 "$work/$name/"
 cp modules/cjmcp/agent-setup.md modules/cjmcp/python-api.md "$work/$name/"
 cp -R modules/cjmcp/skills "$work/$name/skills"
+cp -R modules/cjmcp/api_docs "$work/$name/api_docs"
 {
   echo "commit=$sha"
   echo "target=x86_64-unknown-linux-gnu"

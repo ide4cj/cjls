@@ -55,10 +55,10 @@ class SemanticChecks:
             definition = a.declarations('src/helper.cj')[0]
             duplicate = Redefinition(definition, 'duplicate')
             missing_specific = NoSpecific(definition, 'unavailable')
-            assert getattr(duplicate, 'def') == definition
-            assert getattr(missing_specific, 'def') == definition
-            assert Redefinition.__match_args__ == ('def', 'name')
-            assert NoSpecific.__match_args__ == ('def', 'message')
+            assert duplicate.definition == definition
+            assert missing_specific.definition == definition
+            assert Redefinition.__match_args__ == ('definition', 'name')
+            assert NoSpecific.__match_args__ == ('definition', 'message')
             result = len(exported)
         """)
         self.assertGreaterEqual(checked['result'], 200)
