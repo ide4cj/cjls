@@ -157,9 +157,13 @@ public struct Def <: ToString & Equatable<Def> {
  * name with any other declaration (N19, N20, N22).
  */
 @DerivePython
-@PyDoc["A declaration whose name another of its package took first: anything but a function sharing a name with any other declaration (N19, N20, N22). The declaration ID field keeps its existing name; use getattr(value, 'def') in Python."]
+@PyDoc["A declaration whose name another of its package took first: anything but a function sharing a name with any other declaration (N19, N20, N22). The declaration ID is exposed as definition in Python."]
 public struct Redefinition <: ToString & Equatable<Redefinition> {
-    public Redefinition(public let def: DefId, public let name: String) {}
+    public Redefinition(
+        @PyName["definition"]
+        public let def: DefId,
+        public let name: String
+    ) {}
 
     public func toString(): String {
         "redefinition of ${name} by ${def}"

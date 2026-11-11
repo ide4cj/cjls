@@ -129,9 +129,13 @@ func memberItemOf(db: AnalysisDatabase, parent: DefId, def: DefId): ?Item {
  * function 'f' can not find 'specific' match`.
  */
 @DerivePython
-@PyDoc["A `common` declaration no `specific` one completes, though it needs one, as cjc says it: `'common' function 'f' can not find 'specific' match`. The declaration ID field keeps its existing name; use getattr(value, 'def') in Python."]
+@PyDoc["A `common` declaration no `specific` one completes, though it needs one, as cjc says it: `'common' function 'f' can not find 'specific' match`. The declaration ID is exposed as definition in Python."]
 public struct NoSpecific <: Equatable<NoSpecific> {
-    public NoSpecific(public let def: DefId, public let message: String) {}
+    public NoSpecific(
+        @PyName["definition"]
+        public let def: DefId,
+        public let message: String
+    ) {}
 
     public operator func ==(other: NoSpecific): Bool {
         def == other.def && message == other.message
