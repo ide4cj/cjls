@@ -1,11 +1,11 @@
 # cjmcp Python API
 
-For connection configuration, see [agent setup](agent-setup.md). Read only the
-section needed to resolve an API contract; common tasks use server instructions.
-The server sends a semantic-query playbook in the MCP initialization response.
-[Task recipes](skills/cangjie-mcp/SKILL.md) cover queries and runtime API discovery;
-they ship with the Linux archive alongside the skill. Native objects and types
-are injected into scripts; there is no importable `loupe` Python package.
+Use the supplied [generated reference](#api-documentation) for signatures,
+defaults, fields and per-member documentation. This guide covers session lifetime,
+revisions, source coordinates, serialization and effects across API calls.
+[Task recipes](skills/cangjie-mcp/SKILL.md) provide traversal examples; the server's
+initialization instructions cover common queries. For connection configuration,
+see [agent setup](agent-setup.md).
 
 ## Server identity
 
@@ -14,7 +14,7 @@ serverInfo by MCP initialize. Its name/version identify the executable product;
 _meta contains apiVersion (currently 1), commit (full build-time Git SHA or null),
 dirty (whether the build checkout had local changes, or null without Git identity)
 and features: structuredDiagnostics, worktreeSessions, checkedSourceChanges,
-sourceExcerpts, outputBudget and semanticViews. Feature names describe this binary's supported
+sourceExcerpts, outputBudget, semanticViews and apiDocs. Feature names describe this binary's supported
 Python/tool contracts, not analysis completeness or preparation success.
 
 The build hook embeds identity before compilation and preserves the generated
@@ -24,6 +24,66 @@ apiVersion changes for incompatible Python contract changes; additive features
 can be checked individually. Missing server_info identifies an older server
 without this discovery contract. Do not use a newer checkout's docs as proof of
 its capabilities. For example: result = server_info.
+
+## API documentation
+
+Each script receives `api_docs`, which reads the generated `.pyi` reference
+supplied with the server. It is independent of the selected workspace and revision:
+
+```python
+result = api_docs.files()
+# In a separate call, read the file needed for the task:
+# result = api_docs.read("cjmcp/python.pyi")
+```
+
+`files()` returns sorted paths relative to the documentation root. `read(path)`
+returns UTF-8 text; paths in declaration comments use the same root, for example
+`loupe.hir/def_map.pyi`. Start with `cjmcp/python.pyi` for `Workspace` and
+`cjmcp/analysis.pyi` for `AnalysisRevision`. Native objects are injected into
+scripts; these paths do not identify importable Python modules. A type documented
+for a returned value need not be a global name in the script: inspect `type(value)`
+when needed. Namespace registration is separate from type documentation.
+
+The server first uses `api_docs/` beside its executable. A source build in
+`<checkout>/target/<profile>/bin/` falls back to that checkout's
+`modules/cjmcp/api_docs/`. It never selects documentation from the analyzed
+workspace or working directory. Keep `api_docs/` beside a relocated executable.
+Missing documentation/files raise `FileNotFoundError`; absolute paths, parent
+traversal, non-`.pyi` paths and links outside the documentation root are rejected
+with `ValueError`. Non-string paths raise `TypeError`.
+
+For large files, select declarations without returning the whole reference:
+
+```python
+result = api_docs.outline("loupe.hir/body.pyi")
+# In subsequent calls, inspect a class and then read the relevant declaration:
+# result = api_docs.outline("loupe.hir/body.pyi", "Expr")
+# result = api_docs.read_symbol("loupe.hir/body.pyi", "Expr.CallExpr")
+```
+
+`outline(path, symbol=None)` lists immediate declarations in source order, at the
+file level or inside the named class. Each entry contains `symbol` (a dotted
+qualified name), `kind` (`class`, `function` or `attribute`), `line` and `end_line`.
+Line numbers are one-based, inclusive and include decorators. Nested classes are
+listed without expanding their members. Overloads and property accessors have
+separate entries with the same qualified name.
+
+`read_symbol(path, symbol, *, max_bytes=12000)` returns complete declarations as
+dedented text, including decorators and docstrings. All overloads or accessors
+with the selected name are returned together, in source order. It parses the
+reference with Python's AST; it never imports or executes a stub. Missing symbols
+raise `KeyError`; malformed names raise `ValueError`, and non-string names raise
+`TypeError`. An outline container must be a class. Both operations use the same
+path validation and server-owned documentation as `read()`.
+
+The selection limit counts UTF-8 bytes. An oversized selection raises `ValueError`
+with its required size and guidance to select a member or increase `max_bytes`;
+it never returns a truncated declaration. The limit must be a positive integer.
+The regular `maxOutputBytes` response budget also applies, including JSON overhead.
+Use `last_output` to recover an oversized response without repeating work.
+
+The reference is generated and reviewed locally, then committed. Neither builds
+nor artifact packaging run `cjpydoc`; the supplied files can lag binding changes.
 
 ## Selecting a project or worktree
 
@@ -57,44 +117,26 @@ Python imports and process state are shared; these are independent analysis
 sessions, not isolated Python interpreters or processes. Modules used to retain
 objects across calls must keep their producing session identity too.
 
-Native node/range values are objects, not JSON dictionaries.
-The workspace handle provides:
-
-| Workspace member | Result |
-|---|---|
-| `root` | Absolute root path |
-| `sdk` | Selected `CangjieHome` (path, discovery source, version and support channel), or `None` |
-| `loadDiagnostics` | Structured project/binary/source loading diagnostics |
-| `macros` | MacroStatus with state and structured preparation diagnostics |
-| `files()` | Source paths of the loaded project |
-| `structure(path)` | Native `StructureNode` objects with nested `children` |
-| `diagnostics(path)` | Located WorkspaceDiagnostic values for this revision |
-| `hover(path, offset)` | Native `HoverResult` with `HoverItem` objects, or `None` |
-| `definition(path, offset)` | `Location` values containing a path and native ranges |
-| `revision` | Session-local revision used by this script and returned in the tool response |
-| `reload()` | Request preparation after this script; the running script keeps its revision |
-| `analysis()` | Retain an `AnalysisRevision` for HIR, inference and navigation |
+Native node/range values are objects, not JSON dictionaries. Discover workspace
+members in `cjmcp/python.pyi` through `api_docs`; use `cjmcp/analysis.pyi` for
+revision-bound queries.
 
 ### Project build inputs
 
-`workspace.sdk` is captured during preparation of the current revision. Its
-`version` and `channel` are `None` when the selected compiler cannot report a
-recognized version; the SDK itself remains available. Known channels are `LTS`,
-`STS`, `pinned nightly` and `out of window`. Reading this value does not run the
-compiler or repeat discovery. Changes to SDK selection open a new revision.
+SDK selection is captured during preparation of the current revision. Reading
+`workspace.sdk` does not run the compiler or repeat discovery; a selection change
+opens a new revision. An unrecognized compiler version leaves its version/channel
+unavailable without making the SDK itself unavailable.
 
-`a.semantic().project().modules()` exposes each module's `nativeLibraries()`:
-read-only `NativeLibrary` values with a linker `name` and a `VfsPath` search `dir`.
-These inputs are separate from Cangjie imports and source dependencies; a selected
-library may not exist yet. Build and run native artifacts with the user's build
-system before expanding macros that need them.
+Native linker inputs are separate from Cangjie imports and source dependencies;
+a selected library may not exist yet. Build and run native artifacts with the
+user's build system before expanding macros that need them.
 
 ### Macro state and structured diagnostics
 
-The old problems/hasExpandedMacros API is removed. Use workspace.loadDiagnostics
-for loading issues, workspace.macros for macro preparation, and
-workspace.diagnostics(path) for a selected file. These native values serialize
-directly in result; no record projection or message parsing is needed:
+Loading, macro preparation and per-file diagnostics have separate channels.
+Their native values serialize directly in `result` without record projection
+or message parsing:
 
 ~~~python
 a = workspace.analysis()
@@ -106,32 +148,20 @@ result = {
 }
 ~~~
 
-MacroStatus has a native MacroState enum and diagnostics. Compare state with
-`MacroState.Pending()` or `MacroState.Settled()` in Python; variants support
-`isinstance` and pattern matching. JSON encodes them as pending/settled strings,
-including when returned directly or nested. String arguments to MacroStatus
-are rejected. State is pending while the revision's macro preparation remains
-to be performed; settled means its preparation attempt
-finished, including a project with no macro calls. Settled can include errors.
-Pending alone is not an error, and warnings do not become failures. Completion
-and diagnostic severity are independent ([D165](../../docs/adr/0165-cjmcp-structured-diagnostics.md)).
-The status and locations belong to the script's fixed revision, not a live worker
-progress feed. Writing/reload does not change them during a script. This session
-implementation still serializes preparation and Python, so normal scripts see
-settled after preparation; this API change adds no wait or new scheduling policy.
+Macro completion and diagnostic severity are independent
+([D165](../../docs/adr/0165-cjmcp-structured-diagnostics.md)). Pending means
+preparation remains; settled means its attempt finished, including projects with
+no macro calls. Settled can include errors, and pending alone is not an error.
+The status belongs to the script's fixed revision, not a live worker progress
+feed. Writes/reload do not change it during a script. Preparation and Python
+execution are serialized, so normal scripts see settled after preparation.
 
-WorkspaceDiagnostic exposes these native fields and their JSON representation:
-
-| Field | Meaning |
-| --- | --- |
-| source | workspace (loading), macro (preparation), or analysis (per-file loupe diagnostics) |
-| code | Stable preparation category, or null when the analysis API has no diagnostic code |
-| severity | Native Severity; JSON error, warning or hint |
-| message | Human-readable detail, with macro hints retained |
-| path | Absolute source path, or null when no source file is attributable |
-| range | Native TextRange; JSON {start, end}, zero-based UTF-8 bytes, end-exclusive; or null |
-| line, column | One-based source line and UTF-8 byte column, or null when unavailable |
-| unnecessary | Whether the source should be shown as unnecessary |
+In Python compare native enum values, such as `d.severity == Severity.Error()`.
+The tool's JSON encoder writes severity as error/warning/hint, macro state as
+pending/settled and diagnostic source as workspace/macro/analysis. A range becomes
+`{start, end}` with zero-based, end-exclusive UTF-8 byte offsets. Diagnostic
+line/column fields are one-based, with columns in UTF-8 bytes. Unavailable codes
+and locations remain JSON null; hints are retained in diagnostic messages.
 
 Preparation codes are workspace_load, macro_sdk, macro_build, macro_not_sent and
 macro_expansion. SDK/build messages without a structured source location keep
@@ -141,11 +171,9 @@ A thrown macro exception falls back to the call range if the SDK has no more
 precise location. Per-file loupe diagnostics can also include macro findings;
 requesting both channels can therefore expose the same finding.
 
-In Python filter severity with d.severity == Severity.Error(), not a string
-comparison. Return the values directly and JSON will contain lowercase strings.
-TextRange and Severity are also supported by the tool's JSON encoder. Other
-native analysis objects still need explicit projection. Plain json.dumps inside
-a user script does not use the tool's encoder.
+`TextRange` and `Severity` also serialize directly. Other native analysis objects
+need explicit projection. Plain `json.dumps` inside a script does not use the
+tool's encoder.
 
 Scope diagnostic queries to relevant files. For diagnostic source excerpts, pass
 non-null (path, range) pairs to [source_excerpts](#source-excerpts).
@@ -153,10 +181,9 @@ non-null (path, range) pairs to [source_excerpts](#source-excerpts).
 
 ### Applying source changes
 
-`workspace.applyChange(change, revision)` applies the shared `source_change`
-model to disk. `SourceChange`, `FileChange`, `TextEdit` and `ApplyChangeResult`
-are native Python bindings. See the [editing recipe](skills/cangjie-mcp/references/editing.md)
-for construction, conflict checks, report fields and failure semantics.
+`workspace.applyChange` applies the shared `source_change` model to disk. See the
+[editing recipe](skills/cangjie-mcp/references/editing.md) for construction and
+checked-edit examples.
 
 The whole set is validated before the first write. Existing-file operations
 carry expected text, checked against disk and the analysis revision when loaded.
@@ -179,70 +206,28 @@ acquire `workspace.analysis()` again and recompute identities. Already returned
 native values remain values from their producing revision. The analysis handle's
 `revision` is the revision in which it was captured.
 
-```python
-analysis = workspace.analysis()
-result = []
-for definition in analysis.declarations("src/main.cj"):
-    item = analysis.item(definition)
-    body = analysis.body(definition)
-    inferred = analysis.infer(definition)
-    result.append({
-        "names": item.names,
-        "locals": [
-            {"name": local.name, "type": analysis.typeText(ty)}
-            for local, ty in zip(body.locals, inferred.locals)
-        ],
-    })
-```
+For traversal examples, use the
+[semantic recipe](skills/cangjie-mcp/references/semantic.md). Inference arrays use
+the corresponding `Body` arena indices. Signature source-map ranges use
+`TypeRefId.index`; missing references have no range, and binary or unavailable
+declarations have an empty map. A written range belongs to its contextual source
+or macro expansion, as identified by the source map.
 
-Declarations include nested members, in source order. `body(definition)` returns
-native HIR; `loweredBody(definition)` also returns its native source map, and
-`scopes(definition)` returns lexical scopes. `signature` exposes written type
-references, while `signatureTypes` exposes resolved types and signature errors.
-`signatureWithSourceMap` returns a `LoweredSignature`: its `sourceMap.ranges`
-is indexed by `TypeRefId.index`, with `None` for missing type references.
-Ranges belong to the declaration's `definitionFile` (source or expansion text);
-binary or unavailable declarations have an empty map. `typeAtRange` performs
-an exact-range reverse lookup. These two Python classes are concrete adapters;
-generic syntax pointers remain inside loupe, as with `BodySource`.
-`infer` returns the native `InferenceResult`: expression, pattern and local types,
-field/name resolutions, selected callees, argument-to-parameter mappings and
-inference diagnostics. Its native lookup methods such as `calleeOf(ExprId(i))`
-are available. Array indices correspond to the matching `Body` arrays.
+Preserve the distinction between user errors, unsupported features and missing
+inputs or inference limits. An empty result alone does not establish that the
+analysis is complete.
 
-`typeKind(ty)` returns a native `TyKind`, with variant classes such as
-`TyKind.PrimTy` and `TyKind.DeclTy`. Python pattern matching and `isinstance` work
-on returned variants; payloads are `field0`, `field1`, etc. `typeText(ty)` formats
-a type and `isTypeUnknown(ty)` checks whether it is unknown. Preserve the distinction
-between user errors (`ErrorTy`), unsupported features (`TodoTy`) and missing inputs
-or inference limits (`UnknownTy`). `internType`, `substituteType` and `headTypes`
-allow further type queries within the same revision.
-
-`BodySource` adapts the generic syntax pointer to `range`, `kind` and `expansion`.
-Source maps preserve `WrittenSource` versus `SyntheticSource`; a written source's
-range belongs to its expansion when `expansion` is present. The convenience
-`expressionRanges` and `localRanges` return `None` for synthetic and expanded
-origins, so their non-null ranges always refer to the declaration's source file.
-
-Calca-generated identities (`DefId`, `Ty`, `MacroCallId`, `Package`, `SourceFile`,
-`BinaryPackageFile`) are exported directly in opaque mode, hiding database-taking
-constructors and methods while preserving native comparison and hashing. Use the
-producing revision's `item`, `parent`,
-`definitionFile`, `definitionItem`, `sourceFileId`, `path` and type queries to
-resolve them. `text(path)` reads the retained revision; `fileId(path)` resolves
-its file identity. Original HIR/result values, constructors and methods are
-exported directly with `@DerivePython`; immutable fields remain read-only.
+Opaque identities come from analysis and retain native equality/hashing.
+Direct Python construction is unavailable; resolve identities through their
+producing context. Returned native values remain associated with their producing
+revision; immutable fields stay read-only.
 
 ### Composable semantic views
 
-`a.semantic()` creates a native `SemanticAnalysis` snapshot from the same checked
-revision. Start with `s.at(a.fileId(path), offset)` for an occurrence,
-`s.syntaxAt(a.fileId(path))` for a lossless tree, or `s.project()` for the loaded
-project. Occurrences compose through `resolution()`, `contextualFile()` and their
-owner/definition objects. Objects expose types, syntax origins, body resolution,
-usages, immediate calls and direct hierarchy relationships without another
-database argument. Returned gaps and unavailable states retain the native loupe
-contract; an empty collection does not establish complete analysis.
+`a.semantic()` creates views from the same checked revision. Objects retain
+their analysis context while composing resolution, project, syntax and
+relationship queries. Returned gaps and unavailable states retain the native
+loupe contract; an empty collection does not establish complete analysis.
 
 Semantic views keep their originating snapshot and reject operations after an
 input change. Keep one `SemanticAnalysis` when combining contextual objects or
@@ -250,67 +235,20 @@ resolving syntax pointers: a pointer from another analysis is rejected even if
 its file and range match. Constructors carrying snapshot state are hidden.
 `SemanticIdentity` is a copied identity, valid only in its producing context.
 
-The Python location helpers `sourceText()` and `coordinates()` return snapshot
-text and a zero-based `(line, UTF-8 byte column)` pair. `excerpt(full=True)`
-returns the full location range. Raw `Rope`, `LineColumn`, generic parser errors
-and syntax kinds stay outside the bindings; use `kindName()` on a syntax element
-and `message()`/`range()` on a syntax error. `VfsPath` supports string construction
-with `file(path)`, display and path operations; its raw `std.fs.Path` accessor is
-hidden. Project module identities are opaque, like other calca identities.
-
-`InferenceResult.calls`, `setterCalls`, `callOf` and `setterCallOf` also expose
-native `CallResolution`, `CallResolutionOutcome` and `GenericBinding` values.
-They preserve final generic substitutions, argument mapping and unresolved or
-ambiguous outcomes. See the [semantic recipe](skills/cangjie-mcp/references/semantic.md)
-for a bounded traversal.
+Location text comes from the retained snapshot. Coordinates are zero-based
+`(line, UTF-8 byte column)` pairs. Call-resolution values retain substitutions,
+argument mapping and unresolved or ambiguous outcomes.
 
 ### Other analysis queries
 
-An `AnalysisRevision` also offers:
+Native navigation/reference/symbol results contain `FileId`; resolve paths
+through the same revision. A result's expansion identity qualifies its ranges:
+inspect it before slicing text. Expansion queries require available expansion
+text and valid UTF-8 byte boundaries; their results may point into source or
+another expansion.
 
-| Methods | Purpose |
-|---|---|
-| `completions(path, offset)`, `completionDetails(path, offset, item)` | Ranked completion results and documentation |
-| `references(path, offset)`, `related(path, offset)` | Workspace usages and same-file read/write occurrences |
-| `typeDefinition(path, offset)`, `implementations(path, offset)` | Navigate to types and implementations |
-| `prepareCallHierarchy(path, offset)`, `incomingCalls(entry)`, `outgoingCalls(entry)` | Callable roots and grouped explicit call sites |
-| `highlights(path)`, `folding(path)`, `selection(path, offset)` | Semantic highlights, folds and enclosing selections |
-| `symbols(query, limit)` | Search workspace declarations |
-| `fileSymbols(path)` | File declarations in outline order, including container names |
-| `members(def, name)`, `supertypes(def)` | Inspect members and type hierarchy |
-| `allMembers(def)` | All members of a type/extend, or the type around a member; includes inherited members, visible extensions and overloads |
-| `field(def, expr)`, `receiver(def, expr)`, `receiverType(def, expr)` | Inspect member access resolution |
-| `macroCall(path, offset)`, `expansion(call)`, `expandedFile(path, header)` | Inspect macro expansions and their source mappings |
-| `hoverInExpansion(call, offset)`, `definitionInExpansion(call, offset)`, `typeDefinitionInExpansion(call, offset)` | Query names at validated UTF-8 byte offsets in expansion text |
-| `formatting(path, options=...)`, `rangeFormatting(path, range, options=...)` | Return native `TextEdit` values without applying them |
-| `builtinTypeDoc(name)`, `builtinAnnotationDoc(name)`, `builtinMacroDoc(name)` | Native `BuiltinDoc` values, or `None`; annotation/macro names exclude `@` |
-| `newFilePackageLine(path)` | Package header for a new path from the loaded project and revision text, or `None` outside its packages |
-
-Native navigation/reference/symbol results contain `FileId`; call `path(fileId)`
-on the same revision. `NavigationTarget.expansion` identifies expansion-relative
-ranges. Expansion availability must be checked for queries that depend on macro output.
-Expansion queries reject unavailable expansion text and invalid byte positions;
-their hover ranges refer to that expansion. Navigation targets may refer to source
-or another expansion; inspect `NavigationTarget.expansion` before slicing text.
-
-Formatting uses explicit `FormatOptions`, defaulting to line width 100, indentation
-4 and `SimpleIf.Multiline()`. It does not discover `cjformat.toml`. Widths must be
-positive; width counts Unicode scalars. Formatting returns `None` for syntax
-errors and an empty list for already canonical input. Range formatting validates
-both UTF-8 boundaries and formats the enclosing syntax node. New-file headers do
-not require that the file exists, and preserve macro-package metadata.
-Python construction of `FormatOptions` accepts omitted keyword arguments using
-the same native defaults, so `FormatOptions(indentWidth=2)` changes only indentation.
-Unknown keywords, positional arguments and incompatible argument types raise `TypeError`.
-The query overloads without `options` supply the library defaults.
-
-All exported classes are present in each script namespace, including `Body`,
-`Expr`, `Pat`, `Signature`, `SignatureTypes`, `TyKind`, `InferenceResult`,
-`InferenceDiagnostic`, scope/source-map types, completion/navigation/highlight
-results, `Cfg` and `CfgExpr`, plus the original workspace result types. The
-registration in `src/python_types.cj` is the complete list. Generic syntax trees,
-calca database mutation/storage, and collection-backed package indexes are not
-exported. This is not a binding of every public loupe API.
+Formatting does not discover `cjformat.toml`. Applying returned edits follows
+the [source-change contract](#applying-source-changes).
 
 ## Source excerpts
 
@@ -432,11 +370,15 @@ methods and properties, and retain documented field contracts in Python as well;
 ordinary Cangjie doc comments remain the source documentation. Use `@PyName` when the Python registry
 name differs from the declaration name, so `__name__` and introspection agree
 with the injected name. Keep existing Python names stable.
+Retain `@PyDoc` even when a source comment describes the same declaration:
+the pinned interop generator needs it for runtime `__doc__`; generating `.pyi`
+from comments alone does not preserve native Python documentation.
 The process regression checks every injected class for a nonempty `__doc__` and
 an `__name__` matching its injected name. Exposed callables also need docs, except
-standard string/hash operations. Existing keyword-named fields remain
-available through `getattr(value, "def")`; constructor argument order and
-`__match_args__` remain unchanged. Metadata changes do not rename these fields.
+standard string/hash operations. Keyword-named fields use `@PyName` to expose
+valid Python identifiers: `Redefinition.def` and `NoSpecific.def` are available as
+`definition`. Constructor argument order stays unchanged; `__match_args__` uses
+the exported field names.
 
 `@DerivePython` from `py_interop` exports the selected original analysis types,
 including their constructors, fields, properties and methods. Immutable fields

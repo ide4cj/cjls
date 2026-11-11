@@ -1,5 +1,6 @@
 """Drive embedded Python through the real MCP process, with stdin kept open."""
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -30,6 +31,196 @@ def server_environment():
 
 @unittest.skipUnless(sys.platform.startswith("linux"), "embedded CPython experiment supports native Linux")
 class McpStdioTest(WorktreeChecks, DiagnosticChecks, OutputChecks, SemanticChecks, unittest.TestCase):
+    def test_supplied_api_docs(self):
+        # An unrelated analyzed project and cwd must not override the server's reference.
+        with tempfile.TemporaryDirectory(prefix="cjmcp-api-docs-") as directory:
+            root = Path(directory)
+            fake = root / "api_docs/cjmcp/python.pyi"
+            fake.parent.mkdir(parents=True)
+            fake.write_text("unrelated workspace documentation", encoding="utf-8")
+            response = self._api_docs_script(BINARY, root, """
+import hashlib
+paths = api_docs.files()
+assert paths == sorted(set(paths))
+assert 'cjmcp/python.pyi' in paths
+assert 'cjmcp/analysis.pyi' in paths
+assert 'loupe.hir/def_map.pyi' in paths
+assert 'class Workspace:' in api_docs.read('cjmcp/python.pyi')
+assert "see 'loupe.hir/def_map.pyi'" in api_docs.read('cjmcp/analysis.pyi')
+assert 'class DefId:' in api_docs.read('loupe.hir/def_map.pyi')
+for path in ('/cjmcp/python.pyi', '../outside.pyi', 'cjmcp/../../outside.pyi', 'README.md'):
+    for operation in (api_docs.read, api_docs.outline,
+                      lambda path: api_docs.read_symbol(path, 'Workspace')):
+        try:
+            operation(path)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError('invalid documentation path accepted: ' + path)
+try:
+    api_docs.read('missing.pyi')
+except FileNotFoundError:
+    pass
+else:
+    raise AssertionError('missing documentation file accepted')
+result = {path: hashlib.sha256(api_docs.read(path).encode('utf-8')).hexdigest()
+          for path in paths}
+""")
+        self.assertIsNone(response["error"], response)
+        docs = ROOT / "modules/cjmcp/api_docs"
+        expected = {
+            path.relative_to(docs).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in docs.rglob("*.pyi")
+        }
+        self.assertTrue(expected)
+        self.assertEqual(response["result"], expected)
+
+    def test_api_doc_selection(self):
+        with tempfile.TemporaryDirectory(prefix="cjmcp-api-selection-") as directory:
+            response = self._api_docs_script(BINARY, Path(directory), '''
+import ast
+path = 'loupe.hir/body.pyi'
+top = api_docs.outline(path)
+assert any(item['symbol'] == 'Expr' and item['kind'] == 'class' for item in top)
+members = api_docs.outline(path, 'Expr')
+assert any(item['symbol'] == 'Expr.CallExpr' for item in members)
+selected = api_docs.read_symbol(path, 'Expr.CallExpr')
+assert 'class CallExpr(Expr):' in selected
+assert 'class IndexExpr' not in selected
+ast.parse(selected)
+assert '@property' in api_docs.read_symbol(path, 'BodySourceMap.exprs')
+try:
+    api_docs.read_symbol(path, 'Expr', max_bytes=1)
+except ValueError as error:
+    assert 'outline' in str(error) and 'requires' in str(error)
+else:
+    raise AssertionError('oversized selection accepted')
+assert 'class Expr:' in api_docs.read_symbol(path, 'Expr', max_bytes=100000)
+
+# Cover syntax not present in every generated reference, without importing stubs.
+fixture = """from typing import overload
+class Café:
+    'Unicode documentation.'
+    value: str
+    @overload
+    def call(self, value: int) -> int: ...
+    @overload
+    def call(self, value: str) -> str: ...
+    @property
+    def name(self) -> str: ...
+    @name.setter
+    def name(self, value: str): ...
+    class Nested:
+        async def run(self): ...
+alias = Café
+"""
+class FixtureDocs(type(api_docs)):
+    def read(self, path):
+        return fixture
+docs = FixtureDocs()
+assert [n['symbol'] for n in docs.outline('fixture.pyi')] == ['Café', 'alias']
+assert 'Unicode documentation.' in docs.read_symbol('fixture.pyi', 'Café')
+overloads = docs.read_symbol('fixture.pyi', 'Café.call')
+assert overloads.count('@overload') == 2
+assert overloads.count('def call') == 2
+assert docs.read_symbol('fixture.pyi', 'Café.name').count('def name') == 2
+assert 'async def run' in docs.read_symbol('fixture.pyi', 'Café.Nested.run')
+lines = fixture.splitlines()
+for item in docs.outline('fixture.pyi', 'Café'):
+    selection = docs.read_symbol('fixture.pyi', item['symbol'])
+    assert lines[item['line']-1].strip() in selection
+    assert lines[item['end_line']-1].strip() in selection
+    ast.parse(selection)
+for symbol, error_type in [('Missing', KeyError), ('Café.missing', KeyError),
+                           ('', ValueError), ('Café..call', ValueError), (1, TypeError)]:
+    for operation in (docs.outline, docs.read_symbol):
+        try:
+            operation('fixture.pyi', symbol)
+        except error_type:
+            pass
+        else:
+            raise AssertionError('invalid symbol accepted')
+try:
+    docs.outline('fixture.pyi', 'Café.call')
+except ValueError:
+    pass
+else:
+    raise AssertionError('function used as outline container')
+for budget, error_type in [(0, ValueError), (-1, ValueError), (True, TypeError), ('1', TypeError)]:
+    try:
+        docs.read_symbol('fixture.pyi', 'Café', max_bytes=budget)
+    except error_type:
+        pass
+    else:
+        raise AssertionError('invalid byte budget accepted')
+size = len(docs.read_symbol('fixture.pyi', 'Café').encode('utf-8'))
+assert docs.read_symbol('fixture.pyi', 'Café', max_bytes=size)
+try:
+    docs.read_symbol('fixture.pyi', 'Café', max_bytes=size-1)
+except ValueError:
+    pass
+else:
+    raise AssertionError('UTF-8 byte budget was not enforced')
+result = True
+''')
+        self.assertIsNone(response["error"], response)
+        self.assertTrue(response["result"])
+
+    def test_missing_api_docs_reports_error_without_workspace_fallback(self):
+        with tempfile.TemporaryDirectory(prefix="cjmcp-no-api-docs-") as directory:
+            root = Path(directory)
+            # Relocate the executable without its reference, while the project has a fake copy.
+            binary = root / "cjmcp"
+            try:
+                os.link(Path(BINARY).resolve(), binary)
+            except OSError:
+                import shutil
+                shutil.copy2(BINARY, binary)
+            fake = root / "project/api_docs/cjmcp/python.pyi"
+            fake.parent.mkdir(parents=True)
+            fake.write_text("unrelated workspace documentation", encoding="utf-8")
+            response = self._api_docs_script(binary, root / "project", """
+assert isinstance(workspace.files(), list)
+for operation in (api_docs.files, lambda: api_docs.read('cjmcp/python.pyi'),
+                  lambda: api_docs.outline('cjmcp/python.pyi'),
+                  lambda: api_docs.read_symbol('cjmcp/python.pyi', 'Workspace')):
+    try:
+        operation()
+    except FileNotFoundError as error:
+        assert 'beside the executable' in str(error)
+    else:
+        raise AssertionError('missing server documentation must be reported')
+result = True
+""")
+        self.assertIsNone(response["error"], response)
+        self.assertTrue(response["result"])
+
+    def _api_docs_script(self, binary, root, code):
+        messages = [
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+                "protocolVersion": "2025-11-25", "capabilities": {},
+                "clientInfo": {"name": "api-docs-test", "version": "1"},
+            }},
+            {"jsonrpc": "2.0", "method": "notifications/initialized"},
+            {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {
+                "name": "runPython", "arguments": {"code": code},
+            }},
+        ]
+        process = subprocess.run(
+            [str(Path(binary).resolve()), "--dir", str(root)], cwd=root,
+            input="".join(json.dumps(message) + "\n" for message in messages),
+            capture_output=True, text=True, timeout=60, env=server_environment(),
+        )
+        self.assertEqual(process.returncode, 0, process.stderr)
+        replies = [json.loads(line) for line in process.stdout.splitlines()]
+        initialization = next(reply["result"] for reply in replies if reply.get("id") == 1)
+        self.assertIn("apiDocs", initialization["serverInfo"]["_meta"]["features"])
+        self.assertIn("api_docs.read", initialization["instructions"])
+        reply = next(reply for reply in replies if reply.get("id") == 2)
+        self.assertNotIn("error", reply)
+        self.assertFalse(reply["result"]["isError"], reply)
+        return reply["result"]["structuredContent"]
+
     def test_repeated_native_proxy_allocation(self):
         # Reentering through enum constructors and payload getters exposed invalid GC roots.
         # This needs the real process: an interpreter crash cannot become a tool error.

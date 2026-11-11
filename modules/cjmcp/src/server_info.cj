@@ -31,7 +31,8 @@ func serverInfo(): McpServerInfo {
                 "checkedSourceChanges",
                 "sourceExcerpts",
                 "outputBudget",
-                "semanticViews"
+                "semanticViews",
+                "apiDocs"
             ]
         )
     )
