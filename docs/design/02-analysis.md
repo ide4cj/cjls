@@ -480,6 +480,11 @@ An expression output its body does not read keeps the call-site fallback (`callS
 copied tokens at their source positions, plain generated names in the call site's scope unless
 the expansion declares them. Requests on source arguments still wait for #370's descent.
 
+Macro build plans use the selected SDK's ordinary `std` packages even when their
+sources belong to the workspace. Source macro packages in `std` remain buildable;
+ordinary stdlib compilation requires its own build system and must not replace
+the SDK runtime used by the macro server.
+
 ### A36: Package navigation
 
 A package has no node: where it is declared is the `package` header of each of its files, at the

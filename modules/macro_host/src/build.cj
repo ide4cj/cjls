@@ -69,9 +69,37 @@ public class MacroBuilder {
     public func build(units: Array<BuildUnit>): ?HashMap<String, BuiltLibrary> {
         let lock = tryLockCacheDir(out) ?? return None
         try {
+            removeObsoleteStdRuntime(units)
             buildAll(units)
         } finally {
             lock.close()
+        }
+    }
+
+    private func removeObsoleteStdRuntime(units: Array<BuildUnit>): Unit {
+        let dir = out.join("std")
+        if (!exists(dir)) {
+            return
+        }
+        // Older plans rebuilt std dependencies here. Their cjo files shadow the SDK even
+        // after those packages leave the plan; remove them while holding the build lock.
+        for (
+            entry in Directory.readFrom(dir) where entry.name.startsWith("std.") &&
+                entry.name.endsWith(".cjo")
+        ) {
+            let name = entry.name[..entry.name.size - 4]
+            if (
+                units.any { unit => unit.name == name } ||
+                    exists(dir.join("lib-macro_${name}${sharedLibrarySuffix()}"))
+            ) {
+                continue
+            }
+            for (file in [entry.name, "lib${name}.a", "${name}.stamp"]) {
+                let path = dir.join(file)
+                if (exists(path)) {
+                    remove(path)
+                }
+            }
         }
     }
 
