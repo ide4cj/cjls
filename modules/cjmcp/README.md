@@ -102,20 +102,23 @@ process. Incoming messages must end in a newline and are limited to 8 MiB.
 
 Use the server instructions for common queries and one
 [task recipe](skills/cangjie-mcp/SKILL.md) for an unfamiliar operation. Configure
-the connection with [agent setup](agent-setup.md). Native objects are injected;
-there is no importable `loupe` Python package. Return `server_info` to identify
-the running build, Python API version and supported features before consulting
-documentation from another checkout; see [server identity](python-api.md#server-identity).
+the connection with [agent setup](agent-setup.md).
 
-Use `api_docs.files()` to list the supplied `.pyi` files and
-`api_docs.read("cjmcp/python.pyi")` to read one through `runPython`.
-Paths in declaration comments are relative to the documentation root.
-For large references, use `api_docs.outline(path)` or `outline(path, "Expr")`
-to discover declarations, then `api_docs.read_symbol(path, "Expr.CallExpr")`
-to read a complete selection with its decorators and documentation.
-The archive supplies the checked-in reference; building and packaging do not
-run the local `cjpydoc` generator. See [API documentation](python-api.md#api-documentation)
-for lookup and output-budget behavior.
+The supplied `.pyi` reference documents signatures, fields and member contracts.
+Read it through `api_docs`: discover files with `files()`, list declarations with
+`outline(path)` and select one with `read_symbol(path, symbol)`. Start with
+`cjmcp/python.pyi` (`Workspace`) or `cjmcp/analysis.pyi` (`AnalysisRevision`).
+These describe native objects injected into scripts, not importable modules.
+See [API documentation](python-api.md#api-documentation) for lookup and budgets.
+
+The [runtime guide](python-api.md) covers workspace sessions, revision freshness,
+source coordinates, serialization and write effects. It also records the
+[binding constraints](python-api.md#binding-implementation-constraints).
+Check `server_info` before consulting another checkout's documentation. The proxy
+registry still retains exported native values, limiting session length and
+traversal volume.
+
+### Regenerate the reference
 
 To refresh the checked-in reference after building the workspace, run
 `python3 scripts/generate_pyi.py -o modules/cjmcp/api_docs` in the SDK environment.
@@ -125,16 +128,6 @@ roots for imported type links and declares the manual `BodySource` adapter with
 evaluated `DerivePython` input and rejects unmapped signature types.
 Descriptions prefer `@PyDoc`, then source comments;
 `@PyIgnore` and `@PyName` follow the runtime bindings. Review the generated diff.
-
-Read the [API reference](python-api.md) only for detailed contracts:
-[source changes](python-api.md#applying-source-changes),
-[HIR and inference](python-api.md#hir-and-inference),
-[other queries](python-api.md#other-analysis-queries),
-[revision freshness](python-api.md#revisions-and-synchronization),
-[execution](python-api.md#script-execution) and
-[binding constraints](python-api.md#binding-implementation-constraints).
-The proxy registry still retains exported native values, limiting session length
-and traversal volume; a persistent process does not resolve that retention.
 
 ## Verify
 
