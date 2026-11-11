@@ -29,7 +29,8 @@ documented diagnostic/status/range/severity values serialize automatically.
 | Inspect a macro | `a.macroCall(path, offset)` returns a value with `.call` or `None`; `a.expansion(call.call)` returns a value with `.text` or `None` |
 | Expand a whole file | `a.expandedFile(path, header)` requires an explicit header string; a single macro uses `expansion` instead |
 | Navigate generated code | `a.definitionInExpansion(call.call, offset)`, `a.hoverInExpansion(call.call, offset)`, `a.typeDefinitionInExpansion(call.call, offset)`; offsets belong to the expansion text |
-| Inspect HIR and types | `a.declarations(path)` returns DefIds; `a.item(defId)`, `a.body(defId)`, `a.infer(defId)`, `a.typeText(ty)`, `a.typeKind(ty)` |
+| Inspect HIR and types | `a.declarations(path)` returns DefIds; `a.item(defId)`, `a.body(defId)`, `a.infer(defId)`, `a.typeText(ty)`, `a.typeKind(ty)`. Inference `.exprs` and `.locals` align with the body's arrays; `a.expressionRanges(defId)` uses the same expression indices. Null types mean non-value expressions; null ranges mean unavailable source locations |
+| Inspect selected callees | `a.infer(defId).callees` has `.expr`, `.decl`, `.isInitializer`; `.expr.index` identifies the callee expression, which need not be the outer call expression |
 | Locate written signature types | `a.signatureWithSourceMap(defId)` returns `.signature` and `.sourceMap.ranges`; index by `TypeRefId.index` |
 | Compose semantic queries | `s = a.semantic()`; `s.at(a.fileId(path), offset)`, `s.syntaxAt(a.fileId(path))`, `s.project()` retain lookup context |
 | Follow call hierarchy | `a.prepareCallHierarchy(path, offset)` returns entries; `a.incomingCalls(entry)`, `a.outgoingCalls(entry)` return grouped call sites |

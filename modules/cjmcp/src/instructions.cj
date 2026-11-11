@@ -44,6 +44,10 @@ Capture a = workspace.analysis() in each call. Core queries:
   Navigation targets have .fileId, .fullRange, .focusRange and .expansion; use that
   target's expansion text when .expansion is present, otherwise a.text(a.path(fileId)).
 - a.body(defId), a.infer(defId) -> matching .locals/.exprs arrays;
+  a.expressionRanges(defId) uses the same expression indices. Null inferred entries
+  mean non-value expressions; null ranges mean unavailable source locations.
+  a.infer(defId).callees entries expose .expr, .decl and .isInitializer; .expr.index
+  identifies the callee expression, not necessarily the outer call expression.
   a.typeKind(ty) preserves native variants; a.typeText(ty) gives display text.
   a.signatureWithSourceMap(defId) -> .signature and .sourceMap.ranges.
 - a.allMembers(defId) -> native MemberTarget variants, including inherited/extend members.
