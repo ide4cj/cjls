@@ -198,7 +198,7 @@ func tools(): Array<McpTool> {
     [
         McpTool(
             "runPython",
-            "Query native Cangjie analysis with Python; follow server instructions. Python has process permissions and no hard timeout.",
+            "cjmcp: query native Cangjie analysis with Python; follow server instructions. Python has process permissions and no hard timeout.",
             McpInputSchema(properties, ["code"], additionalProperties: false),
             McpToolAnnotations(readOnlyHint: false, openWorldHint: true)
         )

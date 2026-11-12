@@ -51,3 +51,46 @@ result = source_excerpts(a, requests, context_lines=2, max_bytes=10000)
 For NavigationTarget values, inspect expansion before slicing: an expansion range
 belongs to expansion text, not a.text(path). This helper accepts source-file
 ranges; expansion excerpts still use the [expansion recipe](expansions.md).
+
+## Search root-relative paths safely
+
+`workspace.files()` includes dependencies and returns absolute paths. Use path
+components rather than string prefixes (`/repo-other` is not inside `/repo`).
+This complete search preserves all matches, including UTF-8 byte ranges, while
+returning only a bounded source page:
+
+~~~python
+from pathlib import Path
+a = workspace.analysis()
+root = Path(workspace.root)
+requests = []
+files = []
+needle = "target".encode("utf-8")
+assert needle
+for path in workspace.files():
+    try:
+        relative = Path(path).relative_to(root).as_posix()
+    except ValueError:
+        continue  # Dependency outside this workspace.
+    if not (relative.startswith("src/") and relative.endswith(".cj")):
+        continue
+    files.append(relative)
+    data = a.text(path).encode("utf-8")
+    start = 0
+    while True:
+        start = data.find(needle, start)
+        if start < 0:
+            break
+        requests.append((path, TextRange(start, start + len(needle))))
+        start += 1  # Preserve overlapping textual matches.
+result = {"files_searched": len(files), "matches": len(requests),
+          "source": source_excerpts(a, requests, context_lines=1, max_bytes=10000)}
+~~~
+
+This is textual evidence. Semantic references should be deduplicated by
+`(path, range.start, range.end)`. Source ranges may overlap: a class encloses its
+methods, and context lines may overlap even for disjoint matches. For member
+selection choose the smallest enclosing declaration; deduplicate selected
+member ranges before presentation. `source_excerpts` preserves requests and
+counts them separately; it does not merge overlapping excerpts. Never turn
+context-expanded display ranges into edit ranges.

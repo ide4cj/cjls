@@ -92,7 +92,9 @@ Validate changes with compiler/tests.
 
 runPython defaults to maxOutputBytes=24000 UTF-8 JSON bytes across all channels.
 OutputBudgetExceeded occurs after execution: select from last_output in a new
-call without replaying effects. Saved output may describe an older revision.
+call without replaying effects. outputBudget.largest_fields identifies the largest
+channels and immediate result fields by compact JSON byte size; narrow those fields.
+Saved output may describe an older revision.
 Explicit maxOutputBytes=0 allows unlimited output; larger limits are supported.
 
 If a specific missing API detail blocks the next query, use the skill's

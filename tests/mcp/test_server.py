@@ -450,6 +450,8 @@ result = i + 1
 
                 self._check_semantic_exports(root, run)
                 self._check_structured_diagnostics(run)
+                self.assertIn('cjmcp', tools[0]['description'])
+                self._check_member_refactoring_recipe(run)
                 self._check_output_budgets(root, run)
                 self._check_source_excerpts(run)
                 self._check_large_source_workflow(run)

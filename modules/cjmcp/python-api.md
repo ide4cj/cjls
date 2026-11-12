@@ -310,7 +310,12 @@ default protection. Small results have the same fields as before.
 
 After execution/stream capture, exceeding the limit returns isError=true with
 OutputBudgetExceeded, empty stdout/stderr, null result, the original revision and
-outputBudget {limit_bytes, actual_bytes, retained}. Nothing is partially
+outputBudget {limit_bytes, actual_bytes, retained, largest_fields}.
+`largest_fields` lists up to five `{field, bytes}` entries for response channels
+and immediate fields of a result object, ranked by compact UTF-8 JSON value size.
+For example, `result.files` reveals an oversized inventory without recovering it.
+Field labels are capped at 160 characters; nested fields are not traversed.
+Parent/child sizes overlap and must not be added together. Nothing is partially
 truncated. This actionable error envelope is exempt from the requested budget,
 so even maxOutputBytes=1 reports a useful failure. Side effects have already
 happened; scripts are never replayed automatically.
