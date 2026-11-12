@@ -256,11 +256,12 @@ class BinaryExportIdTest {
             getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK")
         )
         let std = Directory
-            .readFrom(home.join("modules"))
-            .filter { target => target.isDirectory() }[0]
+            .readFrom(canonicalize(home.join("modules")))
+            .filter { target => FileInfo(canonicalize(target.path)).isDirectory() }[0]
             .path
             .join("std")
-        let files = Directory.readFrom(std).filter { entry => entry.name.endsWith(".cjo") }
+        let files =
+            Directory.readFrom(canonicalize(std)).filter { entry => entry.name.endsWith(".cjo") }
 
         // act
         let duplicates = ArrayList<String>()

@@ -768,3 +768,71 @@ class FoundProjectsTest {
         @Expect(packagesOf(loads[0].model, dir), ["demo: demo=demo/src/a.cj"])
     }
 }
+
+@When[os != "Windows"]
+@Test
+class ProjectLinksOnPosixTest {
+    @TestCase
+    func linkedManifestsAndPackageConfigurationAreLoaded() {
+        // arrange
+        let dir = tree(
+            [
+                ("store/manifest", "[package]\nname = \"app\"\n"),
+                ("store/config", "feature = \"fast\"\n"),
+                ("store/sources/a.cj", "package app\n")
+            ]
+        )
+        SymbolicLink.create(
+            dir.join("cjpm.toml").filePath.getOrThrow(),
+            to: dir.join("store/manifest").filePath.getOrThrow()
+        )
+        SymbolicLink.create(
+            dir.join("src").filePath.getOrThrow(),
+            to: dir.join("store/sources").filePath.getOrThrow()
+        )
+        SymbolicLink.create(
+            dir.join("src/cfg.toml").filePath.getOrThrow(),
+            to: dir.join("store/config").filePath.getOrThrow()
+        )
+        let link = dir.join("linked")
+        SymbolicLink.create(link.filePath.getOrThrow(), to: dir.filePath.getOrThrow())
+        let problems = ArrayList<String>()
+
+        // act
+        let load = findProject(link, env: sdkEnv)
+        let model = withPackageCfgs(load.model, problems)
+        let found = projectDirOf(link.join("src/a.cj"), link, env: sdkEnv)
+        removeTree(dir)
+
+        // assert
+        @Expect(load.source.toString(), "cjpm.toml at ${link.join("cjpm.toml")}")
+        @Expect(model.modules.map { module => module.name }, ["app"])
+        @Expect(model.modules[0].packages[0].cfg, Some(Cfg([("feature", "fast")])))
+        @Expect(found, Some(link))
+        @Expect(model.modules[0].packages[0].files, [link.join("src/a.cj")])
+        @Expect(problems.isEmpty())
+    }
+
+    @TestCase
+    func brokenLinksAndLinksToDirectoriesAreNotFiles() {
+        // arrange
+        let dir = tree([])
+        SymbolicLink.create(
+            dir.join("broken").filePath.getOrThrow(),
+            to: dir.join("missing").filePath.getOrThrow()
+        )
+        SymbolicLink.create(
+            dir.join("directory").filePath.getOrThrow(),
+            to: dir.filePath.getOrThrow()
+        )
+
+        // act
+        let broken = isFile(dir.join("broken").filePath.getOrThrow())
+        let directory = isFile(dir.join("directory").filePath.getOrThrow())
+        removeTree(dir)
+
+        // assert
+        @Expect(!broken)
+        @Expect(!directory)
+    }
+}

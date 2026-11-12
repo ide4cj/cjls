@@ -572,11 +572,11 @@ func subdirectories(dir: VfsPath): Array<VfsPath> {
 }
 
 /**
- * Whether a regular file is at `path`.
+ * Whether a regular file is at `path`, following links to manifests, scripts and configuration.
  */
 func isFile(path: Path): Bool {
     try {
-        exists(path) && FileInfo(path).isRegular()
+        exists(path) && FileInfo(canonicalize(path)).isRegular()
     } catch (_: FSException) {
         false
     }
@@ -585,7 +585,16 @@ func isFile(path: Path): Bool {
 func entriesOf(dir: VfsPath): Array<FileInfo> {
     let path = dir.filePath ?? return []
     try {
-        Directory.readFrom(path)
+        Directory
+            .readFrom(canonicalize(path))
+            .filterMap {
+                entry =>
+                try {
+                    Some(FileInfo(path.join(entry.name)))
+                } catch (_: FSException) {
+                    None
+                }
+            }
     } catch (_: FSException) {
         []
     }

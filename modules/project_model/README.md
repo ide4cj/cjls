@@ -225,7 +225,10 @@ The selected SDK's `bin/cjc --version` supplies its version and exact LTS, STS o
 pinned-nightly classification. An unavailable or unrecognized compiler leaves the
 version unknown and does not discard the SDK. Each workspace load logs the version
 and channel; an unsupported version produces one user warning per server session.
-Missing std sources reduce navigation, not binary analysis. Runtime discovery is
+Binary package discovery follows file and directory symlinks, retaining the declared
+paths and using target metadata for reloads and byte budgets. Manifest and package
+configuration file checks also follow symlinks. Recursive source discovery still
+skips symlinks to avoid cycles. Missing std sources reduce navigation, not binary analysis. Runtime discovery is
 distinct from the build shell's [pinned SDK setup](../../docs/development.md#select-the-pinned-sdk).
 
 Paths in `cj-project.json` expand a leading `~` (HOME, else USERPROFILE), `${VAR}`

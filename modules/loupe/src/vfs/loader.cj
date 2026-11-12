@@ -24,7 +24,8 @@ public struct RootsRead {
 /**
  * The Cangjie files under `roots`, as the disk holds them: every `*.cj`, but for those in a
  * `target` directory (cjpm's output) or a hidden one (named with a leading `.`). Symbolic links are
- * not followed, so the walk cannot cycle; a file that cannot be read, or is not UTF-8, is left out,
+ * not followed inside a root, so the walk cannot cycle; an explicitly supplied root link is followed.
+ * A file that cannot be read, or is not UTF-8, is left out,
  * and so is a directory that cannot be listed. A root inside another is read once, and a virtual
  * one not at all. At most `budget` bytes are kept, as a root far wider than a project (a home
  * directory) would take all the memory there is: a file that does not fit in what is left is left
@@ -124,21 +125,21 @@ private class Walk {
     func readDirectory(dir: Path): Unit {
         let entries =
             try {
-                Directory.readFrom(dir)
+                Directory.readFrom(canonicalize(dir))
             } catch (_: FSException) {
                 return
             }
         for (entry in entries where !entry.isSymbolicLink()) {
             if (entry.isDirectory()) {
                 if (isScanned(entry.name)) {
-                    readDirectory(entry.path)
+                    readDirectory(dir.join(entry.name))
                 }
             } else if (entry.isRegular() && isCangjieFile(entry.name)) {
                 // told by its size, so a file that cannot fit is not even read
                 if (entry.size > budget) {
                     truncated = true
                 } else {
-                    readSourceFile(VfsPath.file(entry.path))
+                    readSourceFile(VfsPath.file(dir.join(entry.name)))
                 }
             }
         }
@@ -222,23 +223,31 @@ public struct CjoRead {
 
 /**
  * The `.cjo` in the directory `dir`, each a package of `binary` named as its file is
- * (`std.core.cjo` is `std.core`), in the order of their names; none for a directory that cannot be
- * listed, or a virtual one.
+ * (`std.core.cjo` is `std.core`), in the order of their names. Links to regular files are followed,
+ * keeping the link path and package name; broken links and links to directories are skipped.
+ * None for a directory that cannot be listed, or a virtual one.
  */
 public func cjoFilesIn(binary: String, dir: VfsPath): Array<CjoFile> {
     let path = dir.filePath ?? return []
     let entries =
         try {
-            Directory.readFrom(path)
+            Directory.readFrom(canonicalize(path))
         } catch (_: FSException) {
             return []
         }
     let files =
         entries
-            .filter { entry => entry.isRegular() && entry.name.endsWith(CJO_SUFFIX) }
+            .filter {
+                entry =>
+                entry.name.endsWith(CJO_SUFFIX) && regularFileInfo(entry.path).isSome()
+            }
             .map {
                 entry =>
-                CjoFile(binary, entry.name.removeSuffix(CJO_SUFFIX), VfsPath.file(entry.path))
+                CjoFile(
+                    binary,
+                    entry.name.removeSuffix(CJO_SUFFIX),
+                    VfsPath.file(path.join(entry.name))
+                )
             }
     sort(files, by: { a, b => a.name.compare(b.name) })
     files
@@ -266,7 +275,7 @@ public func readCjoFiles(
         let path = file.path.filePath ?? continue
         let stamp =
             try {
-                let info = FileInfo(path)
+                let info = regularFileInfo(path) ?? continue
                 FileStamp(info.size, info.lastModificationTime)
             } catch (_: FSException) {
                 continue
@@ -299,6 +308,18 @@ public func readCjoFiles(
         read.add(CjoFileRead(file, stamp, bytes))
     }
     CjoRead(read.toArray(), budget - left, problems.toArray(), truncated)
+}
+
+/**
+ * Metadata of the regular file at `path`, following links so budgets and reloads track its contents.
+ */
+private func regularFileInfo(path: Path): ?FileInfo {
+    try {
+        let info = FileInfo(canonicalize(path))
+        if (info.isRegular()) { Some(info) } else { None }
+    } catch (_: FSException) {
+        None
+    }
 }
 
 /**
