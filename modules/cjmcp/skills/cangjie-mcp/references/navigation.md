@@ -96,3 +96,60 @@ selection choose the smallest enclosing declaration; deduplicate selected
 member ranges before presentation. `source_excerpts` preserves requests and
 counts them separately; it does not merge overlapping excerpts. Never turn
 context-expanded display ranges into edit ranges.
+
+## Exact names and compact evidence
+
+For an exact source name, explicitly select the source files first. The helper
+walks complete file outlines and preserves overloads; its scope is the supplied
+paths, including dependency files only when selected.
+
+~~~python
+a = workspace.analysis()
+paths = ["src/main.cj"]
+matches = exact_symbols(a, paths, "parse")
+result = result_page([
+    {"path": path, "name": symbol.name, "range": symbol.range,
+     "selection": symbol.selectionRange}
+    for path, symbol in matches
+], limit=20)
+~~~
+
+`result_page` reports total, returned, omitted and next_offset. It bounds rows,
+not JSON bytes: use `source_excerpts` for source and project native fields rather
+than `str(object)`. Complete the query before paging; an empty page at the end
+is not an empty search. The MCP response budget still applies.
+
+### Extension type, extension member and ambiguous calls
+
+The name in `extend String` denotes the extended type. References at that
+position find uses of String, potentially across dependencies. It is not a
+container query for extension members. Select the desired child from
+`workspace.structure(path)`, then query its `selectionRange.start`.
+Do not automatically run references on every top-level outline node.
+
+References preserve possible meanings when call inference is ambiguous.
+A reproduced cjpm case has overloaded static `parse` in a generic interface,
+an optional-value cast in its body, and same-named free functions in scope.
+The internal `parse(ctx, obj)` call has `AmbiguousMeaning`; references to both
+free functions include it. This is candidate evidence, not proof of a dependency.
+Keep the uncertainty visible:
+
+~~~python
+a = workspace.analysis()
+s = a.semantic()
+path, symbol = exact_symbols(a, ["src/main.cj"], "parse")[0]
+rows = []
+for ref in a.references(path, symbol.selectionRange.start):
+    ref_path = a.path(ref.fileId)
+    occurrence = s.at(ref.fileId, ref.range.start)
+    resolution = None if occurrence is None else occurrence.resolution()
+    rows.append({"path": ref_path, "range": ref.range,
+                 "declaration": ref.isDeclaration,
+                 "status": None if resolution is None else resolution.status.kind})
+result = result_page(rows, limit=20)
+~~~
+
+Inspect resolved definitions/call evidence before changing an ambiguous
+occurrence. Do not discard all ambiguous candidates and claim the remaining
+references are complete. The real-process regression retains this limitation;
+compiler validation remains necessary.

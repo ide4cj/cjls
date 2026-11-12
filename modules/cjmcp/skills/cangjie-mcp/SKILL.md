@@ -23,6 +23,7 @@ operation is unavailable. For refactors use **refactoring + editing**.
 | Change a member and verify its uses; checked file edits | [refactoring](references/refactoring.md), [editing](references/editing.md) |
 | Calls, inferred types, written signature ranges | [calls](references/calls.md), [inference](references/inference.md), [source maps](references/source-maps.md) |
 | Members/builtin docs, formatting, counts/rankings | [members](references/members.md), [formatting](references/formatting.md), [aggregation](references/aggregation.md) |
+| Load dependencies and verify an adapter boundary | [library](references/library.md) |
 | Macro expansion and navigation | [expansions](references/expansions.md) |
 | Missing API contract; execution/revision failure | [discovery](references/discovery.md), [runtime](references/runtime.md) |
 
@@ -40,3 +41,16 @@ text(ALL_TOOLS.find(t => t.name === "mcp__cangjie__runPython"));
 If absent, search names/descriptions for `cjmcp` or `runPython`; the product name
 alone can miss a configured namespace. Keep Git, builds, tests and non-Cangjie
 files in shell; Cangjie source work stays in runPython.
+
+Forward one copy of each MCP payload, preserving errors and root/session identity:
+
+```javascript
+const reply = await tools.mcp__cangjie__runPython({root, code});
+if (reply.structuredContent !== undefined) text(reply.structuredContent);
+else for (const item of reply.content ?? []) {
+  if (item.type === "text") text(item.text);
+}
+```
+
+For compact query rows use `result_page`; use `exact_symbols` for an exact name
+in selected files and `declaration_range` for annotation-aware whole edits.

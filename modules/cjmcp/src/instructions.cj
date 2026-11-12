@@ -41,8 +41,9 @@ MacroState.Pending()/Settled() describe completion, not severity. Retry missing
 expansion-dependent evidence when needed; no blanket expansion wait is required.
 
 Core queries (ranges are UTF-8 bytes, end-exclusive):
-- a.symbols(name, limit) -> matches with .fileId and .symbol (name, range,
-  selectionRange); a.path(fileId) resolves paths. A full limit may omit matches.
+- exact_symbols(a, paths, name) -> all exact (path, symbol) matches in explicit
+  files. a.symbols(name, limit) is fuzzy; a full limit may omit exact matches.
+  api_docs.find_symbol("ExportedType.member") locates an unknown reference path.
 - a.fileSymbols(path), workspace.structure(path) -> declarations; structure nodes
   have .name, .kind, .range, .selectionRange and nested .children.
 - a.references(path, offset) -> .fileId, .range, .isDeclaration;
@@ -68,6 +69,12 @@ Core queries (ranges are UTF-8 bytes, end-exclusive):
   workspace.sdk is the selected SDK or None; project its fields explicitly.
 Other editor queries and builtin docs: references/members.md and python-api.md.
 
+Use result_page(projected_rows, limit=20) for compact rows with totals/omissions.
+Forward only MCP structuredContent, or content when absent, never both copies.
+At an extend's type name, references means uses of that type; select the member
+name for member usages. AmbiguousMeaning references are candidates, not proven
+calls. Inspect occurrence.resolution() before asserting dependency relationships.
+
 Select the smallest relevant declarations/nodes before returning source:
 result = source_excerpts(a, [(path, symbol.range)], max_bytes=12000)
 Follow next_offset with the same requests/revision; if blocked, select a smaller
@@ -75,6 +82,9 @@ range or raise max_bytes. Small full files are fine. Keep expectedText in Python
 Diagnostic/status/range/severity values serialize directly; other native objects
 need explicit field projection. Sort before limiting rankings and preserve ties.
 
+For whole-declaration edits use declaration_range(a, path, selectionRange,
+"FuncDecl"): it includes enclosing MacroExpandDecl annotations such as @TestCase.
+Outline ranges and even FuncDecl.fullRange can exclude those wrappers.
 Use workspace.applyChange(SourceChange([...]), a.revision) for project edits:
 FileChange.EditFile(path, expectedText, [TextEdit(range, text)]),
 FileChange.CreateFile(path, text), FileChange.RenameFile(path, target, expectedText),

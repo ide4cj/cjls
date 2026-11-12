@@ -16,6 +16,7 @@ from output_checks import OutputChecks
 from diagnostic_checks import DiagnosticChecks
 from worktree_checks import WorktreeChecks
 from semantic_checks import SemanticChecks
+from workflow_checks import WorkflowChecks
 
 ROOT = Path(__file__).resolve().parents[2]
 BINARY = os.environ.get("CJMCP_BIN", str(ROOT / "target/release/bin/cjmcp"))
@@ -30,7 +31,7 @@ def server_environment():
 
 
 @unittest.skipUnless(sys.platform.startswith("linux"), "embedded CPython experiment supports native Linux")
-class McpStdioTest(WorktreeChecks, DiagnosticChecks, OutputChecks, SemanticChecks, unittest.TestCase):
+class McpStdioTest(WorkflowChecks, WorktreeChecks, DiagnosticChecks, OutputChecks, SemanticChecks, unittest.TestCase):
     def test_supplied_api_docs(self):
         # An unrelated analyzed project and cwd must not override the server's reference.
         with tempfile.TemporaryDirectory(prefix="cjmcp-api-docs-") as directory:
@@ -115,9 +116,16 @@ class Café:
 alias = Café
 """
 class FixtureDocs(type(api_docs)):
+    def files(self):
+        return ['fixture.pyi', 'duplicate.pyi']
     def read(self, path):
         return fixture
 docs = FixtureDocs()
+assert docs.find_symbol('Café.call') == [
+    dict(path=path, symbol='Café.call', declarations=2)
+    for path in ['fixture.pyi', 'duplicate.pyi']]
+assert docs.find_symbol('Café.CALL') == []
+assert docs.find_symbol('Café.Nested.run')[0]['declarations'] == 1
 assert [n['symbol'] for n in docs.outline('fixture.pyi')] == ['Café', 'alias']
 assert 'Unicode documentation.' in docs.read_symbol('fixture.pyi', 'Café')
 overloads = docs.read_symbol('fixture.pyi', 'Café.call')
