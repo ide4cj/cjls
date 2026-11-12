@@ -13,6 +13,10 @@ must be composed before constructing the change. These contracts allow LSP and
 disk consumers to share a description without sharing write policy; see
 [D162](../../docs/adr/0162-source-change.md).
 
+This experimental branch exports the original value types through a static
+`py_interop` dependency. Python initialization belongs to cjmcp; ordinary text
+validation and application do not initialize an interpreter.
+
 Run the focused tests with:
 
 ```bash

@@ -1,16 +1,18 @@
 package loupe.hir
 
 import std.collection.*
-import std.deriving.*
 import calca.*
 import calca.macros.*
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 
 /**
  * What a segment of a path in a type names.
  */
-@Derive[Equatable]
-public enum TypeTarget <: ToString {
+@DerivePython
+@PyDoc["What a segment of a path in a type names."]
+public enum TypeTarget <: ToString & Equatable<TypeTarget> {
     /**
      * A type: a class, interface, struct, enum, alias, or a type of the compiler's own.
      */
@@ -37,13 +39,32 @@ public enum TypeTarget <: ToString {
             case QualifierOf(pkg) => "package ${pkg}"
         }
     }
+
+    public operator func ==(other: TypeTarget): Bool {
+        match ((this, other)) {
+            case (TypeTarget.TypeOf(left0), TypeTarget.TypeOf(right0)) => left0 == right0
+            case (TypeTarget.GenericOf(left0, left1), TypeTarget.GenericOf(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (
+                    TypeTarget.LocalGenericOf(left0, left1, left2),
+                    TypeTarget.LocalGenericOf(right0, right1, right2)
+                ) => left0 == right0 && left1 == right1 && left2 == right2
+            case (TypeTarget.QualifierOf(left0), TypeTarget.QualifierOf(right0)) => left0 == right0
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: TypeTarget): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * What a segment of a path in a type resolves to.
  */
-@Derive[Equatable]
-public enum PathResolution <: ToString {
+@DerivePython
+@PyDoc["What a segment of a path in a type resolves to."]
+public enum PathResolution <: ToString & Equatable<PathResolution> {
     | Resolved(TypeTarget)
     /**
      * Types of one level of the file's scope, or of a package's exports (N15, N33, N39).
@@ -67,12 +88,33 @@ public enum PathResolution <: ToString {
             case UnresolvedPath => "unresolved"
         }
     }
+
+    public operator func ==(other: PathResolution): Bool {
+        match ((this, other)) {
+            case (PathResolution.Resolved(left0), PathResolution.Resolved(right0)) =>
+                left0 == right0
+            case (PathResolution.AmbiguousPath(left0), PathResolution.AmbiguousPath(right0)) =>
+                left0 == right0
+            case (
+                    PathResolution.ConflictedPackages(left0),
+                    PathResolution.ConflictedPackages(right0)
+                ) => left0 == right0
+            case (PathResolution.UnresolvedPath, PathResolution.UnresolvedPath) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: PathResolution): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * The type parameters of one declaration: the declaration, which `GenericOf` names, and their
  * names in order, an index among them a `GenericOf`'s.
  */
+@DerivePython
+@PyDoc["The type parameters of one declaration: the declaration, which `GenericOf` names, and their names in order, an index among them a `GenericOf`'s."]
 public struct Generics {
     public Generics(public let owner: DefId, public let names: Array<String>) {}
 }
@@ -82,11 +124,14 @@ public struct Generics {
  * parameters of the declaration, then of the type or `extend` it is a member of, the innermost
  * first, each shadowing anything of its name (N55); then the scope of its file.
  */
+@DerivePython
+@PyDoc["Where the types of a declaration's signature are looked up, rust-analyzer's `Resolver`: the type parameters of the declaration, then of the type or `extend` it is a member of, the innermost first, each shadowing anything of its name (N55); then the scope of its file."]
 public struct TypeScope {
     public TypeScope(
         /**
          * The type parameters of the declaration, then of its parent, if it has one.
          */
+        @PyDoc["The type parameters of the declaration, then of its parent, if it has one."]
         public let generics: Array<Generics>,
         public let pkg: Package,
         public let file: SourceFile

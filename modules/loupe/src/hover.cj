@@ -19,6 +19,8 @@ import cjsyntax.ast.{
     VarDecl
 }
 import ginkgo.{SyntaxNodePtr, TextRange}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
@@ -28,34 +30,55 @@ import loupe.vfs.FileId
  * What hovering a name shows, rust-analyzer's `HoverResult`: the name's range, and what it stands
  * for, each candidate of an ambiguity.
  */
-@Derive[Equatable]
-public struct HoverResult {
+@DerivePython
+@PyDoc["What hovering a name shows, rust-analyzer's `HoverResult`: the name's range, and what it stands for, each candidate of an ambiguity."]
+public struct HoverResult <: Equatable<HoverResult> {
     public HoverResult(public let range: TextRange, public let items: Array<HoverItem>) {}
+
+    public operator func ==(other: HoverResult): Bool {
+        range == other.range && items == other.items
+    }
+
+    public operator func !=(other: HoverResult): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * One thing a name stands for, as Cangjie writes it; no markup, which is the server's to choose.
  */
-@Derive[Equatable]
-public struct HoverItem {
+@DerivePython
+@PyDoc["One thing a name stands for, as Cangjie writes it; no markup, which is the server's to choose."]
+public struct HoverItem <: Equatable<HoverItem> {
     public HoverItem(
         /**
          * Its declaration as one line of Cangjie, no body: `public func get(index: Int64): ?Int64`,
          * `let x: Int64`, `x: Int64` for a parameter; its types as inference gives them (D54, D55),
          * a member's as a member of the value it is used on (`T` an argument of the value's type).
          */
+        @PyDoc["Its declaration as one line of Cangjie, no body: `public func get(index: Int64): ?Int64`, `let x: Int64`, `x: Int64` for a parameter; its types as inference gives them (D54, D55), a member's as a member of the value it is used on (`T` an argument of the value's type)."]
         public let code: String,
         /**
          * Where it is declared: its package, and the type it is a member of (`std.collection.ArrayList`);
          * `None` for a local.
          */
+        @PyDoc["Where it is declared: its package, and the type it is a member of (`std.collection.ArrayList`); `None` for a local."]
         public let path!: ?String = None,
         /**
          * Its doc comment, its text as written, the comment's own markers taken off (`docText`); of what the
          * language builds in, our words of it (`BuiltinDoc`).
          */
+        @PyDoc["Its doc comment, its text as written, the comment's own markers taken off (`docText`); of what the language builds in, our words of it (`BuiltinDoc`)."]
         public let doc!: ?String = None
     ) {}
+
+    public operator func ==(other: HoverItem): Bool {
+        code == other.code && path == other.path && doc == other.doc
+    }
+
+    public operator func !=(other: HoverItem): Bool {
+        !(this == other)
+    }
 }
 
 /**

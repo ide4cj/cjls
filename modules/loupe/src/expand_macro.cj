@@ -1,7 +1,8 @@
 package loupe
 
-import std.deriving.*
 import ginkgo.TextRange
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.AnalysisDatabase
 import loupe.hir.*
 import loupe.vfs.FileId
@@ -10,32 +11,45 @@ import loupe.vfs.FileId
  * The macro call at a position (`macroCallAt`): the call whose expansion shows it, and where the call at the position
  * is.
  */
-@Derive[Equatable]
-public struct MacroCallAt {
+@DerivePython
+@PyDoc["The macro call at a position (`macroCallAt`): the call whose expansion shows it, and where the call at the position is."]
+public struct MacroCallAt <: Equatable<MacroCallAt> {
     public MacroCallAt(
         /**
          * The call whose expansion the analysis reads that shows what the call at the position adds (`readCallOf`):
          * that call itself, or the outermost call the macro server runs on its top-level item, whose input the call
          * at the position is in, as cjc expands one into the other (D98).
          */
+        @PyDoc["The call whose expansion the analysis reads that shows what the call at the position adds (`readCallOf`): that call itself, or the outermost call the macro server runs on its top-level item, whose input the call at the position is in, as cjc expands one into the other (D98)."]
         public let call: MacroCallId,
         /**
          * The head of the call at the position in its file, `@` to the end of its attribute, or of its name.
          */
+        @PyDoc["The head of the call at the position in its file, `@` to the end of its attribute, or of its name."]
         public let range: TextRange,
         /**
          * Where what the call at the position added is in the text of `call`'s expansion, when that is another call's
          * (`expansionRangeOf`); `None` for the call itself, or where it cannot be told.
          */
+        @PyDoc["Where what the call at the position added is in the text of `call`'s expansion, when that is another call's (`expansionRangeOf`); `None` for the call itself, or where it cannot be told."]
         public let focus!: ?TextRange = None
     ) {}
+
+    public operator func ==(other: MacroCallAt): Bool {
+        call == other.call && range == other.range && focus == other.focus
+    }
+
+    public operator func !=(other: MacroCallAt): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * Who wrote an expansion.
  */
-@Derive[Equatable]
-public enum ExpansionKind <: ToString {
+@DerivePython
+@PyDoc["Who wrote an expansion."]
+public enum ExpansionKind <: ToString & Equatable<ExpansionKind> {
     /**
      * The macro server, running a macro of the workspace or of std: its whole output, bodies included (#176).
      */
@@ -52,34 +66,60 @@ public enum ExpansionKind <: ToString {
             case OwnExpansion => "OwnExpansion"
         }
     }
+
+    public operator func ==(other: ExpansionKind): Bool {
+        match ((this, other)) {
+            case (ExpansionKind.ServerExpansion, ExpansionKind.ServerExpansion) => true
+            case (ExpansionKind.OwnExpansion, ExpansionKind.OwnExpansion) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: ExpansionKind): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * What a macro call expands to, as the analysis reads it.
  */
-@Derive[Equatable]
-public struct ExpandedMacro {
+@DerivePython
+@PyDoc["What a macro call expands to, as the analysis reads it."]
+public struct ExpandedMacro <: Equatable<ExpandedMacro> {
     public ExpandedMacro(
         /**
          * The macro's name as the call writes it, `@` and its path, its attribute left out: `@Derive`, `@m.M`.
          */
+        @PyDoc["The macro's name as the call writes it, `@` and its path, its attribute left out: `@Derive`, `@m.M`."]
         public let name: String,
         /**
          * The head of the call in its file (`MacroCallAt.range`).
          */
+        @PyDoc["The head of the call in its file (`MacroCallAt.range`)."]
         public let range: TextRange,
         /**
          * The text of the expansion, which `hoverInExpansion` and `definitionInExpansion` take offsets in and
          * `NavigationTarget.expansion` gives ranges of.
          */
+        @PyDoc["The text of the expansion, which `hoverInExpansion` and `definitionInExpansion` take offsets in and `NavigationTarget.expansion` gives ranges of."]
         public let text: String,
         public let kind: ExpansionKind,
         /**
          * The declaration the call is on, as written after the call's head, for an expansion that adds after it
          * rather than replaces it, which cjc's output starts with: one of std's but `@Strategy`'s. `None` otherwise.
          */
+        @PyDoc["The declaration the call is on, as written after the call's head, for an expansion that adds after it rather than replaces it, which cjc's output starts with: one of std's but `@Strategy`'s. `None` otherwise."]
         public let declaration!: ?String = None
     ) {}
+
+    public operator func ==(other: ExpandedMacro): Bool {
+        name == other.name && range == other.range && text == other.text && kind == other.kind &&
+            declaration == other.declaration
+    }
+
+    public operator func !=(other: ExpandedMacro): Bool {
+        !(this == other)
+    }
 }
 
 /**

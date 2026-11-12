@@ -3,12 +3,15 @@ package loupe.db
 import std.collection.HashMap
 import std.deriving.*
 import ginkgo.TextRange
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * Where a piece of a macro call's input or output comes from (#176).
  */
-@Derive[Equatable]
-public enum SpanOrigin <: ToString {
+@DerivePython
+@PyDoc["Where a piece of a macro call's input or output comes from (#176)."]
+public enum SpanOrigin <: ToString & Equatable<SpanOrigin> {
     /**
      * Text of the source file, as a range relative to the start of the top-level item the call is under (its
      * outermost macro call's `@`), which an edit elsewhere in the file leaves right.
@@ -25,17 +28,38 @@ public enum SpanOrigin <: ToString {
             case FromCall => "FromCall"
         }
     }
+
+    public operator func ==(other: SpanOrigin): Bool {
+        match ((this, other)) {
+            case (SpanOrigin.FromSource(left0), SpanOrigin.FromSource(right0)) => left0 == right0
+            case (SpanOrigin.FromCall, SpanOrigin.FromCall) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: SpanOrigin): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * A range of a `MappedText` and where it comes from.
  */
-@Derive[Equatable]
-public struct MappedSpan <: ToString {
+@DerivePython
+@PyDoc["A range of a `MappedText` and where it comes from."]
+public struct MappedSpan <: ToString & Equatable<MappedSpan> {
     public MappedSpan(public let range: TextRange, public let origin: SpanOrigin) {}
 
     public func toString(): String {
         "${range} <- ${origin}"
+    }
+
+    public operator func ==(other: MappedSpan): Bool {
+        range == other.range && origin == other.origin
+    }
+
+    public operator func !=(other: MappedSpan): Bool {
+        !(this == other)
     }
 }
 
@@ -43,13 +67,15 @@ public struct MappedSpan <: ToString {
  * Text a macro call reads or writes, and where its pieces come from: spans in order, not overlapping; text in none of
  * them (the spaces between printed tokens) comes from nowhere.
  */
-@Derive[Equatable]
-public struct MappedText {
+@DerivePython
+@PyDoc["Text a macro call reads or writes, and where its pieces come from: spans in order, not overlapping; text in none of them (the spaces between printed tokens) comes from nowhere."]
+public struct MappedText <: Equatable<MappedText> {
     public MappedText(public let text: String, public let spans: Array<MappedSpan>) {}
 
     /**
      * Text all of which comes from the source at `origin`, relative to the top-level item, as one span.
      */
+    @PyDoc["Text all of which comes from the source at `origin`, relative to the top-level item, as one span."]
     public static func fromSource(text: String, origin: Int64): MappedText {
         MappedText(
             text,
@@ -66,6 +92,7 @@ public struct MappedText {
      * Where `range` of the text comes from: the origin of the span its start is in; within a span as long as its
      * origin (text copied from the source), the same part of it. `None` for text in no span.
      */
+    @PyDoc["Where `range` of the text comes from: the origin of the span its start is in; within a span as long as its origin (text copied from the source), the same part of it. `None` for text in no span."]
     public func originOf(range: TextRange): ?SpanOrigin {
         for (span in spans where span.range.start <= range.start && range.start < span.range.end) {
             return match (span.origin) {
@@ -78,13 +105,22 @@ public struct MappedText {
         }
         None
     }
+
+    public operator func ==(other: MappedText): Bool {
+        text == other.text && spans == other.spans
+    }
+
+    public operator func !=(other: MappedText): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * A value a macro gives the macro calls around it (`setItem`, which they read with `getChildMessages`).
  */
-@Derive[Equatable]
-public enum MacroItemValue <: ToString {
+@DerivePython
+@PyDoc["A value a macro gives the macro calls around it (`setItem`, which they read with `getChildMessages`)."]
+public enum MacroItemValue <: ToString & Equatable<MacroItemValue> {
     | StringItem(String)
     | IntItem(Int64)
     | BoolItem(Bool)
@@ -98,40 +134,89 @@ public enum MacroItemValue <: ToString {
             case TokensItem(value) => "Tokens(${value.text})"
         }
     }
+
+    public operator func ==(other: MacroItemValue): Bool {
+        match ((this, other)) {
+            case (MacroItemValue.StringItem(left0), MacroItemValue.StringItem(right0)) =>
+                left0 == right0
+            case (MacroItemValue.IntItem(left0), MacroItemValue.IntItem(right0)) => left0 == right0
+            case (MacroItemValue.BoolItem(left0), MacroItemValue.BoolItem(right0)) =>
+                left0 == right0
+            case (MacroItemValue.TokensItem(left0), MacroItemValue.TokensItem(right0)) =>
+                left0 == right0
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: MacroItemValue): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * One `setItem` of a macro call: its key and value.
  */
-@Derive[Equatable]
-public struct MacroItem <: ToString {
+@DerivePython
+@PyDoc["One `setItem` of a macro call: its key and value."]
+public struct MacroItem <: ToString & Equatable<MacroItem> {
     public MacroItem(public let key: String, public let value: MacroItemValue) {}
 
     public func toString(): String {
         "${key}=${value}"
+    }
+
+    public operator func ==(other: MacroItem): Bool {
+        key == other.key && value == other.value
+    }
+
+    public operator func !=(other: MacroItem): Bool {
+        !(this == other)
     }
 }
 
 /**
  * How bad what a macro reports is (`diagReport`'s `DiagReportLevel`).
  */
-@Derive[Equatable]
-public enum MacroSeverity {
+@DerivePython
+@PyDoc["How bad what a macro reports is (`diagReport`'s `DiagReportLevel`)."]
+public enum MacroSeverity <: Equatable<MacroSeverity> {
     | MacroError
     | MacroWarning
+
+    public operator func ==(other: MacroSeverity): Bool {
+        match ((this, other)) {
+            case (MacroSeverity.MacroError, MacroSeverity.MacroError) => true
+            case (MacroSeverity.MacroWarning, MacroSeverity.MacroWarning) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: MacroSeverity): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * What a macro reported running a call: where in its input (`None` for no token of it), and what.
  */
-@Derive[Equatable]
-public struct MacroDiagnostic {
+@DerivePython
+@PyDoc["What a macro reported running a call: where in its input (`None` for no token of it), and what."]
+public struct MacroDiagnostic <: Equatable<MacroDiagnostic> {
     public MacroDiagnostic(
         public let severity: MacroSeverity,
         public let origin: ?SpanOrigin,
         public let message: String,
         public let hint: String
     ) {}
+
+    public operator func ==(other: MacroDiagnostic): Bool {
+        severity == other.severity && origin == other.origin && message == other.message &&
+            hint == other.hint
+    }
+
+    public operator func !=(other: MacroDiagnostic): Bool {
+        !(this == other)
+    }
 }
 
 /**

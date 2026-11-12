@@ -1,11 +1,12 @@
 package loupe
 
 import std.collection.*
-import std.deriving.*
 import std.sort.*
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind, reparse}
 import cjsyntax.ast.{Decl, MemberAccessExpr, RefExpr}
 import ginkgo.{Direction, SyntaxElement, SyntaxNodePtr, TextRange, TokenAtOffset}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
@@ -123,8 +124,9 @@ let PRIM_TYPE_NAMES =
 /**
  * What a completion item is, for the client to show it as one.
  */
-@Derive[Equatable, ToString]
-public enum CompletionKind {
+@DerivePython
+@PyDoc["What a completion item is, for the client to show it as one."]
+public enum CompletionKind <: Equatable<CompletionKind> & ToString {
     | LocalItem
     | ParamItem
     | FuncItem
@@ -139,6 +141,49 @@ public enum CompletionKind {
     | PkgItem
     | TypeParamItem
     | KeywordItem
+
+    public operator func ==(other: CompletionKind): Bool {
+        match ((this, other)) {
+            case (CompletionKind.LocalItem, CompletionKind.LocalItem) => true
+            case (CompletionKind.ParamItem, CompletionKind.ParamItem) => true
+            case (CompletionKind.FuncItem, CompletionKind.FuncItem) => true
+            case (CompletionKind.VarItem, CompletionKind.VarItem) => true
+            case (CompletionKind.PropItem, CompletionKind.PropItem) => true
+            case (CompletionKind.CtorItem, CompletionKind.CtorItem) => true
+            case (CompletionKind.ClassItem, CompletionKind.ClassItem) => true
+            case (CompletionKind.InterfaceItem, CompletionKind.InterfaceItem) => true
+            case (CompletionKind.StructItem, CompletionKind.StructItem) => true
+            case (CompletionKind.EnumItem, CompletionKind.EnumItem) => true
+            case (CompletionKind.TypeAliasItem, CompletionKind.TypeAliasItem) => true
+            case (CompletionKind.PkgItem, CompletionKind.PkgItem) => true
+            case (CompletionKind.TypeParamItem, CompletionKind.TypeParamItem) => true
+            case (CompletionKind.KeywordItem, CompletionKind.KeywordItem) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: CompletionKind): Bool {
+        !(this == other)
+    }
+
+    public func toString(): String {
+        match (this) {
+            case CompletionKind.LocalItem => "CompletionKind.LocalItem"
+            case CompletionKind.ParamItem => "CompletionKind.ParamItem"
+            case CompletionKind.FuncItem => "CompletionKind.FuncItem"
+            case CompletionKind.VarItem => "CompletionKind.VarItem"
+            case CompletionKind.PropItem => "CompletionKind.PropItem"
+            case CompletionKind.CtorItem => "CompletionKind.CtorItem"
+            case CompletionKind.ClassItem => "CompletionKind.ClassItem"
+            case CompletionKind.InterfaceItem => "CompletionKind.InterfaceItem"
+            case CompletionKind.StructItem => "CompletionKind.StructItem"
+            case CompletionKind.EnumItem => "CompletionKind.EnumItem"
+            case CompletionKind.TypeAliasItem => "CompletionKind.TypeAliasItem"
+            case CompletionKind.PkgItem => "CompletionKind.PkgItem"
+            case CompletionKind.TypeParamItem => "CompletionKind.TypeParamItem"
+            case CompletionKind.KeywordItem => "CompletionKind.KeywordItem"
+        }
+    }
 }
 
 /**
@@ -147,17 +192,49 @@ public enum CompletionKind {
  * overloads with their receiver types; a local of a body; a member parameter of a primary
  * constructor; nothing, for a keyword or a package.
  */
-@Derive[Equatable]
-public enum CompletionSource {
+@DerivePython
+@PyDoc["What a completion item stands for, for its detail and documentation when a client asks for them (`completionDetails`): a declaration, as a member of a value of a type if one's; a group of overloads with their receiver types; a local of a body; a member parameter of a primary constructor; nothing, for a keyword or a package."]
+public enum CompletionSource <: Equatable<CompletionSource> {
     | DeclSource(DefId, ?Ty)
     | OverloadSource(Array<CompletionOverload>)
     | LocalSource(DefId, LocalId)
     | MemberParamSource(DefId, LocalId, ?Ty)
     | NoSource
+
+    public operator func ==(other: CompletionSource): Bool {
+        match ((this, other)) {
+            case (
+                    CompletionSource.DeclSource(left0, left1),
+                    CompletionSource.DeclSource(right0, right1)
+                ) => left0 == right0 && left1 == right1
+            case (
+                    CompletionSource.OverloadSource(left0),
+                    CompletionSource.OverloadSource(right0)
+                ) => left0 == right0
+            case (
+                    CompletionSource.LocalSource(left0, left1),
+                    CompletionSource.LocalSource(right0, right1)
+                ) => left0 == right0 && left1 == right1
+            case (
+                    CompletionSource.MemberParamSource(left0, left1, left2),
+                    CompletionSource.MemberParamSource(right0, right1, right2)
+                ) => left0 == right0 && left1 == right1 && left2 == right2
+            case (CompletionSource.NoSource, CompletionSource.NoSource) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: CompletionSource): Bool {
+        !(this == other)
+    }
 }
 
-@Derive[Equatable]
-public struct CompletionItem {
+/**
+ * One completion candidate: label, kind, ranking relevance and source for deferred details.
+ */
+@DerivePython
+@PyDoc["One completion candidate: label, kind, ranking relevance and source for deferred details."]
+public struct CompletionItem <: Equatable<CompletionItem> {
     public CompletionItem(
         public let label: String,
         public let kind: CompletionKind,
@@ -165,6 +242,7 @@ public struct CompletionItem {
          * Higher first: a local before a member before the file's scope before a keyword; the
          * client's own match against what was typed comes on top of it.
          */
+        @PyDoc["Higher first: a local before a member before the file's scope before a keyword; the client's own match against what was typed comes on top of it."]
         public let relevance: Int64,
         public let source: CompletionSource
     ) {}
@@ -172,6 +250,7 @@ public struct CompletionItem {
     /**
      * How many declarations this item offers; counting a group needs no signature query.
      */
+    @PyDoc["How many declarations this item offers; counting a group needs no signature query."]
     public prop overloadCount: Int64 {
         get() {
             match (source) {
@@ -180,15 +259,33 @@ public struct CompletionItem {
             }
         }
     }
+
+    public operator func ==(other: CompletionItem): Bool {
+        label == other.label && kind == other.kind && relevance == other.relevance &&
+            source == other.source
+    }
+
+    public operator func !=(other: CompletionItem): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * The completions at a cursor: what the item inserted replaces, the name typed so far before the
  * cursor, and the items, the most relevant first.
  */
-@Derive[Equatable]
-public struct CompletionResult {
+@DerivePython
+@PyDoc["The completions at a cursor: what the item inserted replaces, the name typed so far before the cursor, and the items, the most relevant first."]
+public struct CompletionResult <: Equatable<CompletionResult> {
     public CompletionResult(public let range: TextRange, public let items: Array<CompletionItem>) {}
+
+    public operator func ==(other: CompletionResult): Bool {
+        range == other.range && items == other.items
+    }
+
+    public operator func !=(other: CompletionResult): Bool {
+        !(this == other)
+    }
 }
 
 /**

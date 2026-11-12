@@ -1,0 +1,123 @@
+# Apply source changes
+
+Read loaded source through the current revision and use native `SourceChange`
+values for checked project edits. All Cangjie source work stays in `runPython`.
+
+Select declarations/relationships through analysis and edit boundaries through
+syntax before transforming text; use the [refactoring recipe](refactoring.md)
+when a change affects usages. Keep full expectedText in Python; return selected
+source, then a compact diff and the application report. This example changes the
+unique "{ 1 }" body inside a function named target to "{ 2 }"; adapt the name and
+expected fragment to the task:
+
+~~~python
+import difflib
+a = workspace.analysis()
+path = "src/main.cj"
+before = a.text(path)
+data = before.encode("utf-8")
+node = next(s for s in a.fileSymbols(path) if s.name == "target")
+expected = b"{ 1 }"
+assert data[node.range.start:node.range.end].count(expected) == 1
+start = data.index(expected, node.range.start, node.range.end)
+span = TextRange(start, start + len(expected))
+replacement = "{ 2 }"
+after = (data[:span.start] + replacement.encode("utf-8") + data[span.end:]).decode("utf-8")
+diff = list(difflib.unified_diff(before.splitlines(), after.splitlines(),
+                               fromfile=path, tofile=path, n=2, lineterm=""))
+report = workspace.applyChange(
+    SourceChange([FileChange.EditFile(path, before, [TextEdit(span, replacement)])]),
+    a.revision)
+result = {"success": report.isSuccess, "applied": report.applied,
+          "failed": report.failed, "error": report.error,
+          "diff": diff}
+~~~
+
+For larger edits, select diff hunks or changed semantic ranges and report any
+omissions. See [runtime recovery](runtime.md) if the response exceeds its budget;
+the edit has already executed, so retrieve evidence without replaying it.
+
+Use a fresh call for diagnostics and semantic verification:
+
+~~~python
+a = workspace.analysis()
+paths = ["src/main.cj"]
+rows = [d for p in paths for d in workspace.diagnostics(p)]
+result = {"revision": a.revision, "diagnostics": rows[:20],
+          "total": len(rows), "omitted": max(0, len(rows)-20)}
+~~~
+
+Diagnostic values serialize directly. Also inspect changed references, selected
+callees or inferred types when they matter; empty diagnostics do not replace
+compiler/tests.
+
+`FileChange.EditFile(path, expectedText, edits)` accepts unordered UTF-8 byte edits
+against one original string. Pass formatting results directly as `edits`. Same-position
+insertions keep input order. Overlapping replacements, insertions inside them,
+invalid boundaries and out-of-bounds ranges fail before writing.
+
+`FileChange.CreateFile(path, text)` creates initial contents and missing parent
+directories; it never overwrites an existing file.
+`FileChange.RenameFile(path, target, expectedText)` requires a missing target and
+creates missing parent directories.
+`FileChange.DeleteFile(path, expectedText)` removes an existing regular file.
+
+Each path may occur once, including rename destinations. Compose dependent
+operations before constructing the change. Paths may be root-relative or
+absolute inside the workspace; normalized path aliases, symbolic-link traversal, paths outside
+the workspace and using a changed file as a parent directory are rejected.
+
+Supply this script's revision. Existing files must match both their expected
+text on disk and their revision text when loaded. Validation of the entire set
+precedes writes. A preflight failure returns an empty `applied`, null `failed`
+and an error. A stale revision raises `ContentModified`.
+
+The report's `applied` contains zero-based operation indices. An I/O failure
+stops at `failed`; that operation may have partially changed disk, and earlier
+operations and newly created directories remain. Inspect disk before retrying.
+No automatic rollback, concurrent-writer exclusion or multi-file transaction is
+promised. Create/rename destinations are reserved without overwriting them;
+renaming uses hard links and therefore requires the same filesystem.
+
+The current script retains its original analysis, even after a successful write.
+In a **new call**, reacquire `workspace.analysis()`, inspect the new text and
+diagnostics, and recompute identities and ranges. New files are discovered then.
+Run the appropriate compiler/tests to validate the change.
+
+Ordinary Python `pathlib` I/O remains available for unloaded files and operations
+outside this model. It reads live disk, independently of analysis. For direct
+writes to loaded source, compare disk bytes with revision text before writing;
+apply byte edits from the end and preserve untouched bytes.
+
+## Whole declarations with annotations
+
+Outline `range` can begin at `func`, excluding `@TestCase`.
+Even the syntax `FuncDecl.location().fullRange` excludes its enclosing
+`MacroExpandDecl`. For replacement/deletion, or insertion before the annotated
+declaration, select the wrapper-aware range:
+
+~~~python
+a = workspace.analysis()
+path = "src/example_test.cj"
+matches = exact_symbols(a, [path], "target")
+assert len(matches) == 1, "select the intended owner/overload"
+symbol = matches[0][1]
+span = declaration_range(a, path, symbol.selectionRange, "FuncDecl")
+before = a.text(path)
+expected = before.encode("utf-8")[span.start:span.end].decode("utf-8")
+result = source_excerpts(a, [(path, span)], max_bytes=8000)
+~~~
+
+The helper requires a direct Name child matching the selection in the requested
+syntax kind (a body occurrence is rejected), and includes its consecutive `MacroExpandDecl` parents. It rejects missing or
+ambiguous syntax. It operates on written source and leaves external comments
+and whitespace untouched. Select the actual syntax kind for other declarations.
+Never use an expansion offset, a context-expanded excerpt, or an assumed
+line-start as an edit boundary.
+
+A whole replacement must preserve all annotations in `expected` unless the task
+changes them. For insertion before it use `TextRange(span.start, span.start)`;
+include the new declaration's trailing newline/indentation. For a body-only
+change keep the replacement inside the selected body and leave annotations alone.
+After applying, reacquire analysis, check annotations and run the compiler:
+empty diagnostics have missed macro annotation errors in real tasks.
