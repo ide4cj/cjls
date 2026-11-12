@@ -1,104 +1,92 @@
 package cjmcp
 
-// Keep the common path usable without loading a skill or exploring the bindings first.
+// Keep evidence selection and executable common queries ahead of API discovery.
 let agentInstructions =
     #"
-Use runPython for all Cangjie source analysis, reading and editing; do not
-substitute shell commands or subprocesses. Report partial analysis without a
-shell fallback. Shell remains available for Git, builds, tests and non-Cangjie files.
-Pass root=<absolute edited project/worktree> on every runPython call when working
-outside the configured --dir. Omitting root always selects --dir, not the previous
-call. Canonical roots have independent analysis, macro and last_output state.
-Responses carry root and sessionId; revision numbers are meaningful only within
-that session. Four roots are cached by recency; eviction closes their workers and
-macro hosts. Reopening creates a new sessionId. Calls remain sequential.
-workspace and native types are injected; do not import loupe.
-Use the core queries below directly for common tasks; no API documentation lookup
-is needed before using them. Start with a query that advances the task, including
-the workspace health fields below in the same call. For an unfamiliar operation,
-load only the relevant task recipe from the cangjie-mcp skill.
-Compose read-only tasks in Python: select candidates, inspect them and verify
-the requested evidence in one script when the queries below are sufficient.
-Keep intermediate objects in Python; return conclusions with supporting
-paths/ranges, relevant source and explicit totals/omissions. Use follow-ups for
-a concrete missing contract, partial result or a decision needing user input.
-Minimize total task token use, including code and output, without truncating
-searches or weakening verification. Post-edit verification needs a fresh call.
+Use runPython for Cangjie source analysis, reading and editing. Shell is for
+Git, builds, tests and non-Cangjie files; report partial analysis without a shell
+fallback. workspace and native types are injected; do not import loupe.
 
-Capture a = workspace.analysis() in each call. Core queries:
+Choose evidence in this order:
+1. Query the analysis database for syntax and semantics. Select declarations and
+   resolved references/types/hierarchies; use syntax nodes for expression shape,
+   nesting and edit boundaries. Reuse the matching cangjie-mcp task recipe before
+   inventing a traversal (references/semantic.md, navigation.md, refactoring.md,
+   editing.md). Simple queries below need no preparation lookup.
+2. If a recipe or query leaves a specific API contract unknown, use targeted
+   bundled .pyi lookup (references/discovery.md). Check server_info for a version
+   mismatch; do not infer missing capability from an unfamiliar API name.
+3. Only after identifying a concrete analysis/API gap, use a bounded textual
+   fallback inside Python and label its limits. Do not reconstruct declarations,
+   usages, inheritance or block boundaries with re, substring tests or splitlines
+   when database queries or syntax nodes provide them. Text search is also useful
+   for literals/comments, candidate discovery and an additional residual-name
+   check; a textual match does not establish a symbol relationship.
+
+For a refactor, read references/refactoring.md and editing.md; establish affected
+identities, implementations and usages before writing. Apply text transformations
+within selected source ranges with expected-text checks. An empty query result
+is not proof of completeness: inspect unresolved/macro/contextual gaps.
+Compose related queries in Python and keep intermediate objects there. Return
+bounded evidence with paths/ranges, totals and omissions; follow up on uncertainty.
+Minimize total tokens without truncating searches or weakening verification.
+
+Pass root=<absolute project/worktree> on every call outside the configured --dir;
+omission always selects --dir. Verify root/sessionId; four roots are cached,
+eviction closes a session and reopening gives a new ID. Revision and last_output
+belong to that session. Calls are sequential; Python globals are fresh each call.
+Capture a = workspace.analysis() per call. Include workspace.root,
+workspace.loadDiagnostics and workspace.macros with the first useful query.
+MacroState.Pending()/Settled() describe completion, not severity. Retry missing
+expansion-dependent evidence when needed; no blanket expansion wait is required.
+
+Core queries (ranges are UTF-8 bytes, end-exclusive):
 - a.symbols(name, limit) -> matches with .fileId and .symbol (name, range,
-  selectionRange); resolve paths with a.path(fileId). A full limit may omit matches.
+  selectionRange); a.path(fileId) resolves paths. A full limit may omit matches.
 - a.fileSymbols(path), workspace.structure(path) -> declarations; structure nodes
   have .name, .kind, .range, .selectionRange and nested .children.
-- a.references(path, byteOffset) -> entries with .fileId, .range, .isDeclaration.
-- workspace.files() includes dependencies; filter to workspace.root when needed.
-- a.text(path) -> revision text; ranges are UTF-8 bytes, end-exclusive.
-- workspace.definition(path, offset), hover(path, offset), diagnostics(path).
-- a.declarations(path) -> DefIds; a.item(defId), a.infer(defId), a.typeText(ty).
-- s = a.semantic() -> snapshot views; s.at(fileId, offset), s.project(), s.syntaxAt(fileId).
-  Compose occurrence.resolution(), contextualFile() and object relationships; retain gaps.
-- a.macroCall(path, byteOffset) -> call or None; a.expansion(call.call) -> expansion
-  or None, with .text. a.expandedFile(path, header) needs an explicit header string.
-  a.definitionInExpansion(call.call, offset), hoverInExpansion(call.call, offset),
-  typeDefinitionInExpansion(call.call, offset) use UTF-8 bytes in expansion.text.
-  Navigation targets have .fileId, .fullRange, .focusRange and .expansion; use that
-  target's expansion text when .expansion is present, otherwise a.text(a.path(fileId)).
-- a.body(defId), a.infer(defId) -> matching .locals/.exprs arrays;
-  a.expressionRanges(defId) uses the same expression indices. Null inferred entries
-  mean non-value expressions; null ranges mean unavailable source locations.
-  a.infer(defId).callees entries expose .expr, .decl and .isInitializer; .expr.index
-  identifies the callee expression, not necessarily the outer call expression.
-  a.typeKind(ty) preserves native variants; a.typeText(ty) gives display text.
-  a.signatureWithSourceMap(defId) -> .signature and .sourceMap.ranges.
-- a.allMembers(defId) -> native MemberTarget variants, including inherited/extend members.
-  a.members(defId, name), a.supertypes(defId) narrow member/type queries.
-- a.prepareCallHierarchy(path, offset) -> entries; a.incomingCalls(entry),
-  a.outgoingCalls(entry) -> caller/callee groups with call-site ranges.
-- a.completions(path, offset), a.completionDetails(path, offset, item);
-  a.typeDefinition(path, offset), a.implementations(path, offset).
-- a.formatting(path), a.rangeFormatting(path, TextRange(start, end)) -> edits or None.
-  options=FormatOptions(indentWidth=2) overrides defaults; these queries never write.
-- a.builtinTypeDoc(name), a.builtinAnnotationDoc(name), a.builtinMacroDoc(name) -> doc
-  or None; annotation/macro names exclude @. a.newFilePackageLine(path) -> header or None.
-- workspace.sdk -> selected SDK or None; project path/source/version/channel fields
-  explicitly for JSON. s.project().modules(): module.nativeLibraries() gives linker inputs.
+- a.references(path, offset) -> .fileId, .range, .isDeclaration;
+  workspace.definition(path, offset), hover(path, offset), diagnostics(path).
+- s = a.semantic(); s.at(a.fileId(path), offset) retains occurrence resolution and
+  contextualFile(); s.project() traverses modules, packages and dependencies.
+  s.syntaxAt(a.fileId(path)).root() gives syntax; children()/descendants(),
+  kindName(), location(), mappings() connect exact syntax to HIR. See semantic.md.
+- a.declarations(path) -> DefIds; a.item(defId), a.body(defId), a.infer(defId),
+  a.typeKind(ty), a.typeText(ty). See inference.md for aligned arrays, selected
+  callees and unavailable ranges; source-maps.md for written signature types.
+- a.members(defId, name), a.allMembers(defId), a.supertypes(defId),
+  a.implementations(path, offset); see members.md for native member variants.
+- a.prepareCallHierarchy(path, offset), a.incomingCalls(entry), a.outgoingCalls(entry)
+  -> grouped call sites; see calls.md.
+- a.macroCall(path, offset) -> call or None; a.expansion(call.call) -> .text or None.
+  a.expandedFile(path, header) requires a header string. See expansions.md for
+  navigation: target .expansion ranges belong to expansion text, not source text.
+- a.formatting(path), a.rangeFormatting(path, TextRange(start, end)) -> edits or None;
+  options=FormatOptions(indentWidth=2) overrides defaults. These never write.
+- a.text(path) reads loaded revision text. workspace.files() includes dependencies;
+  filter by path components relative to workspace.root, not absolute substrings.
+  workspace.sdk is the selected SDK or None; project its fields explicitly.
+Other editor queries and builtin docs: references/members.md and python-api.md.
 
-Select declarations/members before returning source:
+Select the smallest relevant declarations/nodes before returning source:
 result = source_excerpts(a, [(path, symbol.range)], max_bytes=12000)
-The helper returns whole excerpts with path/line/range metadata and pagination.
-Continue next_offset using the same ordered requests and revision; if blocked,
-select a smaller range or increase max_bytes. Small full files are fine.
-Keep full expected text inside Python for edits; return a compact diff and report.
-For rankings, sort before limiting; compute global maxima first and preserve ties.
+Follow next_offset with the same requests/revision; if blocked, select a smaller
+range or raise max_bytes. Small full files are fine. Keep expectedText in Python.
+Diagnostic/status/range/severity values serialize directly; other native objects
+need explicit field projection. Sort before limiting rankings and preserve ties.
 
-Include workspace.root, workspace.loadDiagnostics and workspace.macros with the
-first useful query. These and workspace.diagnostics(path) serialize directly.
-Other native objects (structure nodes, navigation targets, SDK values) need
-explicit JSON field projection; returning them directly fails serialization.
-MacroState.Pending()/Settled() describe completion; inspect severity independently.
-Report mismatched roots or partial analysis. Retry missing expansion-dependent
-queries when needed; no blanket expansion wait is required.
-
-Use workspace.applyChange(SourceChange([...]), a.revision) for project edits.
-FileChange variants: EditFile(path, expectedText, edits), CreateFile(path, text),
-RenameFile(path, target, expectedText), DeleteFile(path, expectedText).
-TextEdit(range, text) uses UTF-8 byte ranges; formatting edits pass through directly.
-Inspect report.isSuccess, applied operation indices, failed index and error.
+Use workspace.applyChange(SourceChange([...]), a.revision) for project edits:
+FileChange.EditFile(path, expectedText, [TextEdit(range, text)]),
+FileChange.CreateFile(path, text), FileChange.RenameFile(path, target, expectedText),
+FileChange.DeleteFile(path, expectedText). Formatting edits pass through directly.
+Inspect report.isSuccess, applied, failed and error; str(report) is not a report.
 Validation precedes writes; I/O failures may leave partial changes. For direct
 pathlib writes to loaded files, compare disk bytes with revision text first.
-After edits, reacquire analysis/IDs in a new call and check affected semantics and
-diagnostics; globals are fresh and the writing call retains its old revision.
-Validate changes with compiler/tests.
+In a NEW call after writing, reacquire analysis/IDs and verify changed relationships
+and diagnostics. The writing call retains its old revision. Run compiler/tests.
 
-runPython defaults to maxOutputBytes=24000 UTF-8 JSON bytes across all channels.
-OutputBudgetExceeded occurs after execution: select from last_output in a new
-call without replaying effects. outputBudget.largest_fields identifies the largest
-channels and immediate result fields by compact JSON byte size; narrow those fields.
-Saved output may describe an older revision.
-Explicit maxOutputBytes=0 allows unlimited output; larger limits are supported.
-
-If a specific missing API detail blocks the next query, use the skill's
-references/discovery.md recipe for a targeted lookup in the bundled .pyi reference.
-Otherwise continue with the task; reference browsing is not a preparation step.
-For API/version mismatches return server_info and use this binary's reference.
+maxOutputBytes defaults to 24000 UTF-8 JSON bytes across all response channels.
+OutputBudgetExceeded happens AFTER execution: inspect outputBudget.largest_fields
+and select from last_output in a new call; never replay effects to recover output.
+Saved output may be from an older revision. Larger limits are supported; 0 is unlimited.
 "#

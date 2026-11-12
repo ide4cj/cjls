@@ -42,3 +42,22 @@ tokens. `mappings()` returns exact HIR relationships; `obj.syntaxOrigins()` walk
 back, distinguishing source, synthetic and unavailable syntax. Node `pointer()`
 handles are tree-free and resolve only in a tree from the same semantic analysis.
 Select and bound nodes before returning their text or mappings.
+
+For example, select written call expressions and return bounded source:
+
+~~~python
+a = workspace.analysis()
+s = a.semantic()
+path = "src/main.cj"
+calls = [node for node in s.syntaxAt(a.fileId(path)).root().descendants()
+         if node.kindName() == "CallExpr"]
+result = {"calls": len(calls), "source": source_excerpts(
+    a, [(path, node.location().fullRange) for node in calls], max_bytes=8000)}
+~~~
+
+`kindName()` uses names such as `CallExpr` and `PropDecl`; inspect a bounded set
+of actual node kinds when an unfamiliar filter returns nothing. `location()`
+returns `SemanticLocation` with `fullRange` and `focusRange`, not `range`
+(see `loupe/semantic.pyi`). The example selects source syntax, not resolved callees:
+use occurrence resolution or inference for call targets. Narrow to the relevant
+member for a large file; nested call ranges can overlap.

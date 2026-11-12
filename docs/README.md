@@ -25,10 +25,10 @@ are not routine prerequisites. Reuse guidance already read in this task.
 
 For verification, start at [check selection](development.md#choose-checks-for-a-change)
 and follow only the applicable commands and prerequisites. For cjmcp, the tool's
-instructions cover common queries; load one task recipe for unfamiliar operations,
-setup instructions for connection problems, or API details for an unresolved
-contract question. Keep summaries and routing in entry points, with detailed
-contracts in their owning document.
+instructions cover simple database queries; use task recipes for syntax/semantic
+traversals and refactors, setup instructions for connection problems, or targeted
+API details for an unresolved contract before a textual fallback. Keep summaries
+and routing in entry points, with detailed contracts in their owning document.
 
 ## Current rules and decision history
 

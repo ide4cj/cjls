@@ -3,10 +3,12 @@
 Read loaded source through the current revision and use native `SourceChange`
 values for checked project edits. All Cangjie source work stays in `runPython`.
 
-Prefer semantic selection before implementing. Keep full expectedText in Python;
-the model usually needs the selected declaration/member, then a compact diff and
-the application report. This example changes the unique "{ 1 }" body inside a
-function named target to "{ 2 }"; adapt the name and expected fragment to the task:
+Select declarations/relationships through analysis and edit boundaries through
+syntax before transforming text; use the [refactoring recipe](refactoring.md)
+when a change affects usages. Keep full expectedText in Python; return selected
+source, then a compact diff and the application report. This example changes the
+unique "{ 1 }" body inside a function named target to "{ 2 }"; adapt the name and
+expected fragment to the task:
 
 ~~~python
 import difflib
@@ -49,15 +51,16 @@ Diagnostic values serialize directly. Also inspect changed references, selected
 callees or inferred types when they matter; empty diagnostics do not replace
 compiler/tests.
 
-`EditFile(path, expectedText, edits)` accepts unordered UTF-8 byte edits against
-one original string. Pass formatting results directly as `edits`. Same-position
+`FileChange.EditFile(path, expectedText, edits)` accepts unordered UTF-8 byte edits
+against one original string. Pass formatting results directly as `edits`. Same-position
 insertions keep input order. Overlapping replacements, insertions inside them,
 invalid boundaries and out-of-bounds ranges fail before writing.
 
-`CreateFile(path, text)` creates initial contents and missing parent directories;
-it never overwrites an existing file. `RenameFile(path, target, expectedText)`
-requires a missing target and creates missing parent directories.
-`DeleteFile(path, expectedText)` removes an existing regular file.
+`FileChange.CreateFile(path, text)` creates initial contents and missing parent
+directories; it never overwrites an existing file.
+`FileChange.RenameFile(path, target, expectedText)` requires a missing target and
+creates missing parent directories.
+`FileChange.DeleteFile(path, expectedText)` removes an existing regular file.
 
 Each path may occur once, including rename destinations. Compose dependent
 operations before constructing the change. Paths may be root-relative or

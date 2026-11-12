@@ -1,54 +1,42 @@
 ---
 name: cangjie-mcp
-description: Analyze, read and edit Cangjie sources through cjmcp runPython when exploring, changing or reviewing code.
+description: Use Cangjie syntax and semantics through cjmcp runPython to explore, review and edit sources.
 ---
 
-For a different worktree pass its absolute root in every runPython call. Omission
-always uses the server's --dir. Verify the returned root and sessionId; revision
-and last_output belong to that session, which can be evicted from the four-root
-cache. Do not pass native IDs between sessions.
+Use the analysis database and task recipes first, targeted bundled `.pyi` lookup
+second, and textual heuristics only for a concrete gap. Syntax nodes determine
+shape/nesting/ranges; resolved identities determine usages, types and hierarchy.
+Text search also serves literals, comments, candidates and residual-name checks;
+it does not prove symbol relationships. Keep selection and computation in Python,
+return bounded evidence, and verify changed relationships in a fresh call.
 
-The server instructions supply a compact query map with signatures and result
-fields for common operations, including macro expansion and navigation.
-Use that map directly. To discover the deferred tool in Codex, filter the tool
-catalog by its exact name (the server is cjmcp; the configured MCP name is cangjie):
+For a simple lookup, use the server's query map directly. For a traversal or
+refactor, read the matching recipe below before constructing your own workflow.
+Reuse already-read guidance. Open API discovery only for the missing contract;
+do not browse the reference as a preparation step or infer that an unfamiliar
+operation is unavailable. For refactors use **refactoring + editing**.
+
+| Task | Recipe |
+|---|---|
+| Syntax nodes, semantic objects, project/context traversal | [semantic](references/semantic.md) |
+| Declarations, usages and bounded source | [navigation](references/navigation.md) |
+| Change a member and verify its uses; checked file edits | [refactoring](references/refactoring.md), [editing](references/editing.md) |
+| Calls, inferred types, written signature ranges | [calls](references/calls.md), [inference](references/inference.md), [source maps](references/source-maps.md) |
+| Members/builtin docs, formatting, counts/rankings | [members](references/members.md), [formatting](references/formatting.md), [aggregation](references/aggregation.md) |
+| Macro expansion and navigation | [expansions](references/expansions.md) |
+| Missing API contract; execution/revision failure | [discovery](references/discovery.md), [runtime](references/runtime.md) |
+
+Pass the absolute edited root in every call outside the configured `--dir`;
+omission selects `--dir`, not the previous root. Verify root/sessionId and keep
+native IDs, revisions and last_output within that session. Eviction from the
+four-root cache closes a session; reopening gives a new ID.
+
+For a deferred Codex tool, discover the configured name:
 
 ```javascript
-const tool = ALL_TOOLS.find(t => t.name === "mcp__cangjie__runPython");
-text(tool);
-// Then call tools.mcp__cangjie__runPython({code: "...", root: "/absolute/root"}).
+text(ALL_TOOLS.find(t => t.name === "mcp__cangjie__runPython"));
 ```
 
-If that exact name is absent, search names/descriptions for `cjmcp` or `runPython`
-and use the configured server's tool. Do not infer unavailability from a search
-for `cjmcp` alone.
-Use the supplied queries and recipes directly. For an unfamiliar operation, read
-its short task recipe below. Open [API discovery](references/discovery.md) only
-when a specific missing API detail blocks the next query; reference browsing is
-not a preparation step. Reuse answers already available in the task context.
-Plan each read-only script around the user's requested evidence, not one API
-operation. When the supplied API is sufficient, carry selection, analysis and
-verification through in one call; keep intermediate objects in Python and return
-the answer with supporting source/ranges. Include workspace health in that call.
-Use follow-ups for a concrete missing contract, partial result, excessive output
-or a decision that depends on seeing the result, rather than exposing each step.
-Minimize total task token use, including query code and returned data, without
-sacrificing correctness or verification. A call-count target must not truncate
-the search or weaken evidence. Separate post-edit verification as required by
-the editing recipe.
-
-Read only the recipe needed for an unfamiliar operation:
-
-- [Composable semantics, project and syntax](references/semantic.md)
-- [Declarations and usages](references/navigation.md)
-- [Call hierarchy](references/calls.md)
-- [Expression types and selected callees](references/inference.md)
-- [Signature source maps](references/source-maps.md)
-- [Formatting edits](references/formatting.md)
-- [Class member refactoring](references/refactoring.md)
-- [Read and save source edits](references/editing.md)
-- [Members, outlines and builtin docs](references/members.md)
-- [Counts, rankings and all tied maxima](references/aggregation.md)
-- [Macro navigation](references/expansions.md)
-- [Unknown API members](references/discovery.md)
-- [Revision or execution failures](references/runtime.md)
+If absent, search names/descriptions for `cjmcp` or `runPython`; the product name
+alone can miss a configured namespace. Keep Git, builds, tests and non-Cangjie
+files in shell; Cangjie source work stays in runPython.

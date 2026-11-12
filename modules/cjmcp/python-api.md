@@ -1,11 +1,11 @@
 # cjmcp Python API
 
-Use the server instructions for common queries and one short
-[task recipe](skills/cangjie-mcp/SKILL.md) for an unfamiliar operation. Use their
-examples directly; consult the [generated reference](#api-documentation) only
-when a specific missing API detail blocks the next query. The query map below
-is enough to choose operations without browsing the reference. Compose selection,
-analysis and evidence checks in Python before returning the result.
+Select syntax and semantic evidence from the analysis database. The query map
+below covers simple lookups; use a [task recipe](skills/cangjie-mcp/SKILL.md) for
+traversals and refactors. Consult the [generated reference](#api-documentation)
+only for an unresolved contract, before falling back to custom textual heuristics
+for a concrete gap. Compose selection, analysis and evidence checks in Python;
+return bounded source and explicit omissions.
 For connection configuration, see [agent setup](agent-setup.md).
 
 ## Query map

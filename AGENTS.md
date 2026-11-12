@@ -20,9 +20,10 @@ tip before rewriting and publish with an explicit `--force-with-lease` expectati
   analysis, reading and editing; do not substitute shell commands or subprocesses.
   Trust its analysis and report unavailable or partial results without a shell
   fallback. Shell remains available for Git, builds, tests and non-Cangjie files.
+  Select syntax/semantic evidence from the analysis database and task recipes;
+  use targeted bundled `.pyi` for missing contracts before textual heuristics.
   Without a connection, use ordinary source tools. Follow server instructions;
-  see [integration](docs/procedures.md#agent-semantic-analysis-with-cjmcp) only
-  for setup or freshness questions.
+  see [integration](docs/procedures.md#agent-semantic-analysis-with-cjmcp) for details.
 - Prefer string interpolation when it simplifies fixture sources or expected
   text; preserve literal code, markers and offsets as described in
   [Contributing](CONTRIBUTING.md#test-fixtures). Compute conditional markers and

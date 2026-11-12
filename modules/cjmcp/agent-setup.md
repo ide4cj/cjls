@@ -64,9 +64,11 @@ project instructions so tool selection does not depend on a user reminder:
 ```text
 When cjmcp is connected, use runPython for Cangjie source analysis, reading and
 editing; do not substitute shell commands or subprocesses. Follow server
-instructions and report partial analysis without a shell fallback.
-Minimize total task token use without sacrificing result quality; combine queries
-or use focused follow-up calls as appropriate.
+instructions: select syntax and semantic evidence from the analysis database,
+reuse task recipes, then consult targeted bundled .pyi for missing contracts.
+Use textual heuristics only for identified gaps or inherently textual questions;
+textual matches do not establish symbol relationships. Report partial analysis
+without a shell fallback. Keep intermediate data in Python; return bounded evidence.
 Use shell for Git, builds, tests and non-Cangjie files. Without a connection,
 use ordinary source tools.
 ```
@@ -101,10 +103,10 @@ workflow; it does not configure the connection. For a client without skill suppo
 the selection rule and give the agent the recipes path when a task needs details.
 Keep only the short selection rule persistent; do not paste the setup guide,
 API reference or every recipe into project instructions. The server instructions
-cover common queries; a simple lookup should need neither skill loading nor API
-introspection. Use supplied queries and examples directly. Load one relevant
-recipe for an unfamiliar operation. If a specific missing API detail blocks the
-next query, use [API discovery](skills/cangjie-mcp/references/discovery.md).
+cover simple lookups directly. For a traversal or refactor, load the matching
+recipe before inventing a workflow; consult [API discovery](skills/cangjie-mcp/references/discovery.md)
+only for an unresolved contract. This keeps the analysis database ahead of custom
+text scans without making every lookup a documentation task.
 
 ## Verify actual use
 
@@ -140,10 +142,11 @@ client-launched process and server stderr. If results are partial, inspect
 workspace.loadDiagnostics and workspace.macros; an empty result does not establish correctness.
 See [runtime failures](skills/cangjie-mcp/references/runtime.md) for interpreting
 partial analysis and retrying queries.
-If the agent keeps grepping usages, check that project instructions and the skill
-are actually loaded and that the host exposes the server's instructions. Do not
-fall back to shell for Cangjie source work. Keep shell available for non-Cangjie
-files, Git, builds and tests. A timed-out script may have performed effects; inspect state
+If the agent keeps grepping usages, check that the host exposes the selection
+rule and server instructions. The trace should show that resolved identities and
+syntax ranges determine inspected/edited code, not just a token semantic query
+before a whole-project text scan. Do not fall back to shell for Cangjie source
+work. Keep shell available for non-Cangjie files, Git, builds and tests. A timed-out script may have performed effects; inspect state
 before retrying. cjmcp has no editor-buffer integration; its source-change API applies prepared edits,
 not semantic refactoring algorithms.
 
