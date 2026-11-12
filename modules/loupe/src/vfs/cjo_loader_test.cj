@@ -12,7 +12,12 @@ func sdkCjo(name: String): Array<Byte> {
     let home = Path(
         getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK")
     )
-    for (target in Directory.readFrom(home.join("modules")) where target.isDirectory()) {
+    for (
+        target in Directory.readFrom(canonicalize(home.join("modules"))) where FileInfo(
+            canonicalize(target.path)
+        )
+            .isDirectory()
+    ) {
         let file = target.path.join("std").join("${name}.cjo")
         if (exists(file)) {
             return File.readFrom(file)
@@ -149,5 +154,78 @@ class CjoLoaderTest {
         // assert
         @Expect(read.files.isEmpty())
         @Expect(read.problems.isEmpty())
+    }
+}
+
+@When[os != "Windows"]
+@Test
+class CjoLoaderLinksOnPosixTest {
+    @TestCase
+    func linkedPackagesAreDiscoveredUnderTheirLinkNames() {
+        // arrange - Nix may link both the package directory and individual binaries
+        let dir = tree([("store/object", "")])
+        let packages = dir.join("packages")
+        Directory.create(packages)
+        SymbolicLink.create(dir.join("modules"), to: packages)
+        SymbolicLink.create(packages.join("std.crypto.cjo"), to: dir.join("store/object"))
+        SymbolicLink.create(packages.join("directory.cjo"), to: dir.join("store"))
+        SymbolicLink.create(packages.join("missing.cjo"), to: dir.join("missing"))
+        SymbolicLink.create(packages.join("cycle.cjo"), to: packages.join("cycle.cjo"))
+
+        // act
+        let files = cjoFilesIn("std", VfsPath.file(dir.join("modules")))
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(files.map { file => file.name }, ["std.crypto"])
+        @Expect(files.map { file => file.path }, [VfsPath.file(dir.join("modules/std.crypto.cjo"))])
+    }
+
+    @TestCase
+    func linkedPackagesUseTargetStampsAndBudget() {
+        // arrange
+        let dir = cjoDir()
+        let target = dir.join("std.crypto.cjo")
+        let link = dir.join("linked.cjo")
+        SymbolicLink.create(link, to: target)
+        let file = CjoFile("std", "std.crypto", VfsPath.file(link))
+        let bytes = sdkCjo("std.crypto")
+        let info = FileInfo(target)
+        let expectedStamp = FileStamp(info.size, info.lastModificationTime)
+
+        // act
+        let read = readCjoFiles([file], budget: bytes.size)
+        let tooSmall = readCjoFiles([file], budget: bytes.size - 1)
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(read.files.size, 1)
+        @Expect(read.files[0].bytes == Some(bytes))
+        @Expect(read.files[0].stamp, expectedStamp)
+        @Expect(read.size, bytes.size)
+        @Expect(tooSmall.files.isEmpty())
+        @Expect(tooSmall.truncated)
+    }
+
+    @TestCase
+    func aChangedTargetIsReadAgainEvenWhenTheLinkIsUnchanged() {
+        // arrange
+        let dir = cjoDir()
+        let target = dir.join("std.crypto.cjo")
+        let link = dir.join("linked.cjo")
+        SymbolicLink.create(link, to: target)
+        let file = CjoFile("std", "std.crypto", VfsPath.file(link))
+        let stamp = readCjoFiles([file]).files[0].stamp
+        let bytes = sdkCjo("std.core")
+        File.writeTo(target, bytes)
+
+        // act
+        let read = readCjoFiles([file], unchanged: { _, now => now == stamp })
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(read.files.size, 1)
+        @Expect(read.files[0].bytes == Some(bytes))
+        @Expect(read.files[0].stamp.size, bytes.size)
     }
 }

@@ -1,7 +1,7 @@
 package macro_server
 
 import std.env.{getTempDirectory, getVariable}
-import std.fs.{Directory, File, Path, exists, remove}
+import std.fs.{Directory, File, FileInfo, Path, canonicalize, exists, remove}
 import std.unittest.*
 import std.unittest.testmacro.*
 import platform.{hostArch, sharedLibrarySuffix}
@@ -23,8 +23,8 @@ func sdkPaths(): MacroServerPaths {
     sdkPaths(
         home,
         Directory
-            .readFrom(home.join("runtime").join("lib"))
-            .filter { dir => dir.isDirectory() }
+            .readFrom(canonicalize(home.join("runtime").join("lib")))
+            .filter { dir => FileInfo(canonicalize(dir.path)).isDirectory() }
             .map { dir => dir.path }
     )
 }

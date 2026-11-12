@@ -226,7 +226,7 @@ public class MacroBuilder {
             text.append("\u{0}${dep}=${stamps.get(dep) ?? 0}")
         }
         for (cjo in unit.binaries) {
-            text.append("\u{0}${cjo}=${timeOf(cjo)}")
+            text.append("\u{0}${cjo}=${fileStampOf(cjo)}")
         }
         for ((name, dir) in unit.nativeLibraries) {
             text.append("\u{0}${name}=${dir}")
@@ -235,13 +235,13 @@ public class MacroBuilder {
             let sorted: Array<String> =
                 try {
                     Directory
-                        .readFrom(dir)
+                        .readFrom(canonicalize(dir))
                         .filter {
                             entry =>
                             entry.name.startsWith("lib${name}.") ||
                                 entry.name.startsWith("${name}.")
                         }
-                        .map { entry => "${entry.name}=${entry.size}:${timeOf(entry.path)}" }
+                        .map { entry => "${entry.name}=${fileStampOf(entry.path)}" }
                 } catch (_: FSException) {
                     []
                 }
@@ -271,8 +271,8 @@ func outputName(unit: BuildUnit): String {
 func sourcesOf(dir: Path): Array<String> {
     let found = ArrayList<String>()
     try {
-        for (entry in Directory.readFrom(dir) where entry.name.endsWith(".cj")) {
-            found.add("${entry.name}:${entry.size}:${timeOf(entry.path)}")
+        for (entry in Directory.readFrom(canonicalize(dir)) where entry.name.endsWith(".cj")) {
+            found.add("${entry.name}:${fileStampOf(entry.path)}")
         }
     } catch (_: Exception) {}
     let sorted = found.toArray()
@@ -280,11 +280,16 @@ func sourcesOf(dir: Path): Array<String> {
     sorted
 }
 
-func timeOf(path: Path): Int64 {
+/**
+ * Stamps the target contents: changing a linked input must invalidate the cached macro build.
+ */
+func fileStampOf(path: Path): String {
     try {
-        (FileInfo(path).lastModificationTime - DateTime.UnixEpoch).toNanoseconds()
-    } catch (_: Exception) {
-        0
+        let info = FileInfo(canonicalize(path))
+        let time = (info.lastModificationTime - DateTime.UnixEpoch).toNanoseconds()
+        "${info.size}:${time}"
+    } catch (_: FSException) {
+        "missing"
     }
 }
 

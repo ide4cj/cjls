@@ -398,3 +398,75 @@ func stampOf(built: HashMap<String, BuiltLibrary>, name: String): Int64 {
         case _ => -1
     }
 }
+
+@When[os != "Windows"]
+@Test
+class MacroBuilderLinksOnPosixTest {
+    @TestCase
+    func changesToLinkedSourcesBinariesAndNativeLibrariesInvalidateTheCache() {
+        // arrange
+        let (src, out) = sources(["ms"])
+        try {
+            let store = src.join("store")
+            Directory.create(store)
+            let source = src.join("ms/ms.cj")
+            rename(source, to: store.join("source"))
+            SymbolicLink.create(source, to: store.join("source"))
+            rename(src.join("ms"), to: store.join("sources"))
+            SymbolicLink.create(src.join("ms"), to: store.join("sources"))
+            let native = src.join("native")
+            Directory.create(store.join("native"))
+            SymbolicLink.create(native, to: store.join("native"))
+            File.writeTo(store.join("library"), "first".toArray())
+            SymbolicLink.create(native.join("libvalue.a"), to: store.join("library"))
+            File.writeTo(store.join("binary"), "binary".toArray())
+            let binary = src.join("dep.cjo")
+            SymbolicLink.create(binary, to: store.join("binary"))
+            let toolchain = FakeToolchain()
+            let builder = MacroBuilder(out, "cjc 1", toolchain)
+            let build = BuildUnit(
+                "m.ms",
+                "m",
+                src.join("ms"),
+                true,
+                [],
+                [binary],
+                nativeLibraries: [("value", native)]
+            )
+
+            // act
+            let first = builder.build([build]).getOrThrow()
+            let cached = builder.build([build]).getOrThrow()
+
+            // assert
+            @Expect(toolchain.calls.size, 1)
+            @Expect(stampOf(first, "m.ms"), stampOf(cached, "m.ms"))
+
+            // act - target size changes avoid filesystem timestamp granularity
+            File.writeTo(store.join("source"), "package m.ms\nfunc helper() {}\n".toArray())
+            let edited = builder.build([build]).getOrThrow()
+
+            // assert
+            @Expect(toolchain.calls.size, 2)
+            @Expect(stampOf(first, "m.ms") != stampOf(edited, "m.ms"))
+
+            // act
+            File.writeTo(store.join("library"), "replacement".toArray())
+            let relinked = builder.build([build]).getOrThrow()
+
+            // assert
+            @Expect(toolchain.calls.size, 3)
+            @Expect(stampOf(edited, "m.ms") != stampOf(relinked, "m.ms"))
+
+            // act
+            File.writeTo(store.join("binary"), "replacement binary".toArray())
+            let reimported = builder.build([build]).getOrThrow()
+
+            // assert
+            @Expect(toolchain.calls.size, 4)
+            @Expect(stampOf(relinked, "m.ms") != stampOf(reimported, "m.ms"))
+        } finally {
+            remove(src.parent, recursive: true)
+        }
+    }
+}

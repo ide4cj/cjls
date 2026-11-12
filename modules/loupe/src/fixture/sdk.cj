@@ -14,7 +14,12 @@ public func stdCjo(name: String): Array<Byte> {
     let home = Path(
         getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK")
     )
-    for (target in Directory.readFrom(home.join("modules")) where target.isDirectory()) {
+    for (
+        target in Directory.readFrom(canonicalize(home.join("modules"))) where FileInfo(
+            canonicalize(target.path)
+        )
+            .isDirectory()
+    ) {
         let file = target.path.join("std").join("${name}.cjo")
         if (exists(file)) {
             return File.readFrom(file)

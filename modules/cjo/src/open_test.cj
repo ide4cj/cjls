@@ -2,6 +2,7 @@ package cjo
 
 import std.env.getVariable
 import std.fs.*
+import std.fs.FileInfo as FsFileInfo
 import std.unittest.*
 import std.unittest.testmacro.*
 import fbs.*
@@ -16,7 +17,12 @@ func stdCjo(name: String): Array<Byte> {
             case _ =>
                 throw IllegalStateException("CANGJIE_HOME names no SDK, whose std these tests read")
         }
-    for (target in Directory.readFrom(home.join("modules")) where target.isDirectory()) {
+    for (
+        target in Directory.readFrom(canonicalize(home.join("modules"))) where FsFileInfo(
+            canonicalize(target.path)
+        )
+            .isDirectory()
+    ) {
         let file = target.path.join("std").join("${name}.cjo")
         if (exists(file)) {
             return File.readFrom(file)

@@ -1,7 +1,7 @@
 package cjls
 
 import std.env.getTempDirectory
-import std.fs.{Directory, FSException, File, Path}
+import std.fs.{Directory, FSException, File, Path, SymbolicLink, remove}
 import std.io.{ByteBuffer, readToEnd}
 
 /**
@@ -119,5 +119,33 @@ class FormatPathsTest {
         @Expect(exitCode, 1)
         @Expect(written(out), "")
         @Expect(written(err).endsWith("a.cj: not written: Permission denied\n"))
+    }
+}
+
+@When[os != "Windows"]
+@Test
+class FormatPathsLinksOnPosixTest {
+    @TestCase
+    func anExplicitDirectoryLinkIsFormattedWithoutFollowingNestedLinks() {
+        // arrange
+        let dir = Directory.createTemp(getTempDirectory())
+        let source = dir.join("src")
+        Directory.create(source)
+        File.writeTo(source.join("a.cj"), "func f() {\nx\n}\n".toArray())
+        let link = dir.join("linked")
+        SymbolicLink.create(link, to: source)
+        SymbolicLink.create(source.join("loop"), to: dir)
+        let (out, err) = (ByteBuffer(), ByteBuffer())
+
+        // act
+        let exitCode = formatPaths([link], false, out, err)
+        let formatted = String.fromUtf8(File.readFrom(source.join("a.cj")))
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(exitCode, 0)
+        @Expect(formatted, "func f() {\n    x\n}\n")
+        @Expect(written(out).endsWith("linked/a.cj\n"))
+        @Expect(written(err), "")
     }
 }

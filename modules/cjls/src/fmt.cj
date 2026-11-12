@@ -1,7 +1,7 @@
 package cjls
 
 import std.collection.ArrayList
-import std.fs.{FSException, File, FileInfo, Path, exists}
+import std.fs.{FSException, File, FileInfo, Path, canonicalize, exists}
 import std.io.OutputStream
 import std.sort.sort
 import cjformat.formatText
@@ -67,6 +67,7 @@ func formatPaths(
 
 /**
  * The files at `paths`, a directory's read as the server reads it, in the order of their paths.
+ * Explicit directory links are followed; links found inside those directories are skipped.
  */
 func sourcesAt(paths: Array<Path>): Array<(VfsPath, Rope)> {
     let directories = paths.filter { path => isDirectory(path) }.map { path => VfsPath.file(path) }
@@ -79,5 +80,9 @@ func sourcesAt(paths: Array<Path>): Array<(VfsPath, Rope)> {
 }
 
 func isDirectory(path: Path): Bool {
-    exists(path) && FileInfo(path).isDirectory()
+    try {
+        exists(path) && FileInfo(canonicalize(path)).isDirectory()
+    } catch (_: FSException) {
+        false
+    }
 }
