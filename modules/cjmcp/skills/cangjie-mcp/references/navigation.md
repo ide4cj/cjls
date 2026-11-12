@@ -32,9 +32,10 @@ budget applies independently to the complete reply.
 
 For a large class or test suite, traverse nested structure children and select
 individual methods/tests before asking for source. Do not send the entire class
-just to locate one method. If semantic selection is unavailable, search the full
-text in Python and return only matching UTF-8 ranges with context; label this as
-textual evidence. It is fine to return a small file in full when it helps.
+just to locate one method. If a semantic query has a gap, try syntax selection
+([semantic recipe](semantic.md)) and targeted [API discovery](discovery.md) for
+unknown contracts before a text fallback. Report the concrete limitation and
+label textual evidence. It is fine to return a small file in full when it helps.
 
 References include declarations (isDeclaration). Select a few relevant usages,
 but preserve the complete count:
@@ -56,8 +57,9 @@ ranges; expansion excerpts still use the [expansion recipe](expansions.md).
 
 `workspace.files()` includes dependencies and returns absolute paths. Use path
 components rather than string prefixes (`/repo-other` is not inside `/repo`).
-This complete search preserves all matches, including UTF-8 byte ranges, while
-returning only a bounded source page:
+For literals/comments, candidate discovery, residual-name checks or an identified
+analysis gap, this textual search preserves all matches and UTF-8 byte ranges
+while returning a bounded source page. It does not replace resolved usages:
 
 ~~~python
 from pathlib import Path

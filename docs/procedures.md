@@ -81,10 +81,11 @@ from timestamps.
 ## Agent semantic analysis with cjmcp
 
 The repository's [source-tool selection rules](../AGENTS.md#before-changing-code)
-apply when cjmcp is connected. Follow its server instructions for core operations;
-load one recipe from the [`cangjie-mcp` skill](../modules/cjmcp/skills/cangjie-mcp/SKILL.md)
-only for an unfamiliar operation. Without a connection, use ordinary source tools,
-compiler and tests.
+apply when cjmcp is connected. Use its syntax and semantic database queries;
+follow the matching [`cangjie-mcp` recipe](../modules/cjmcp/skills/cangjie-mcp/SKILL.md)
+for traversals/refactors. Resolve unknown contracts through targeted bundled
+`.pyi` lookup before using textual heuristics for an identified gap. Without a
+connection, use ordinary source tools, compiler and tests.
 
 Follow [agent setup](../modules/cjmcp/agent-setup.md) to connect a verified binary
 to the edited worktree. Keep it separate from task build outputs; testing changed

@@ -14,7 +14,10 @@ result = api_docs.read_symbol("cjmcp/analysis.pyi", "AnalysisRevision.symbols")
 ```
 
 `Workspace` members are in `cjmcp/python.pyi`; `AnalysisRevision` members are in
-`cjmcp/analysis.pyi`. Dotted names select nested members, for example
+`cjmcp/analysis.pyi`. Checked edit constructors are `FileChange.EditFile`,
+`FileChange.CreateFile`, `FileChange.RenameFile` and `FileChange.DeleteFile`, in
+`source_change/source_change.pyi`; they are not injected bare names.
+Dotted names select nested members, for example
 `api_docs.read_symbol("loupe.hir/body.pyi", "Expr.CallExpr")`.
 Follow returned-type links only for fields or contracts needed by the task.
 Paths are relative to the documentation root; native objects are injected, not
