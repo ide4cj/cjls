@@ -8,7 +8,7 @@ Historical ADRs retain their original observations and decisions.
 The pin at this audit is `1.3.0-alpha.20261014001050`; the authoritative value is
 [`.cangjie-version`](../.cangjie-version). **None of these defects was reproduced
 or declared fixed during this documentation audit; K4 includes verification
-recorded separately in PR #457.** K19, K27, K28, K29 and K30 record subsequent observations;
+recorded separately in PR #457.** K19, K27, K28, K29, K30 and K31 record subsequent observations;
 K26 records a scoped workaround from PR #477. A historical observation
 is not evidence that a defect still reproduces on the pin, nor that it is fixed.
 An unspecified version/platform below is explicitly unverified, not all versions
@@ -64,6 +64,7 @@ or a passing ordinary test run alone does not establish an SDK fix.
 | [K28](#k28) | Macro server reuses conflicting loaded package code | Known risk; no automatic restart on library switches |
 | [K29](#k29) | `-O2` loses exception subtype with `getOrThrow` and string interpolation | Match the optional manifest and throw directly |
 | [K30](#k30) | Combined Python bindings crash the compiler | Lazy descriptor setup; explicit native traits |
+| [K31](#k31) | Nested exclusive scopes restore an unrelated coroutine stack guard | Confirmed SDK probe; no production workaround |
 
 ## Evidence and use
 
@@ -520,10 +521,74 @@ payloads and pattern matching, opaque identities, signed native hash codes,
 hidden constructors and static native constants. Other SDK versions, native
 platforms and cross compilation remain unverified.
 
+<a id="k31"></a>
+### K31
+
+On Linux x86_64 with `1.3.0-alpha.20261102001050`, an exclusive scope can reuse a
+completed ordinary coroutine and retain its stack metadata. Creating the
+exclusive scheduler calls `ScheduleAlloc`, which changes the thread-local
+scheduler before `CJThreadBuild` chooses its allocation pool. The current OS
+thread still owns the original processor, so the `LOCAL_BUF` path can take an
+ordinary coroutine from that processor's free list. `ExclusiveExecutor` clears
+the active guard while switching to the OS stack, but a nested scope's
+`ExclusiveRestore` reinstates the outer coroutine's unrelated `stackGuard`.
+
+The [standalone Cangjie probe](../tests/sdk-probes/k31-exclusive-scope.cj) and
+[native diagnostic helper](../tests/sdk-probes/k31-exclusive-scope.c) reproduce
+that stale guard without Python, loupe, macros or project loading. Run from the
+repository root with the pinned SDK environment:
+
+```bash
+mkdir -p .codex/probes/k31
+cc -std=c11 -Wall -Wextra -Werror -c tests/sdk-probes/k31-exclusive-scope.c \
+  -o .codex/probes/k31/helper.o
+cjc --static tests/sdk-probes/k31-exclusive-scope.cj .codex/probes/k31/helper.o \
+  -o .codex/probes/k31/probe
+cjProcessorNum=1 .codex/probes/k31/probe
+```
+
+On November 12, 2026, this exited **1** with `REPRODUCED` at both the default
+`-O0` and explicit `-O2`. A control omitting the completed child recorded no
+coroutine stack and exited **2**. Exit 2 means the pool-reuse precondition was
+not reached; it is inconclusive, not evidence of a fix. Exit 0 means a reused
+coroutine did not restore a guard inside its separate coroutine stack. The helper reads internal
+`ThreadLocalData` layout specific to this SDK and Linux x86_64; revalidate it
+before using another SDK or architecture. This is a manual diagnostic, not a
+`cjpm test` case. Its expected failure reports the invariant violation without
+requiring the address layout needed for a native crash.
+
+Three local cjmcp cores from November 11–12 had recursive
+`StackGrowStub` / `StackOverflow` handling. The November 12 core first entered
+that path in `PyInteropReference` construction under
+`PythonSession.execute → PyProxy.registerProxy → withGIL → exclusiveScope`,
+before executing the requested Python script. The guard was
+`0x7f22c03d0010`, above the OS-stack pointer `0x7f21833fb820`; the active
+scheduler was exclusive, yet its coroutine recorded a separate 128 KiB stack.
+The constructor's stack check therefore reported a false overflow. Throwing
+that overflow repeated the failing check until SIGSEGV; GDB recovered 7,973
+frames, including 1,589 repetitions of the exception path. Address ordering
+explains why the stale guard can be harmless on the main thread but fatal on a
+worker. This evidence does not implicate semantic-query recursion.
+
+The affected cjmcp binary was built with the November 2 SDK plus the local LLVM
+GC-root initialization patch `4fed1818f2bb7d461038986e906a42195b4a59f4`;
+the standalone probe uses the ordinary pinned SDK. The LLVM patch does not
+establish a fix for this separate runtime defect. No cjmcp or runtime workaround
+is adopted here, and other SDK versions/platforms remain unverified.
+
+Other native failures remain separate: a November 10 cjmcp core entered
+`CheckAndPush` through GC stack-root scanning; November 12 Cangjie unit and MCP
+integration runs faulted at `0x600000008` while preparing project dependencies,
+with managed frames in `Option.flatMap` and `std.sort.unstableSort` respectively.
+The failed unit case and a subsequent full package run passed unchanged.
+Those traces do not establish K31 as their cause or a shared cause with
+[K19](#k19). Passing reruns are not fixes.
+
 ## Reconciliation and remaining work
 
-The standalone K29 source under `tests/sdk-probes/` is a manual reproducer and
-is not run by `cjpm test`. The registry does not provide `scripts/sdk_probes.py`
+The standalone K29 and K31 sources under `tests/sdk-probes/` are manual
+reproducers and are not run by `cjpm test`. The registry does not provide
+`scripts/sdk_probes.py`
 or the planned probe-policy ADR. Independent cjpm probes, run/pack commands,
 hang guards and version-bump automation stay in #332. No mandatory probe command
 exists yet; the linked tests and manual reproducers remain scoped evidence.
