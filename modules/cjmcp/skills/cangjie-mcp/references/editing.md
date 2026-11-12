@@ -88,3 +88,36 @@ Ordinary Python `pathlib` I/O remains available for unloaded files and operation
 outside this model. It reads live disk, independently of analysis. For direct
 writes to loaded source, compare disk bytes with revision text before writing;
 apply byte edits from the end and preserve untouched bytes.
+
+## Whole declarations with annotations
+
+Outline `range` can begin at `func`, excluding `@TestCase`.
+Even the syntax `FuncDecl.location().fullRange` excludes its enclosing
+`MacroExpandDecl`. For replacement/deletion, or insertion before the annotated
+declaration, select the wrapper-aware range:
+
+~~~python
+a = workspace.analysis()
+path = "src/example_test.cj"
+matches = exact_symbols(a, [path], "target")
+assert len(matches) == 1, "select the intended owner/overload"
+symbol = matches[0][1]
+span = declaration_range(a, path, symbol.selectionRange, "FuncDecl")
+before = a.text(path)
+expected = before.encode("utf-8")[span.start:span.end].decode("utf-8")
+result = source_excerpts(a, [(path, span)], max_bytes=8000)
+~~~
+
+The helper requires a direct Name child matching the selection in the requested
+syntax kind (a body occurrence is rejected), and includes its consecutive `MacroExpandDecl` parents. It rejects missing or
+ambiguous syntax. It operates on written source and leaves external comments
+and whitespace untouched. Select the actual syntax kind for other declarations.
+Never use an expansion offset, a context-expanded excerpt, or an assumed
+line-start as an edit boundary.
+
+A whole replacement must preserve all annotations in `expected` unless the task
+changes them. For insertion before it use `TextRange(span.start, span.start)`;
+include the new declaration's trailing newline/indentation. For a body-only
+change keep the replacement inside the selected body and leave annotations alone.
+After applying, reacquire analysis, check annotations and run the compiler:
+empty diagnostics have missed macro annotation errors in real tasks.

@@ -75,3 +75,12 @@ If matching source is available, paths relative to that checkout are
 `modules/cjmcp/src/analysis.cj` for revision methods, and `modules/loupe/src`
 for native declarations. These paths are optional source pointers, not files
 installed with this skill. Use runPython for Cangjie source reads.
+
+## Exact exported names
+
+When an exported name is known but its stub path is not, use
+`api_docs.find_symbol("FileChange.EditFile")`. It returns every matching path and
+declaration count; select the intended path with `read_symbol`. Dotted names
+are exact and case-sensitive. This searches bundled documentation, not project
+symbols. For source declarations use `exact_symbols(a, paths, name)`; do not
+filter a short fuzzy search and interpret the result as exhaustive.

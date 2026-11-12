@@ -471,3 +471,28 @@ exported native values, and reclaiming those entries is not implemented here.
 Repeated large traversals can retain analysis results. This still limits session
 length and traversal volume; keeping the process alive for a chat does not resolve
 native proxy retention.
+
+## Task evidence helpers
+
+The server advertises these helpers and exact API discovery with the
+`taskEvidence` feature in `server_info["_meta"]["features"]`.
+
+`exact_symbols(analysis, paths, name)` returns all exact, case-sensitive
+`(path, symbol)` matches from complete file outlines in explicit paths.
+Duplicate paths are ignored; overloads remain separate. It does not use the fuzzy
+workspace-symbol limit.
+
+`result_page(rows, offset=0, limit=20)` pages already projected rows with totals,
+omissions and continuation. It limits rows, not bytes; the response budget still
+applies. Sort rankings and handle ties before paging.
+
+`declaration_range(analysis, path, selection, kind)` selects the smallest source
+syntax node of the exact kind whose direct Name child matches the selection, then includes
+consecutive enclosing macro-declaration wrappers. It raises ValueError for
+unavailable/missing/ambiguous syntax. It preserves annotations such as TestCase
+that an outline or bare FuncDecl range excludes; external trivia stays outside.
+Recompute after edits and validate replacements with the compiler.
+
+`api_docs.find_symbol(name)` finds an exact dotted declaration name across
+bundled stubs and returns all matching paths and declaration counts.
+Use `read_symbol` for the selected contract; no guessed import module is needed.

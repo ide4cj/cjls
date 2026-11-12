@@ -159,3 +159,26 @@ and its [coding skill](https://github.com/jonnyzzz/mcp-steroid/blob/main/prompts
 prefer semantic context and compose native APIs behind a small tool surface,
 with detailed recipes loaded when needed. cjmcp's own disk synchronization,
 analysis coverage and runtime constraints determine the actual workflow.
+
+## Compact tool forwarding
+
+When orchestrating the deferred tool with JavaScript, use this standard wrapper
+(substitute the discovered tool name and absolute root):
+
+```javascript
+const reply = await tools.mcp__cangjie__runPython({
+  root: "/absolute/project",
+  code: "a = workspace.analysis(); result = result_page([])"
+});
+if (reply.structuredContent !== undefined) {
+  text(reply.structuredContent);
+} else {
+  for (const item of reply.content ?? []) {
+    if (item.type === "text") text(item.text);
+  }
+}
+```
+
+This retains errors, revision, root and session identity in the chosen payload
+without printing a second copy. Do not forward only `result`: output-budget
+failures and preparation evidence belong to the surrounding response.

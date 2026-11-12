@@ -64,6 +64,21 @@ class _CjmcpApiDocs:
                      line=self._start(node), end_line=node.end_lineno)
                 for parent in parents for node, name, kind in self._declarations(parent)]
 
+
+    def find_symbol(self, symbol):
+        """Find an exact dotted exported name across supplied stubs.
+        Return all matching paths; ambiguity and overloads are preserved.
+        Use read_symbol(path, symbol) for the selected contract.
+        """
+        matches = []
+        for path in self.files():
+            try:
+                nodes = self._select(_cjmcp_ast.parse(self.read(path), filename=path), symbol)
+            except KeyError:
+                continue
+            matches.append(dict(path=path, symbol=symbol, declarations=len(nodes)))
+        return matches
+
     def read_symbol(self, path, symbol, *, max_bytes=12000):
         """Return complete dedented declarations, including docs and decorators.
 

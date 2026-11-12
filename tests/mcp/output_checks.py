@@ -34,7 +34,9 @@ class OutputChecks:
         self.assertEqual(verified['result']['references'], 3)
         self.assertEqual(verified['result']['diagnostics'], [])
 
-        search = re.findall(r'~~~python\n(.*?)\n~~~', (recipes / 'navigation.md').read_text(), re.S)[-1]
+        search_section = (recipes / 'navigation.md').read_text().split(
+            '## Search root-relative paths safely', 1)[1]
+        search = re.findall(r'~~~python\n(.*?)\n~~~', search_section, re.S)[0]
         searched = run(search.replace('needle = "target"', 'needle = "aaa"'))
         self.assertEqual(searched['result']['matches'], 2)  # Overlapping byte matches in aaaa.
         self.assertTrue(all(e['path'].startswith(preview['root'] + '/')
