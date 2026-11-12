@@ -42,7 +42,9 @@ Select the library explicitly when multiple Python versions are installed.
 No version-specific interop change is required for 3.9–3.13 in the checks below.
 Intermittent native crashes during macro reload were observed on 3.10, 3.12 and
 3.14 (see also [#596](https://github.com/ide4cj/cjls/pull/596)). Passing compatibility checks do not
-establish a fix for that session instability. Python script syntax still follows
+establish a fix for that session instability. [K31](../../docs/sdk-issues.md#k31)
+records a separate confirmed exclusive-scope stack-guard defect and a manual
+SDK-only probe. Python script syntax still follows
 the selected interpreter: structural pattern matching (`match`/`case`) requires
 Python 3.10 or newer.
 
