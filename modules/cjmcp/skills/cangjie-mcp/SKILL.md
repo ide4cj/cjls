@@ -10,7 +10,18 @@ cache. Do not pass native IDs between sessions.
 
 The server instructions supply a compact query map with signatures and result
 fields for common operations, including macro expansion and navigation.
-Use that map directly; discover `runPython` if deferred.
+Use that map directly. To discover the deferred tool in Codex, filter the tool
+catalog by its exact name (the server is cjmcp; the configured MCP name is cangjie):
+
+```javascript
+const tool = ALL_TOOLS.find(t => t.name === "mcp__cangjie__runPython");
+text(tool);
+// Then call tools.mcp__cangjie__runPython({code: "...", root: "/absolute/root"}).
+```
+
+If that exact name is absent, search names/descriptions for `cjmcp` or `runPython`
+and use the configured server's tool. Do not infer unavailability from a search
+for `cjmcp` alone.
 Use the supplied queries and recipes directly. For an unfamiliar operation, read
 its short task recipe below. Open [API discovery](references/discovery.md) only
 when a specific missing API detail blocks the next query; reference browsing is
@@ -34,6 +45,7 @@ Read only the recipe needed for an unfamiliar operation:
 - [Expression types and selected callees](references/inference.md)
 - [Signature source maps](references/source-maps.md)
 - [Formatting edits](references/formatting.md)
+- [Class member refactoring](references/refactoring.md)
 - [Read and save source edits](references/editing.md)
 - [Members, outlines and builtin docs](references/members.md)
 - [Counts, rankings and all tied maxima](references/aggregation.md)

@@ -104,16 +104,31 @@ def __cjmcp_run(code, workspace, classes, max_output_bytes, state, session_id, s
             # Retain one rejected response so callers never need to replay effects.
             # Round-trip freezes mutable script values and verifies serialization.
             state["last_output"] = _cjmcp_json.loads(serialized)
+            # Measure frozen JSON, so diagnostics use the same encoding as the budget.
+            # Include immediate result fields to expose accidental inventories like files.
+            saved = state["last_output"]
+            fields = [(key, value) for key, value in saved.items()]
+            if isinstance(saved['result'], dict):
+                fields.extend(('result.' + key, value)
+                              for key, value in saved['result'].items())
+            largest = sorted(
+                (dict(field=key[:160], bytes=len(_cjmcp_json.dumps(
+                    value, ensure_ascii=False, separators=(',', ':')).encode('utf-8')))
+                 for key, value in fields),
+                key=lambda row: (-row['bytes'], row['field']))[:5]
+            summary = '; '.join(repr(row['field']) + ': ' + str(row['bytes']) + ' bytes'
+                                for row in largest)
             return _cjmcp_json.dumps(dict(
                 stdout='', stderr='', result=None, revision=workspace.revision,
                 root=workspace.root, sessionId=session_id,
                 error='OutputBudgetExceeded: script executed; full response retained in last_output. '
+                      f'Largest fields: {summary}. '
                       'In the next call select last_output["result"] or stdout/stderr/error in Python. '
                       'Use source_excerpts for bounded source pages; narrow ranges or use next_offset. '
                       'For the complete retained response use code="result = last_output" with '
                       'maxOutputBytes=0 (unlimited), or raise maxOutputBytes. Do not replay edits.',
                 outputBudget=dict(limit_bytes=max_output_bytes, actual_bytes=size,
-                                  retained=True)), ensure_ascii=False)
+                                  retained=True, largest_fields=largest)), ensure_ascii=False)
         return serialized
 "#
 

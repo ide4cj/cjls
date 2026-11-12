@@ -1,9 +1,51 @@
 """Output and source-presentation checks using the real server fixture."""
 
 import json
+from pathlib import Path
+import re
 
 
 class OutputChecks:
+    def _check_member_refactoring_recipe(self, run):
+        recipes = Path(__file__).resolve().parents[2] / 'modules/cjmcp/skills/cangjie-mcp/references'
+        blocks = re.findall(r'~~~python\n(.*?)\n~~~', (recipes / 'refactoring.md').read_text(), re.S)
+        self.assertEqual(len(blocks), 2)
+        run("""
+            a = workspace.analysis()
+            source = ('package sample\\n// target target aaaa\\n'
+                      'class Counter {\\n'
+                      '    public func value(): Int64 { 1 }\\n'
+                      '    public func twice(): Int64 { value() + value() }\\n'
+                      '}\\n')
+            report = workspace.applyChange(SourceChange([
+                FileChange.CreateFile('src/counter.cj', source)]), a.revision)
+            assert report.isSuccess, report.error
+        """)
+        preview = run(blocks[0])
+        self.assertEqual(preview['result']['references'], 3)
+        page = preview['result']['source']
+        # The class overlaps both methods; repeated usages in twice share one excerpt.
+        self.assertEqual((page['total'], page['returned']), (2, 2))
+        self.assertTrue(all('class Counter' not in e['source'] for e in page['excerpts']))
+        edit = run(blocks[0].replace('apply = False', 'apply = True', 1))
+        self.assertTrue(edit['result']['success'])
+        verified = run(blocks[1])
+        self.assertGreater(verified['revision'], edit['revision'])
+        self.assertEqual(verified['result']['references'], 3)
+        self.assertEqual(verified['result']['diagnostics'], [])
+
+        search = re.findall(r'~~~python\n(.*?)\n~~~', (recipes / 'navigation.md').read_text(), re.S)[-1]
+        searched = run(search.replace('needle = "target"', 'needle = "aaa"'))
+        self.assertEqual(searched['result']['matches'], 2)  # Overlapping byte matches in aaaa.
+        self.assertTrue(all(e['path'].startswith(preview['root'] + '/')
+                            for e in searched['result']['source']['excerpts']))
+        run("""
+            a = workspace.analysis()
+            report = workspace.applyChange(SourceChange([FileChange.DeleteFile(
+                'src/counter.cj', a.text('src/counter.cj'))]), a.revision)
+            assert report.isSuccess
+        """)
+
     def _check_output_budgets(self, root, run):
         # An oversized response after effects must be recoverable without replaying them.
         rejected = run("""
@@ -17,6 +59,8 @@ class OutputChecks:
         self.assertEqual(rejected['stdout'], '')
         self.assertIsNone(rejected['result'])
         self.assertEqual((root / 'executed-once').read_text(), 'done')
+        self.assertEqual(rejected['outputBudget']['largest_fields'][0],
+                         {'field': 'result', 'bytes': 26002})
         recovered = run("""
             assert last_output['revision'] == workspace.revision
             result = {'length': len(last_output['result']), 'first': last_output['result'][:1]}
@@ -27,6 +71,16 @@ class OutputChecks:
         large = run("result = 'x' * 25000", max_output_bytes=30000)
         self.assertEqual(len(large['result']), 25000)
 
+        inventory = run("result = {'files': ['я' * 14000], 'answer': 42}", error=True)
+        fields = inventory['outputBudget']['largest_fields']
+        self.assertEqual(fields[0]['field'], 'result')
+        self.assertEqual(fields[1], {'field': 'result.files', 'bytes': 28004})
+        self.assertIn('result.files', inventory['error'])
+        self.assertEqual([f['bytes'] for f in fields], sorted((f['bytes'] for f in fields), reverse=True))
+        self.assertLessEqual(len(fields), 5)
+        long_key = run("result = {'k' * 2000: 'x' * 25000}", error=True)
+        self.assertTrue(all(len(f['field']) <= 160 for f in long_key['outputBudget']['largest_fields']))
+
         # All channels share one budget, including native fd output and tracebacks.
         for code, channel in [
             ("print('x' * 25000)", 'stdout'),
@@ -35,6 +89,7 @@ class OutputChecks:
         ]:
             response = run(code, error=True)
             self.assertIn('OutputBudgetExceeded', response['error'])
+            self.assertEqual(response['outputBudget']['largest_fields'][0]['field'], channel)
             saved = run(f"result = len(last_output[{channel!r}])")
             self.assertGreater(saved['result'], 24000)
         exact = run("result = 'привет'")

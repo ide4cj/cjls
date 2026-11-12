@@ -34,6 +34,11 @@
 - OutputBudgetExceeded means execution finished but the complete response exceeded
   maxOutputBytes (default 24000 UTF-8 JSON bytes). Filter last_output in a new call;
   do not replay effects. It includes the original revision and all output channels.
+  Inspect outputBudget.largest_fields first: up to five largest channels and
+  immediate result fields, sorted by compact UTF-8 JSON value bytes. For example,
+  `result.files` identifies a file inventory dominating an otherwise small answer.
+  Parent and child sizes overlap; do not sum them. Field labels are capped at 160
+  characters, and the summary does not recursively inspect nested results.
   Explicit maxOutputBytes=0 permits a full response. The error itself is exempt
   from the budget. last_output retains one rejected JSON response until another
   rejection replaces it; successful recovery does not clear it. It is session-local
