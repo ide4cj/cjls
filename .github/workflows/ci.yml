@@ -99,6 +99,26 @@ jobs:
           path: ${{ steps.cache.outputs.path }}
           key: ${{ steps.cache.outputs.key }}
 
+  nix:
+    name: Nix package (${{ matrix.system }})
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system: x86_64-linux
+            runner: ubuntu-24.04
+          # TODO: macos
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+        with:
+          github_access_token: ${{ github.token }}
+      - name: Build package
+        run: nix build --print-build-logs .#packages.${{ matrix.system }}.cjls
+
   # the name the ruleset requires; `cjpm test` compiles the libraries again, for tests, in a target
   # directory of its own: in the build's, each would undo the other's incremental cache
   test:
