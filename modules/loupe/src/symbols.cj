@@ -1,12 +1,13 @@
 package loupe
 
 import std.collection.*
-import std.deriving.*
 import std.unicode.*
 import calca.*
 import calca.macros.*
 import cjsyntax.parse as parseText
 import ginkgo.TextRange
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.vfs.FileId
 
@@ -14,8 +15,9 @@ import loupe.vfs.FileId
  * A declaration of a file, as a search of the workspace sees it: an entry of its outline, and the
  * name of the one it is under, if any.
  */
-@Derive[Equatable]
-public struct FileSymbol {
+@DerivePython
+@PyDoc["A declaration of a file, as a search of the workspace sees it: an entry of its outline, and the name of the one it is under, if any."]
+public struct FileSymbol <: Equatable<FileSymbol> {
     public FileSymbol(
         public let name: String,
         public let kind: StructureKind,
@@ -23,11 +25,23 @@ public struct FileSymbol {
         public let selectionRange: TextRange,
         public let containerName: ?String
     ) {}
+
+    public operator func ==(other: FileSymbol): Bool {
+        name == other.name && kind == other.kind && range == other.range &&
+            selectionRange == other.selectionRange &&
+            containerName == other.containerName
+    }
+
+    public operator func !=(other: FileSymbol): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * A declaration of the workspace a search found, and the file it is in.
  */
+@DerivePython
+@PyDoc["A declaration of the workspace a search found, and the file it is in."]
 public struct FoundSymbol {
     public FoundSymbol(public let fileId: FileId, public let symbol: FileSymbol) {}
 }

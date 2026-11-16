@@ -48,7 +48,7 @@ write permission.
 Create a worktree for an independent task, giving it a descriptive branch/path:
 
 ```bash
-git worktree add -b docs/example ../cjls-example master
+git worktree add -b docs/example .codex/worktrees/docs-example master
 git worktree list
 ```
 
@@ -78,12 +78,29 @@ or write to GitHub merely because an old permission list allowed it. The former
 startup cleanup hook has been removed. No automatic replacement infers inactivity
 from timestamps.
 
+## Agent semantic analysis with cjmcp
+
+The repository's [source-tool selection rules](../AGENTS.md#before-changing-code)
+apply when cjmcp is connected. Use its syntax and semantic database queries;
+follow the matching [`cangjie-mcp` recipe](../modules/cjmcp/skills/cangjie-mcp/SKILL.md)
+for traversals/refactors. Resolve unknown contracts through targeted bundled
+`.pyi` lookup before using textual heuristics for an identified gap. Without a
+connection, use ordinary source tools, compiler and tests.
+
+Follow [agent setup](../modules/cjmcp/agent-setup.md) to connect a verified binary
+to the edited worktree. Keep it separate from task build outputs; testing changed
+analyzer or binding code requires rebuilding and restarting the tool. Include the
+loaded root, preparation problems and macro status with the first useful query.
+cjmcp and cjls share loupe, so their agreement does not replace compiler probes
+or the [required checks](development.md#choose-checks-for-a-change).
+
 ## Editor and LSP integration
 
 The server remains available to editors over stdio; build/run and e2e commands are
 in [Development](development.md#build-and-run). An agent-facing LSP tool or plugin
-is not required to build, inspect or verify cjls. Use source search for navigation
-and the real-binary e2e suite for protocol behavior in a fresh session.
+is not required to build, inspect or verify cjls. When cjmcp is connected, use it
+for agent source navigation. Use the real-binary e2e suite for protocol behavior
+in a fresh session.
 
 A Codex-specific LSP adapter is explicitly deferred: no repository-owned adapter
 or equivalent agent tool has been implemented or verified. Do not claim source

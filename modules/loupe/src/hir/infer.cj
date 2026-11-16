@@ -1,10 +1,11 @@
 package loupe.hir
 
 import std.collection.*
-import std.deriving.*
 import std.sort.*
 import calca.*
 import calca.macros.*
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 
 let INTEGER_TYPES =
@@ -29,28 +30,48 @@ let ARITHMETIC = ["+", "-", "*", "/", "%", "**", "&", "|", "^", "<<", ">>"]
 /**
  * The members the name after the `.` of a value names, found from the value's type (N75).
  */
-@Derive[Equatable]
-public struct FieldTargets <: ByIndex {
+@DerivePython
+@PyDoc["The members the name after the `.` of a value names, found from the value's type (N75)."]
+public struct FieldTargets <: ByIndex & Equatable<FieldTargets> {
     public FieldTargets(public let expr: ExprId, public let targets: Array<MemberTarget>) {}
 
+    @PyDoc["The body expression index associated with this inference entry."]
     public func keyIndex(): Int64 {
         expr.index
+    }
+
+    public operator func ==(other: FieldTargets): Bool {
+        expr == other.expr && targets == other.targets
+    }
+
+    public operator func !=(other: FieldTargets): Bool {
+        !(this == other)
     }
 }
 
 /**
  * The declaration selected for a call, by its callee (8d); initializer targets are used only for navigation.
  */
-@Derive[Equatable]
-public struct CalleeTarget <: ByIndex {
+@DerivePython
+@PyDoc["The declaration selected for a call, by its callee (8d); initializer targets are used only for navigation."]
+public struct CalleeTarget <: ByIndex & Equatable<CalleeTarget> {
     public CalleeTarget(
         public let expr: ExprId,
         public let decl: DefId,
         public let isInitializer!: Bool = false
     ) {}
 
+    @PyDoc["The body expression index associated with this inference entry."]
     public func keyIndex(): Int64 {
         expr.index
+    }
+
+    public operator func ==(other: CalleeTarget): Bool {
+        expr == other.expr && decl == other.decl && isInitializer == other.isInitializer
+    }
+
+    public operator func !=(other: CalleeTarget): Bool {
+        !(this == other)
     }
 }
 
@@ -58,12 +79,22 @@ public struct CalleeTarget <: ByIndex {
  * What a name the body uses as a value means, as inference resolved it: what highlighting and go to
  * definition read, not resolving it again.
  */
-@Derive[Equatable]
-public struct NameTarget <: ByIndex {
+@DerivePython
+@PyDoc["What a name the body uses as a value means, as inference resolved it: what highlighting and go to definition read, not resolving it again."]
+public struct NameTarget <: ByIndex & Equatable<NameTarget> {
     public NameTarget(public let expr: ExprId, public let resolution: BodyResolution) {}
 
+    @PyDoc["The body expression index associated with this inference entry."]
     public func keyIndex(): Int64 {
         expr.index
+    }
+
+    public operator func ==(other: NameTarget): Bool {
+        expr == other.expr && resolution == other.resolution
+    }
+
+    public operator func !=(other: NameTarget): Bool {
+        !(this == other)
     }
 }
 
@@ -71,12 +102,22 @@ public struct NameTarget <: ByIndex {
  * What the name after the `.` of an expression means, as inference resolved it before the types: a
  * member of a package or of types, or one of a value, which `FieldTargets` tells.
  */
-@Derive[Equatable]
-public struct AccessTarget <: ByIndex {
+@DerivePython
+@PyDoc["What the name after the `.` of an expression means, as inference resolved it before the types: a member of a package or of types, or one of a value, which `FieldTargets` tells."]
+public struct AccessTarget <: ByIndex & Equatable<AccessTarget> {
     public AccessTarget(public let expr: ExprId, public let resolution: FieldResolution) {}
 
+    @PyDoc["The body expression index associated with this inference entry."]
     public func keyIndex(): Int64 {
         expr.index
+    }
+
+    public operator func ==(other: AccessTarget): Bool {
+        expr == other.expr && resolution == other.resolution
+    }
+
+    public operator func !=(other: AccessTarget): Bool {
+        !(this == other)
     }
 }
 
@@ -111,8 +152,9 @@ func findByIndex<T>(sorted: Array<T>, index: Int64): ?T where T <: ByIndex {
  * What inference finds wrong in a body, by the expression it is about, as rust-analyzer's
  * `InferenceDiagnostic`: where it is written is the source map's to say.
  */
-@Derive[Equatable]
-public enum InferenceDiagnostic {
+@DerivePython
+@PyDoc["What inference finds wrong in a body, by the expression it is about, as rust-analyzer's `InferenceDiagnostic`: where it is written is the source map's to say."]
+public enum InferenceDiagnostic <: Equatable<InferenceDiagnostic> {
     /**
      * A value of the type `found` where `expected` is (cjc's "mismatched types"): both known wholly.
      */
@@ -140,13 +182,48 @@ public enum InferenceDiagnostic {
      * A local declaration's rejected custom annotation, keyed by its synthetic source-map anchor.
      */
     | CustomAnnotationPlace(ExprId)
+
+    public operator func ==(other: InferenceDiagnostic): Bool {
+        match ((this, other)) {
+            case (
+                    InferenceDiagnostic.TypeMismatch(left0, left1, left2),
+                    InferenceDiagnostic.TypeMismatch(right0, right1, right2)
+                ) => left0 == right0 && left1 == right1 && left2 == right2
+            case (
+                    InferenceDiagnostic.VArraySizeMismatch(left0, left1, left2),
+                    InferenceDiagnostic.VArraySizeMismatch(right0, right1, right2)
+                ) => left0 == right0 && left1 == right1 && left2 == right2
+            case (
+                    InferenceDiagnostic.ArgCount(left0, left1, left2),
+                    InferenceDiagnostic.ArgCount(right0, right1, right2)
+                ) => left0 == right0 && left1 == right1 && left2 == right2
+            case (
+                    InferenceDiagnostic.ArgName(left0, left1, left2),
+                    InferenceDiagnostic.ArgName(right0, right1, right2)
+                ) => left0 == right0 && left1 == right1 && left2 == right2
+            case (
+                    InferenceDiagnostic.InvalidBinaryOperator(left0, left1, left2),
+                    InferenceDiagnostic.InvalidBinaryOperator(right0, right1, right2)
+                ) => left0 == right0 && left1 == right1 && left2 == right2
+            case (
+                    InferenceDiagnostic.CustomAnnotationPlace(left),
+                    InferenceDiagnostic.CustomAnnotationPlace(right)
+                ) => left == right
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: InferenceDiagnostic): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * What is wrong with the name an argument is passed by (cjc's `CheckArgsWithParamName`, N156).
  */
-@Derive[Equatable]
-public enum ArgNameError {
+@DerivePython
+@PyDoc["What is wrong with the name an argument is passed by (cjc's `CheckArgsWithParamName`, N156)."]
+public enum ArgNameError <: Equatable<ArgNameError> {
     /**
      * A name none of the parameters passed by name has (cjc: "unknown named argument").
      */
@@ -165,48 +242,97 @@ public enum ArgNameError {
      * cannot be used in variable function call").
      */
     | NameOfValue
+
+    public operator func ==(other: ArgNameError): Bool {
+        match ((this, other)) {
+            case (ArgNameError.UnknownName(left0), ArgNameError.UnknownName(right0)) =>
+                left0 == right0
+            case (ArgNameError.NameTwice(left0), ArgNameError.NameTwice(right0)) => left0 == right0
+            case (ArgNameError.NeedsName(left0), ArgNameError.NeedsName(right0)) => left0 == right0
+            case (ArgNameError.NameOfValue, ArgNameError.NameOfValue) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: ArgNameError): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * Where each argument of a call goes, by its callee: the place of its parameter among those of
  * what the call takes (#254).
  */
-@Derive[Equatable]
-public struct ArgTarget <: ByIndex {
+@DerivePython
+@PyDoc["Where each argument of a call goes, by its callee: the place of its parameter among those of what the call takes (#254)."]
+public struct ArgTarget <: ByIndex & Equatable<ArgTarget> {
     public ArgTarget(public let expr: ExprId, public let params: Array<Int64>) {}
 
+    @PyDoc["The body expression index associated with this inference entry."]
     public func keyIndex(): Int64 {
         expr.index
+    }
+
+    public operator func ==(other: ArgTarget): Bool {
+        expr == other.expr && params == other.params
+    }
+
+    public operator func !=(other: ArgTarget): Bool {
+        !(this == other)
     }
 }
 
 /**
  * A final substitution, keyed by the binder that declared the parameter.
  */
-@Derive[Equatable]
-public struct GenericBinding {
+@DerivePython
+@PyDoc["A final substitution, keyed by the binder that declared the parameter."]
+public struct GenericBinding <: Equatable<GenericBinding> {
     public GenericBinding(
         public let owner: GenericOwner,
         public let index: Int64,
         public let ty: Ty
     ) {}
+
+    public operator func ==(other: GenericBinding): Bool {
+        owner == other.owner && index == other.index && ty == other.ty
+    }
+
+    public operator func !=(other: GenericBinding): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * Selection outcome; unavailable input reasons remain in the inferred expression and signature types.
  */
-@Derive[Equatable]
-public enum CallResolutionOutcome {
+@DerivePython
+@PyDoc["Selection outcome; unavailable input reasons remain in the inferred expression and signature types."]
+public enum CallResolutionOutcome <: Equatable<CallResolutionOutcome> {
     | Resolved
     | Ambiguous
     | Unresolved
+
+    public operator func ==(other: CallResolutionOutcome): Bool {
+        match ((this, other)) {
+            case (CallResolutionOutcome.Resolved, CallResolutionOutcome.Resolved) => true
+            case (CallResolutionOutcome.Ambiguous, CallResolutionOutcome.Ambiguous) => true
+            case (CallResolutionOutcome.Unresolved, CallResolutionOutcome.Unresolved) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: CallResolutionOutcome): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * The final inference evidence for one application, keyed by its callee.
  */
-@Derive[Equatable]
-public struct CallResolution <: ByIndex {
+@DerivePython
+@PyDoc["The final inference evidence for one application, keyed by its callee."]
+public struct CallResolution <: ByIndex & Equatable<CallResolution> {
     public CallResolution(
         public let expr: ExprId,
         public let outcome: CallResolutionOutcome,
@@ -216,15 +342,30 @@ public struct CallResolution <: ByIndex {
         /**
          * Final substitutions of a successful call; unsuccessful candidates expose none.
          */
+        @PyDoc["Final substitutions of a successful call; unsuccessful candidates expose none."]
         public let bindings!: Array<GenericBinding> = [],
         /**
          * Argument-to-parameter mapping, in argument order, including packed variadic arguments.
          */
+        @PyDoc["Argument-to-parameter mapping, in argument order, including packed variadic arguments."]
         public let params!: Array<Int64> = []
     ) {}
 
+    @PyDoc["The body expression index associated with this inference entry."]
     public func keyIndex(): Int64 {
         expr.index
+    }
+
+    public operator func ==(other: CallResolution): Bool {
+        expr == other.expr && outcome == other.outcome && decl == other.decl &&
+            local == other.local &&
+            signature == other.signature &&
+            bindings == other.bindings &&
+            params == other.params
+    }
+
+    public operator func !=(other: CallResolution): Bool {
+        !(this == other)
     }
 }
 
@@ -234,12 +375,14 @@ public struct CallResolution <: ByIndex {
  * declaration each resolved call takes. A type not found is an error, or one the analysis cannot
  * find, and why (D77).
  */
-@Derive[Equatable]
-public struct InferenceResult {
+@DerivePython
+@PyDoc["What inference finds in a body (D55), rust-analyzer's `InferenceResult`: the type of each of its expressions, patterns and locals, by id; the members found after the `.` of a value; the declaration each resolved call takes. A type not found is an error, or one the analysis cannot find, and why (D77)."]
+public struct InferenceResult <: Equatable<InferenceResult> {
     public InferenceResult(
         /**
          * `None` for a type or a package before a `.`: no value (D77).
          */
+        @PyDoc["`None` for a type or a package before a `.`: no value (D77)."]
         public let exprs!: Array<?Ty> = [],
         public let pats!: Array<Ty> = [],
         public let locals!: Array<Ty> = [],
@@ -251,32 +394,39 @@ public struct InferenceResult {
          * The `[]` taking a value `a[i] op= v` and `a[i]++` call, by the assignment, whose callee is
          * its operator: `a[i]`'s is the `[]` reading it (#245).
          */
+        @PyDoc["The `[]` taking a value `a[i] op= v` and `a[i]++` call, by the assignment, whose callee is its operator: `a[i]`'s is the `[]` reading it (#245)."]
         public let setters!: Array<CalleeTarget> = [],
         /**
          * Where each argument of each call goes, by its callee.
          */
+        @PyDoc["Where each argument of each call goes, by its callee."]
         public let args!: Array<ArgTarget> = [],
         /**
          * What each name used as a value means, by its expression.
          */
+        @PyDoc["What each name used as a value means, by its expression."]
         public let names!: Array<NameTarget> = [],
         /**
          * What the name after each `.` means, by its expression.
          */
+        @PyDoc["What the name after each `.` means, by its expression."]
         public let accesses!: Array<AccessTarget> = [],
         /**
          * What each segment of each path of a type the body writes names, by the type: of those
          * inference lowered.
          */
+        @PyDoc["What each segment of each path of a type the body writes names, by the type: of those inference lowered."]
         public let typePaths!: Array<TypePathTarget> = [],
         /**
          * The type the body gives its declaration: a function's return type, a variable's type;
          * `None` for one of no such type.
          */
+        @PyDoc["The type the body gives its declaration: a function's return type, a variable's type; `None` for one of no such type."]
         public let ty!: ?Ty = None,
         /**
          * What is wrong in the body, in the order inference found it.
          */
+        @PyDoc["What is wrong in the body, in the order inference found it."]
         public let diagnostics!: Array<InferenceDiagnostic> = []
     ) {}
 
@@ -301,6 +451,7 @@ public struct InferenceResult {
     /**
      * The members the name after the `.` of `expr` names, if it follows a value.
      */
+    @PyDoc["The members the name after the `.` of `expr` names, if it follows a value."]
     public func fieldOf(expr: ExprId): ?Array<MemberTarget> {
         match (findByIndex(fields, expr.index)) {
             case Some(one) => one.targets
@@ -311,6 +462,7 @@ public struct InferenceResult {
     /**
      * The second call of an index assignment or update, keyed by the assignment expression.
      */
+    @PyDoc["The second call of an index assignment or update, keyed by the assignment expression."]
     public func setterCallOf(expr: ExprId): ?CallResolution {
         findByIndex(setterCalls, expr.index)
     }
@@ -318,6 +470,7 @@ public struct InferenceResult {
     /**
      * Final resolution evidence for the application whose callee is `expr`.
      */
+    @PyDoc["Final resolution evidence for the application whose callee is `expr`."]
     public func callOf(expr: ExprId): ?CallResolution {
         findByIndex(calls, expr.index)
     }
@@ -327,6 +480,7 @@ public struct InferenceResult {
      * and enum constructors; also the operator function `expr` invokes (8e). Type calls expose
      * their explicit initializer via `initializerOf`; `this(...)` and `super(...)` expose it here.
      */
+    @PyDoc["The declaration selected for the callee expression, including operator functions. Explicit type initializers are exposed by initializerOf; this(...) and super(...) are exposed here."]
     public func calleeOf(expr: ExprId): ?DefId {
         findByIndex(callees, expr.index)
             .filter { one => !one.isInitializer }
@@ -337,6 +491,7 @@ public struct InferenceResult {
      * The explicit initializer selected for the call whose callee is `expr`. Navigation uses it separately
      * so hover and references keep the identity of the type named by the call. None if no initializer was chosen.
      */
+    @PyDoc["The explicit initializer selected for the call whose callee is `expr`. Navigation uses it separately so hover and references keep the identity of the type named by the call. None if no initializer was chosen."]
     public func initializerOf(expr: ExprId): ?DefId {
         findByIndex(callees, expr.index).filter { one => one.isInitializer }.map { one => one.decl }
     }
@@ -346,6 +501,7 @@ public struct InferenceResult {
      * calls, after its operator (#245), as Kotlin's K2 resolves `+=`.
      * For a `CallExpr`, pass its callee's ID, not the call expression's ID.
      */
+    @PyDoc["What `calleeOf` names, and the `[]` taking a value the assignment `a[i] op= v` or `a[i]++` calls, after its operator (#245), as Kotlin's K2 resolves `+=`. For a `CallExpr`, pass its callee's ID, not the call expression's ID."]
     public func calleesOf(expr: ExprId): Array<DefId> {
         let setter =
             match (findByIndex(setters, expr.index)) {
@@ -363,6 +519,7 @@ public struct InferenceResult {
      * the parameter it goes to among those of what the call takes: of a variadic one for each
      * element of its tail (N155); past them all, an extra one of a `foreign` function's `...`.
      */
+    @PyDoc["For each argument of the call whose callee is `expr`, or of the operator `expr`, the place of the parameter it goes to among those of what the call takes: of a variadic one for each element of its tail (N155); past them all, an extra one of a `foreign` function's `...`."]
     public func paramsOf(expr: ExprId): ?Array<Int64> {
         match (findByIndex(args, expr.index)) {
             case Some(one) => one.params
@@ -373,6 +530,7 @@ public struct InferenceResult {
     /**
      * What the name `expr` uses as a value means, if inference resolved it.
      */
+    @PyDoc["What the name `expr` uses as a value means, if inference resolved it."]
     public func nameOf(expr: ExprId): ?BodyResolution {
         match (findByIndex(names, expr.index)) {
             case Some(one) => one.resolution
@@ -383,6 +541,7 @@ public struct InferenceResult {
     /**
      * What the name after the `.` of `expr` means, if inference resolved it.
      */
+    @PyDoc["What the name after the `.` of `expr` means, if inference resolved it."]
     public func accessOf(expr: ExprId): ?FieldResolution {
         match (findByIndex(accesses, expr.index)) {
             case Some(one) => one.resolution
@@ -393,11 +552,29 @@ public struct InferenceResult {
     /**
      * What each segment of the path of the type `ty` of the body names, if inference lowered it.
      */
+    @PyDoc["What each segment of the path of the type `ty` of the body names, if inference lowered it."]
     public func typePathOf(ty: TypeRefId): ?Array<PathResolution> {
         match (findByIndex(typePaths, ty.index)) {
             case Some(one) => one.resolution
             case None => None
         }
+    }
+
+    public operator func ==(other: InferenceResult): Bool {
+        exprs == other.exprs && pats == other.pats && locals == other.locals &&
+            fields == other.fields &&
+            callees == other.callees &&
+            setters == other.setters &&
+            args == other.args &&
+            names == other.names &&
+            accesses == other.accesses &&
+            typePaths == other.typePaths &&
+            ty == other.ty &&
+            diagnostics == other.diagnostics
+    }
+
+    public operator func !=(other: InferenceResult): Bool {
+        !(this == other)
     }
 }
 

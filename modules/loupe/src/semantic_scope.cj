@@ -1,6 +1,8 @@
 package loupe
 
 import std.collection.{ArrayList, collectArray, filterMap}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{Package, SourceFile}
 import loupe.hir.{
     CfgExpr,
@@ -45,6 +47,8 @@ import loupe.hir.{
 /**
  * A name and its semantic target; site retains the available immediate import provenance.
  */
+@DerivePython
+@PyDoc["A name and its semantic target; site retains the available immediate import provenance."]
 public struct SemanticBinding {
     SemanticBinding(
         public let name: String,
@@ -59,6 +63,8 @@ public struct SemanticBinding {
 /**
  * Export cycles are distinct from a known empty exported-name collection.
  */
+@DerivePython
+@PyDoc["Export cycles are distinct from a known empty exported-name collection."]
 public struct SemanticExports {
     SemanticExports(
         public let names: Array<SemanticBinding>,
@@ -66,6 +72,7 @@ public struct SemanticExports {
         /**
          * False for unloaded source inputs or an unreadable binary; names may be partial.
          */
+        @PyDoc["False for unloaded source inputs or an unreadable binary; names may be partial."]
         public let isAvailable!: Bool
     ) {}
 }
@@ -73,6 +80,8 @@ public struct SemanticExports {
 /**
  * One active import path, its alias/glob, visibility, stage and contextual syntax site.
  */
+@DerivePython
+@PyDoc["One active import path, its alias/glob, visibility, stage and contextual syntax site."]
 public struct SemanticImport {
     SemanticImport(
         public let file: SemanticFile,
@@ -84,6 +93,7 @@ public struct SemanticImport {
         public let error: ?ImportError
     ) {}
 
+    @PyDoc["Whether this written import re-exports its targets."]
     public prop isReExport: Bool {
         get() {
             site.level != Visibility.Private
@@ -93,6 +103,7 @@ public struct SemanticImport {
     /**
      * Exact import declaration when syntax is available; site.path indexes grouped paths.
      */
+    @PyDoc["Exact import declaration when syntax is available; site.path indexes grouped paths."]
     public func location(): ?SemanticLocation {
         let db = file.analysis.db
         db.unwindIfCancelled()
@@ -105,6 +116,8 @@ public struct SemanticImport {
 /**
  * An implicit glob kept separate from written imports and dependency permissions.
  */
+@DerivePython
+@PyDoc["An implicit glob kept separate from written imports and dependency permissions."]
 public struct SemanticImplicitImport {
     SemanticImplicitImport(public let target: SemanticPackage, public let isTestImport!: Bool) {}
 }
@@ -112,6 +125,8 @@ public struct SemanticImplicitImport {
 /**
  * Condition evidence includes unknown evaluations independently of loaded-active filtering.
  */
+@DerivePython
+@PyDoc["Condition evidence includes unknown evaluations independently of loaded-active filtering."]
 public struct SemanticCondition {
     SemanticCondition(
         public let location: SemanticLocation,
@@ -124,9 +139,20 @@ public struct SemanticCondition {
 /**
  * File identity retains ordinary/test/script, attachment and expansion context.
  */
+@DerivePython
+@PyDoc["File identity retains ordinary/test/script, attachment and expansion context."]
 public class SemanticFile {
-    SemanticFile(let analysis: SemanticAnalysis, public let identity: ItemFile) {}
+    @PyIgnore
+    let analysis: SemanticAnalysis
+    public let identity: ItemFile
 
+    @PyIgnore
+    init(analysis: SemanticAnalysis, identity: ItemFile) {
+        this.analysis = analysis
+        this.identity = identity
+    }
+
+    @PyDoc["Return the package used to resolve names in this file, or None when unavailable."]
     public func contextualPackage(): ?SemanticPackage {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -140,10 +166,12 @@ public class SemanticFile {
         }
     }
 
+    @PyDoc["Find a semantic occurrence at a UTF-8 byte offset in this contextual file."]
     public func at(offset: Int64): ?SemanticOccurrence {
         analysis.inFile(identity, offset)
     }
 
+    @PyDoc["Whether this file is analyzed with its package test-import permissions."]
     public func isTest(): Bool {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -151,6 +179,7 @@ public class SemanticFile {
         isTestOf(db, pkg.identity, identity)
     }
 
+    @PyDoc["Return this source context configuration, or None when unavailable."]
     public func configuration(): ?SemanticConfiguration {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -162,6 +191,7 @@ public class SemanticFile {
      * Target resolution reads exports at the requested stage. Unresolved paths retain errors.
      * Binary source syntax is unavailable even if its compiled item tree has no imports.
      */
+    @PyDoc["Written-stage reads this file only; expanded-stage also includes its expansion imports. Target resolution reads exports at the requested stage. Unresolved paths retain errors. Binary source syntax is unavailable even if its compiled item tree has no imports."]
     public func imports(stage!: ScopeStage = ScopeStage.Written): ?Array<SemanticImport> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -252,6 +282,7 @@ public class SemanticFile {
         )
     }
 
+    @PyDoc["Return prelude and test imports; None means the source context is unavailable."]
     public func implicitImports(): ?Array<SemanticImplicitImport> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -277,6 +308,7 @@ public class SemanticFile {
      * Package/file scope candidates, excluding lexical locals and members. Separate entries
      * preserve competing import routes; lookup(name, namespace) applies semantic precedence.
      */
+    @PyDoc["Package/file scope candidates, excluding lexical locals and members. Separate entries preserve competing import routes; lookup(name, namespace) applies semantic precedence."]
     public func visibleNames(stage!: ScopeStage = ScopeStage.Expanded): ?Array<SemanticBinding> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -462,6 +494,7 @@ public class SemanticFile {
     /**
      * Exact package/file lookup, preserving ambiguity through the existing Resolution value.
      */
+    @PyDoc["Exact package/file lookup, preserving ambiguity through the existing Resolution value."]
     public func lookup(name: String, namespace: Namespace): ?Resolution {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -473,6 +506,7 @@ public class SemanticFile {
     /**
      * All written @When conditions, including nested and unknown ones, with revision text.
      */
+    @PyDoc["All written @When conditions, including nested and unknown ones, with revision text."]
     public func conditions(): ?Array<SemanticCondition> {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -500,6 +534,7 @@ public class SemanticFile {
     /**
      * Outermost inactive ranges and invalid-condition diagnostics; none without source text.
      */
+    @PyDoc["Outermost inactive ranges and invalid-condition diagnostics; none without source text."]
     public func whenStatus(): ?WhenDiagnostics {
         let db = analysis.db
         db.unwindIfCancelled()

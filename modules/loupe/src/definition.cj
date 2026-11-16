@@ -19,6 +19,8 @@ import cjsyntax.ast.{
     isIdent
 }
 import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
@@ -30,14 +32,24 @@ import loupe.vfs.FileId
  * (`definitionInExpansion`), is in the text of that expansion: `expansion` is its call, the ranges are
  * of `expandedMacro`'s text, `fileId` the call's file.
  */
-@Derive[Equatable]
-public struct NavigationTarget {
+@DerivePython
+@PyDoc["A declaration a request goes to: its file, its whole node, and its name, what an editor selects; rust-analyzer's `NavigationTarget`. One a macro wrote, which a request in an expansion goes to (`definitionInExpansion`), is in the text of that expansion: `expansion` is its call, the ranges are of `expandedMacro`'s text, `fileId` the call's file."]
+public struct NavigationTarget <: Equatable<NavigationTarget> {
     public NavigationTarget(
         public let fileId: FileId,
         public let fullRange: TextRange,
         public let focusRange: TextRange,
         public let expansion!: ?MacroCallId = None
     ) {}
+
+    public operator func ==(other: NavigationTarget): Bool {
+        fileId == other.fileId && fullRange == other.fullRange && focusRange == other.focusRange &&
+            expansion == other.expansion
+    }
+
+    public operator func !=(other: NavigationTarget): Bool {
+        !(this == other)
+    }
 }
 
 /**

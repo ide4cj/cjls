@@ -16,6 +16,8 @@ import cjsyntax.ast.{
     RefExpr,
     TrailingLambdaExpr
 }
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
@@ -25,8 +27,9 @@ import loupe.vfs.FileId
  * A callable with source locations, independent of protocol positions. Without attached sources,
  * a binary callable uses the referring name's location; `definition` still identifies its overload.
  */
-@Derive[Equatable]
-public struct CallHierarchyEntry {
+@DerivePython
+@PyDoc["A callable with source locations, independent of protocol positions. Without attached sources, a binary callable uses the referring name's location; `definition` still identifies its overload."]
+public struct CallHierarchyEntry <: Equatable<CallHierarchyEntry> {
     public CallHierarchyEntry(
         public let name: String,
         public let kind: StructureKind,
@@ -34,13 +37,25 @@ public struct CallHierarchyEntry {
         /**
          * Canonical binary identity, including when `target` is an attached source declaration.
          */
+        @PyDoc["Canonical binary identity, including when `target` is an attached source declaration."]
         public let definition!: ?DefId = None
     ) {}
+
+    public operator func ==(other: CallHierarchyEntry): Bool {
+        name == other.name && kind == other.kind && target == other.target &&
+            definition == other.definition
+    }
+
+    public operator func !=(other: CallHierarchyEntry): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * One caller or callee, grouping its call sites. Ranges always belong to the caller's file.
  */
+@DerivePython
+@PyDoc["One caller or callee, grouping its call sites. Ranges always belong to the caller's file."]
 public struct HierarchyCalls {
     public HierarchyCalls(
         public let item: CallHierarchyEntry,

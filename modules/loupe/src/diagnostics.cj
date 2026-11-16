@@ -1,7 +1,6 @@
 package loupe
 
 import std.collection.*
-import std.deriving.*
 import std.sort.*
 import cjsyntax.{CjSyntaxNode, message}
 import cjsyntax.ast.{
@@ -16,17 +15,36 @@ import cjsyntax.ast.{
     TrailingLambdaExpr
 }
 import ginkgo.{SyntaxElement, TextRange}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, MacroSeverity, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
 
-@Derive[Equatable]
-public enum Severity {
+/**
+ * Diagnostic severity: Error, Warning, or informational Hint.
+ */
+@DerivePython
+@PyDoc["Diagnostic severity: Error, Warning, or informational Hint."]
+public enum Severity <: Equatable<Severity> {
     | Error
     | Warning
     // not a fault: what a reader may want to know, as code a `@When` leaves out
     | Hint
+
+    public operator func ==(other: Severity): Bool {
+        match ((this, other)) {
+            case (Severity.Error, Severity.Error) => true
+            case (Severity.Warning, Severity.Warning) => true
+            case (Severity.Hint, Severity.Hint) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: Severity): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -34,14 +52,24 @@ public enum Severity {
  * included, as "expected `}`" at the end of a file (A12). `unnecessary` for code a build leaves
  * out, which an editor shows faded.
  */
-@Derive[Equatable]
-public struct Diagnostic {
+@DerivePython
+@PyDoc[#"Something wrong in a file, or worth knowing of it. `range` is where its source put it, empty ones included, as "expected `}`" at the end of a file (A12). `unnecessary` for code a build leaves out, which an editor shows faded."#]
+public struct Diagnostic <: Equatable<Diagnostic> {
     public Diagnostic(
         public let range: TextRange,
         public let severity: Severity,
         public let message: String,
         public let unnecessary!: Bool = false
     ) {}
+
+    public operator func ==(other: Diagnostic): Bool {
+        range == other.range && severity == other.severity && message == other.message &&
+            unnecessary == other.unnecessary
+    }
+
+    public operator func !=(other: Diagnostic): Bool {
+        !(this == other)
+    }
 }
 
 /**

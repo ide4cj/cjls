@@ -2,7 +2,6 @@ package loupe.hir
 
 import std.collection.*
 import std.convert.Parsable
-import std.deriving.*
 import calca.*
 import calca.macros.*
 import cjsyntax.CjSyntaxNode
@@ -15,6 +14,8 @@ import cjsyntax.ast.{
     StringLit
 }
 import ginkgo.TextRange
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import loupe.db.{AnalysisDatabase, Cfg, SourceFile}
 import loupe.syntax.parse
 
@@ -30,8 +31,9 @@ public const FLAG_SET: String = "true"
  * evaluates it as (`src/ConditionalCompilation`). One cjc rejects is `CfgInvalid`, false as cjc
  * evaluates it, unlike R1's `CfgExpr::Invalid`, which is active (#149, D93).
  */
-@Derive[Equatable]
-public enum CfgExpr {
+@DerivePython
+@PyDoc["The condition of a `@When`, lowered from its expression with nothing of the tree: what cjc evaluates it as (`src/ConditionalCompilation`). One cjc rejects is `CfgInvalid`, false as cjc evaluates it, unlike R1's `CfgExpr::Invalid`, which is active (#149, D93)."]
+public enum CfgExpr <: Equatable<CfgExpr> {
     // `key op "value"`, `op` as written: `==`, `!=`, `<`, `<=`, `>`, `>=`
     | CfgCompare(String, String, String)
     // `debug` or `test`, `true` under a `!`
@@ -45,6 +47,7 @@ public enum CfgExpr {
      * of. One cjc rejects is false, as cjc has it. `&&` and `||` are Kleene's: unknown only when the
      * side known does not decide.
      */
+    @PyDoc["Whether it holds under `cfg`; `None` when that cannot be told, a condition `cfg` has no value of. One cjc rejects is false, as cjc has it. `&&` and `||` are Kleene's: unknown only when the side known does not decide."]
     public func evaluate(cfg: Cfg): ?Bool {
         match (this) {
             case CfgCompare(key, op, value) =>
@@ -76,6 +79,7 @@ public enum CfgExpr {
     /**
      * Whether code under it is in the build `cfg` makes: unless it is known to be false.
      */
+    @PyDoc["Whether code under it is in the build `cfg` makes: unless it is known to be false."]
     public func isActive(cfg: Cfg): Bool {
         evaluate(cfg) != Some(false)
     }
@@ -84,6 +88,7 @@ public enum CfgExpr {
      * Why it is false under `cfg`: what each condition making it so is instead, each once,
      * `os is "Linux"`, `test is not set`. Empty unless it is false.
      */
+    @PyDoc[#"Why it is false under `cfg`: what each condition making it so is instead, each once, `os is "Linux"`, `test is not set`. Empty unless it is false."#]
     public func whyFalse(cfg: Cfg): Array<String> {
         let reasons = ArrayList<String>()
         collectWhyFalse(cfg, reasons)
@@ -112,6 +117,27 @@ public enum CfgExpr {
         if (!reasons.contains(reason)) {
             reasons.add(reason)
         }
+    }
+
+    public operator func ==(other: CfgExpr): Bool {
+        match ((this, other)) {
+            case (
+                    CfgExpr.CfgCompare(left0, left1, left2),
+                    CfgExpr.CfgCompare(right0, right1, right2)
+                ) => left0 == right0 && left1 == right1 && left2 == right2
+            case (CfgExpr.CfgFlag(left0, left1), CfgExpr.CfgFlag(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (CfgExpr.CfgAnd(left0, left1), CfgExpr.CfgAnd(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (CfgExpr.CfgOr(left0, left1), CfgExpr.CfgOr(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (CfgExpr.CfgInvalid, CfgExpr.CfgInvalid) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: CfgExpr): Bool {
+        !(this == other)
     }
 }
 
@@ -225,9 +251,18 @@ private func isVersionLiteral(text: String): Bool {
 /**
  * What a `@When` is wrong with, as cjc says it, where.
  */
-@Derive[Equatable]
-public struct WhenError {
+@DerivePython
+@PyDoc["What a `@When` is wrong with, as cjc says it, where."]
+public struct WhenError <: Equatable<WhenError> {
     public WhenError(public let range: TextRange, public let message: String) {}
+
+    public operator func ==(other: WhenError): Bool {
+        range == other.range && message == other.message
+    }
+
+    public operator func !=(other: WhenError): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -509,9 +544,18 @@ public let ALL_ACTIVE = ActiveFilter(None)
 /**
  * Code a false `@When` leaves out of the build, and why: `reasons`, as `CfgExpr.whyFalse`.
  */
-@Derive[Equatable]
-public struct InactiveCode {
+@DerivePython
+@PyDoc["Code a false `@When` leaves out of the build, and why: `reasons`, as `CfgExpr.whyFalse`."]
+public struct InactiveCode <: Equatable<InactiveCode> {
     public InactiveCode(public let range: TextRange, public let reasons: Array<String>) {}
+
+    public operator func ==(other: InactiveCode): Bool {
+        range == other.range && reasons == other.reasons
+    }
+
+    public operator func !=(other: InactiveCode): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -521,12 +565,21 @@ public struct InactiveCode {
  * condition says why. A condition neither cjc knows nor the cfg sets is not one: a `--cfg` the analysis does not see
  * may set it (#297), and its code is active.
  */
-@Derive[Equatable]
-public struct WhenDiagnostics {
+@DerivePython
+@PyDoc["What the `@When`s of a file say: the code they leave out, outermost only (nothing inside it is checked, as cjc checks nothing there), and what cjc rejects in them whatever the build, as it says it. Code that a condition cjc rejects leaves out is not reported as left out: the error on the condition says why. A condition neither cjc knows nor the cfg sets is not one: a `--cfg` the analysis does not see may set it (#297), and its code is active."]
+public struct WhenDiagnostics <: Equatable<WhenDiagnostics> {
     public WhenDiagnostics(
         public let inactive: Array<InactiveCode>,
         public let errors: Array<WhenError>
     ) {}
+
+    public operator func ==(other: WhenDiagnostics): Bool {
+        inactive == other.inactive && errors == other.errors
+    }
+
+    public operator func !=(other: WhenDiagnostics): Bool {
+        !(this == other)
+    }
 }
 
 /**

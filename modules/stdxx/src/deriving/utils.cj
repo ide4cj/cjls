@@ -77,11 +77,12 @@ func firstDuplicate(entries: Array<(String, Token)>): ?(String, Token) {
 }
 
 /**
- * What a declaration opens with once its modifiers are out of the way - `public let x!: T` says
- * `let` just as `let x!: T` does.
+ * What a declaration opens with once modifiers and line breaks are out of the way -
+ * `public let x!: T` says `let` just as `let x!: T` does.
  */
 func headTokenOf(tokens: Tokens): ?Token {
-    tokens |> filter { token: Token => !isModifier(token) } |> first
+    // Inner macros can leave a line break where their consumed metadata used to be.
+    tokens |> filter { token: Token => token.kind != TokenKind.NL && !isModifier(token) } |> first
 }
 
 private func isModifier(token: Token): Bool {

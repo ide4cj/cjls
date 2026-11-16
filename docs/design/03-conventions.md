@@ -56,6 +56,11 @@ this(rooted(chunked(text), 0)) }`).
 
 Exception: only where that hurts readability or performance, with a comment why.
 
+When a type exported with `@DerivePython` needs to hide its primary constructor
+with `@PyIgnore`, use an ordinary `init` and explicit fields instead: the Python
+stub generator cannot interpret `@PyIgnore` on primary constructors. Keep fields
+previously hidden by that constructor hidden too. This exception also applies to C3.
+
 ### C3: Constructor fields
 
 A field set from a parameter as is is declared in the primary constructor (`Parser(let input:
@@ -383,7 +388,7 @@ A whole package, `import pkg.*`, only where its names are not the file's choice:
 (what a generator writes imports as it likes); a generated package read as a vocabulary,
 `cjls.lsp_types.*` (C8) and `cjsyntax.ast.*`; `std.ast.*` in a macro package; test files;
 a package whose names a macro's expansion needs (`fjson.*` and `stdxx.deriving.*` under
-`@DeriveExt`).
+`@DeriveExt`, `py_interop.*` under `@DerivePython`).
 
 A clash is settled by an alias (C8): a name imported explicitly beside a `*` that also exports
 it is ambiguous at every use.
