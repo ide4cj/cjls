@@ -509,8 +509,12 @@ func declarationHighlight(db: AnalysisDatabase, id: DefId): ?Highlight {
                     modifiers = modifiers.plus(HighlightModifier.Mutable)
                 }
                 StructureKind.Property
-            case ItemKind.Init | ItemKind.PrimaryInit => StructureKind.Constructor
-            case ItemKind.Finalizer => StructureKind.Finalizer
+        // `init` and `~init` are hard keywords: the tree's keyword stands, and a client laying
+        // tokens over the grammar keeps the keyword the grammar shows (D105); the primary
+        // constructor's name is not a keyword and highlights as a constructor
+        case ItemKind.Init => return None
+        case ItemKind.PrimaryInit => StructureKind.Constructor
+        case ItemKind.Finalizer => return None
             case ItemKind.EnumCtor => StructureKind.EnumConstructor
             case ItemKind.BuiltIn =>
                 return (HighlightTag.BuiltinType, modifiers.plus(HighlightModifier.DefaultLibrary))
@@ -681,12 +685,6 @@ func classify(token: CjSyntaxToken, inError: Bool): ?Highlight {
     ) {
         // `get` and `set`, and the `~` of `~init`
         tagged(HighlightTag.Keyword)
-    } else if (kind == SyntaxKind.ThisKw || kind == SyntaxKind.SuperKw) {
-        // the value a body is on, which the language declares (D105)
-        (
-            HighlightTag.Symbol(StructureKind.Variable),
-            HighlightModifiers.NONE.plus(HighlightModifier.DefaultLibrary)
-        )
     } else if (kind.isKeyword()) {
         tagged(HighlightTag.Keyword)
     } else if (

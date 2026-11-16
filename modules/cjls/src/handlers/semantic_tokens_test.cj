@@ -106,14 +106,16 @@ class SemanticTokensEncodingTest {
                 HighlightedRange(TextRange(8, 9), HighlightTag.NumberLiteral),
                 docComment,
                 HighlightedRange(TextRange(17, 20), HighlightTag.StringLiteral),
-                HighlightedRange(TextRange(21, 24), HighlightTag.Comment)
+                HighlightedRange(TextRange(21, 24), HighlightTag.Comment),
+                HighlightedRange(TextRange(25, 27), HighlightTag.InterpolationDelimiter)
             ]
 
         // act
         let augmenting = overSyntax(tokens, true)
         let alone = overSyntax(tokens, false)
 
-        // assert - a comment the grammar cannot tell documents is kept
+        // assert - a comment the grammar cannot tell documents is kept; an interpolation
+        // delimiter the grammar's interp_open and interp_close scope is not
         @Expect(augmenting, [variable, docComment])
         @Expect(alone, tokens)
     }

@@ -438,8 +438,10 @@ func tokenType(tag: HighlightTag): SemanticTokenTypes {
 
 /**
  * `tokens`, less those a client laying them over a grammar of its own has from it: a keyword, a
- * comment, a literal or an operator, unless a modifier tells what the grammar cannot (D105).
- * Interpolation delimiters stay explicit operators over base punctuation scopes (D148).
+ * comment, a literal, an operator or an interpolation delimiter (the grammar's
+ * `interp_open`/`interp_close` scope them, D148), unless a modifier tells what the grammar
+ * cannot (D105). A client without a grammar of its own keeps the delimiters, as operators over
+ * base punctuation scopes.
  */
 func overSyntax(tokens: Array<HighlightedRange>, augments: Bool): Array<HighlightedRange> {
     if (!augments) {
@@ -454,7 +456,8 @@ func overSyntax(tokens: Array<HighlightedRange>, augments: Bool): Array<Highligh
                         HighlightTag.Comment |
                         HighlightTag.StringLiteral |
                         HighlightTag.NumberLiteral |
-                        HighlightTag.Operator => false
+                        HighlightTag.Operator |
+                        HighlightTag.InterpolationDelimiter => false
                     case _ => true
                 }
         }
