@@ -83,6 +83,11 @@ response available to the client; this is a model-context presentation choice.
 
 ## Install the optional skill
 
+Recipes are available directly through runPython without installing a skill:
+`recipes.read()` returns the task index, `recipes.files()` lists the documents,
+and `recipes.read("references/inference.md")` reads a selected recipe from the
+running server's installation.
+
 Copy the entire `skills/cangjie-mcp/` folder, including `references/`, to a skill
 location supported by your agent. In Codex, use
 `<target-project>/.agents/skills/cangjie-mcp/` for project scope or
@@ -99,8 +104,8 @@ Check an existing destination before copying over a locally customized skill.
 The skill is self-contained: its local links stay inside the copied folder.
 The full API reference remains with the binary; compare the injected server_info
 identity before consulting a separate source checkout. The skill teaches the
-workflow; it does not configure the connection. For a client without skill support, keep
-the selection rule and give the agent the recipes path when a task needs details.
+workflow; it does not configure the connection. For a client without skill support,
+use the injected `recipes` object when a task needs details.
 Keep only the short selection rule persistent; do not paste the setup guide,
 API reference or every recipe into project instructions. The server instructions
 cover simple lookups directly. For a traversal or refactor, load the matching

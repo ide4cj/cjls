@@ -8,43 +8,72 @@ import ast as _cjmcp_ast
 import textwrap as _cjmcp_textwrap
 import pathlib as _cjmcp_pathlib
 
-class _CjmcpApiDocs:
-    """Read the supplied Python API reference; paths are relative to its root."""
+class _CjmcpDocuments:
+    """Read documentation belonging to the executable, never to the workspace."""
+
+    _directory = 'api_docs'
+    _suffix = '.pyi'
+    _label = 'API documentation'
 
     def _root(self):
         executable = _cjmcp_pathlib.Path('/proc/self/exe').resolve()
-        bundled = executable.parent / 'api_docs'
+        bundled = executable.parent / self._directory
         if bundled.is_dir():
             return bundled.resolve()
         # The documented source build lives at <checkout>/target/release/bin/cjmcp.
         if len(executable.parents) >= 4 and executable.parent.name == 'bin' and executable.parents[2].name == 'target':
-            source = executable.parents[3] / 'modules' / 'cjmcp' / 'api_docs'
+            source = executable.parents[3] / 'modules' / 'cjmcp' / self._directory
             if source.is_dir():
                 return source.resolve()
-        raise FileNotFoundError('cjmcp API documentation is missing; keep api_docs/ beside the executable')
+        raise FileNotFoundError(f'cjmcp {self._label} is missing; keep {self._directory}/ beside the executable')
 
     def files(self):
-        """Return sorted .pyi paths, relative to the documentation root."""
+        """Return sorted document paths, relative to the documentation root."""
         root = self._root()
         return sorted(path.relative_to(root).as_posix()
-                      for path in root.rglob('*.pyi')
+                      for path in root.rglob('*' + self._suffix)
                       if path.is_file() and self._inside(path, root))
 
     def read(self, path):
-        """Return a .pyi file as UTF-8 text, following root-relative doc links.
+        """Return a document as UTF-8 text, following root-relative doc links.
 
         Raise ValueError for invalid paths and FileNotFoundError for missing files.
         """
         if not isinstance(path, str):
-            raise TypeError('path must be a root-relative .pyi path')
+            raise TypeError(f'path must be a root-relative {self._suffix} path')
         relative = _cjmcp_pathlib.PurePosixPath(path)
-        if relative.is_absolute() or '..' in relative.parts or relative.suffix != '.pyi':
-            raise ValueError('path must be a root-relative .pyi path without ..')
+        if relative.is_absolute() or '..' in relative.parts or relative.suffix != self._suffix:
+            raise ValueError(f'path must be a root-relative {self._suffix} path without ..')
         root = self._root()
         target = root.joinpath(*relative.parts)
         if not self._inside(target, root):
-            raise ValueError('path must stay inside the API documentation root')
+            raise ValueError('path must stay inside the documentation root')
         return target.read_text(encoding='utf-8')
+
+
+    @staticmethod
+    def _inside(path, root):
+        try:
+            path.resolve().relative_to(root)
+            return True
+        except ValueError:
+            return False
+
+
+class _CjmcpRecipes(_CjmcpDocuments):
+    """Read the server's task recipes; read() returns the skill's task index."""
+
+    _directory = 'skills/cangjie-mcp'
+    _suffix = '.md'
+    _label = 'task recipes'
+
+    def read(self, path='SKILL.md'):
+        """Return a complete recipe, using paths from files() or the task index."""
+        return super().read(path)
+
+
+class _CjmcpApiDocs(_CjmcpDocuments):
+    """Read and select declarations in the supplied Python API reference."""
 
 
     def outline(self, path, symbol=None):
@@ -133,11 +162,4 @@ class _CjmcpApiDocs:
                 raise KeyError(symbol)
         return nodes
 
-    @staticmethod
-    def _inside(path, root):
-        try:
-            path.resolve().relative_to(root)
-            return True
-        except ValueError:
-            return False
 "#
