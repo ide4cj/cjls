@@ -2,6 +2,45 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## [v0.8.0](https://github.com/ide4cj/cjls/compare/f3a86eee04b50501f021e67e57ab8a551861c8cd..v0.8.0) - 2026-11-16
+#### Features
+- (**cjformat**) sort and combine imports (#629) - ([2a2b0ae](https://github.com/ide4cj/cjls/commit/2a2b0aee9151a59a102673a9f312fd7a688685cc)) - FilaCo
+- (**hover**) show instantiated call signatures (#644) - ([ea2b215](https://github.com/ide4cj/cjls/commit/ea2b2155fa76ae6cf6b6def8b0e29c003fbaed10)) - FilaCo
+- (**loupe**) expose loaded project and semantic scopes (#649) - ([2ccf64b](https://github.com/ide4cj/cjls/commit/2ccf64b6bcfd004f8dcdf2c8afaf22683f71d463)) - FilaCo
+- (**loupe**) expose syntax traversal and HIR provenance (#647) - ([5a47df2](https://github.com/ide4cj/cjls/commit/5a47df25be13164cfb4cbcbcf78dc6af8d40e93e)) - FilaCo
+- (**loupe**) expose identity-based semantic relationships (#641) - ([7c0abc5](https://github.com/ide4cj/cjls/commit/7c0abc5bd976df11e1317fa1ec5e56d72317b82a)) - FilaCo
+- (**loupe**) expose complete retained resolution evidence (#640) - ([c3bbd74](https://github.com/ide4cj/cjls/commit/c3bbd74ed212edae2186d88ad61ce3a5ebc8728d)) - FilaCo
+- (**loupe**) infer standalone lambda parameters from their bodies (#618) - ([44c8cd4](https://github.com/ide4cj/cjls/commit/44c8cd4294cd148ab04ae13a912d825a128fc39f)) - FilaCo
+- (**loupe**) expose immediate call evidence with coverage gaps (#610) - ([6f30364](https://github.com/ide4cj/cjls/commit/6f3036460917332145a314b331ebeef534a98632)) - FilaCo
+- (**loupe**) expose revision-bound semantic source objects (#607) - ([f83a7d1](https://github.com/ide4cj/cjls/commit/f83a7d1703e7cfbfd7021ada002fec3a64e03a47)) - FilaCo
+- (**nix**) cjls nix package (#574) - ([1a5b1fe](https://github.com/ide4cj/cjls/commit/1a5b1feb8393c6613fedfb965df465494ae858ed)) - Ilya Yaroshevskiy
+- (**project-model**) link native dependencies for workspace macros (#654) - ([79614e0](https://github.com/ide4cj/cjls/commit/79614e08cf2c8b6fd81ee33094790f4dc50304d0)) - FilaCo
+- (**project-model**) report SDK versions against support window (#652) - ([57bb8db](https://github.com/ide4cj/cjls/commit/57bb8dbb05285e928e74a436250b464bcdc99fa8)) - FilaCo
+- (**source-change**) share checked text and file changes (#627) - ([9f2e385](https://github.com/ide4cj/cjls/commit/9f2e385e5111a46f0fe3b98c04f5f888706debe8)) - FilaCo
+#### Bug Fixes
+- (**inference**) extend standalone lambda body constraints (#655) - ([1552d2a](https://github.com/ide4cj/cjls/commit/1552d2a36bb038f97e13595095de1a7107b695f7)) - FilaCo
+- (**loader**) follow symlinked SDK and project inputs (#667) - ([bf3d1e0](https://github.com/ide4cj/cjls/commit/bf3d1e0ad43ff9132e1a6c447f7167439e891f2c)) - FilaCo
+- (**loupe**) preserve incoming calls through re-export aliases (#651) - ([8fc84a0](https://github.com/ide4cj/cjls/commit/8fc84a0545d5edfe0e5459d525459ceb68a80db5)) - FilaCo
+- (**loupe**) preserve private names and package enum constructors (#638) - ([ab04e28](https://github.com/ide4cj/cjls/commit/ab04e28d9f7919110a46c98436570c5793d47c3c)) - FilaCo
+- (**loupe**) report declaration collisions and overload conflicts (#617) - ([bfa8654](https://github.com/ide4cj/cjls/commit/bfa8654309f8d9e5fb8aff00165be3d1121e9393)) - FilaCo
+- (**macros**) keep std runtime dependencies in the SDK (#663) - ([fe46133](https://github.com/ide4cj/cjls/commit/fe4613395f28b26ada3500ba14e98f46f141ac03)) - FilaCo
+- (**macros**) retain exceptions from SDK expansion failures (#614) - ([def08fd](https://github.com/ide4cj/cjls/commit/def08fd6b66a1ece08820eb6896fa16ebb41c1ac)) - FilaCo
+- (**project-model**) select dependencies by cjpm build mode (#616) - ([bbbdd45](https://github.com/ide4cj/cjls/commit/bbbdd45880299bc90535456d768ef689f162db61)) - FilaCo
+- (**project_model**) select host tables for build-script dependencies (#648) - ([45a1446](https://github.com/ide4cj/cjls/commit/45a1446cca277a007bdc561e8a0969d9be1691b7)) - FilaCo
+- (**project_model**) propagate selected CJMP feature requests (#642) - ([845c27d](https://github.com/ide4cj/cjls/commit/845c27da09a75b6385ba401b69b4c6c5ac3545a7)) - FilaCo
+#### Tests
+- (**macros**) compare built-in and served std expansions (#639) - ([843af93](https://github.com/ide4cj/cjls/commit/843af931798d414a6a626973ebf386ed49cb27db)) - FilaCo
+#### Continuous Integration
+- (**sdk**) test std and e2e across supported releases (#613) - ([f3a86ee](https://github.com/ide4cj/cjls/commit/f3a86eee04b50501f021e67e57ab8a551861c8cd)) - FilaCo
+#### Refactoring
+- (**cli**) inject effective invocation output with jian (#646) - ([8a74f93](https://github.com/ide4cj/cjls/commit/8a74f93af729e9b60fe56960270768abbedd1c88)) - FilaCo
+- (**cli**) unify command execution wrappers (#626) - ([3e58c09](https://github.com/ide4cj/cjls/commit/3e58c0936d48bf58d070bb9f8235ea1c0c1ebff3)) - FilaCo
+- (**cli**) migrate generators to jian (#623) - ([f1ab7a7](https://github.com/ide4cj/cjls/commit/f1ab7a78f66d861c38056859cfe506420299d67b)) - FilaCo
+- (**cli**) declare commands with jian (#609) - ([ad51d17](https://github.com/ide4cj/cjls/commit/ad51d1768452395df415a596b2c4504e44aa2430)) - FilaCo
+- (**macros**) overload Answered for results without captured output (#619) - ([44ce9ea](https://github.com/ide4cj/cjls/commit/44ce9eac8d657c6b773657377c19aac34f4b4cdd)) - FilaCo
+
+- - -
+
 ## [v0.7.0](https://github.com/ide4cj/cjls/compare/ddba14a0248aa019496fd8fe0b5744185f7680be..v0.7.0) - 2026-11-02
 #### Features
 - (**analysis**) infer local generic functions (#580) - ([ec15f93](https://github.com/ide4cj/cjls/commit/ec15f93efe274fccdb945ca6bc8b2246a58cb60c)) - FilaCo
