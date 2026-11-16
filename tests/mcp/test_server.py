@@ -76,6 +76,74 @@ result = {path: hashlib.sha256(api_docs.read(path).encode('utf-8')).hexdigest()
         self.assertTrue(expected)
         self.assertEqual(response["result"], expected)
 
+    def test_supplied_recipes(self):
+        with tempfile.TemporaryDirectory(prefix="cjmcp-recipes-") as directory:
+            root = Path(directory)
+            fake = root / "skills/cangjie-mcp/SKILL.md"
+            fake.parent.mkdir(parents=True)
+            fake.write_text("unrelated workspace recipes", encoding="utf-8")
+            response = self._api_docs_script(BINARY, root, """
+import hashlib
+assert 'recipes' in server_info['_meta']['features']
+paths = recipes.files()
+assert paths == sorted(set(paths))
+assert 'SKILL.md' in paths
+assert 'references/inference.md' in paths
+assert recipes.read() == recipes.read('SKILL.md')
+for path, error_type in [('/SKILL.md', ValueError), ('../SKILL.md', ValueError),
+                         ('references/../../SKILL.md', ValueError),
+                         ('reference.pyi', ValueError), (None, TypeError),
+                         ('missing.md', FileNotFoundError)]:
+    try:
+        recipes.read(path)
+    except error_type:
+        pass
+    else:
+        raise AssertionError('invalid recipe path accepted: ' + repr(path))
+result = {path: hashlib.sha256(recipes.read(path).encode('utf-8')).hexdigest()
+          for path in paths}
+""")
+        self.assertIsNone(response["error"], response)
+        docs = ROOT / "modules/cjmcp/skills/cangjie-mcp"
+        expected = {
+            path.relative_to(docs).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in docs.rglob("*.md")
+        }
+        self.assertTrue(expected)
+        self.assertEqual(response["result"], expected)
+
+    def test_relocated_recipes_reject_external_links(self):
+        with tempfile.TemporaryDirectory(prefix="cjmcp-relocated-recipes-") as directory:
+            root = Path(directory)
+            binary = root / "cjmcp"
+            try:
+                os.link(Path(BINARY).resolve(), binary)
+            except OSError:
+                import shutil
+                shutil.copy2(BINARY, binary)
+            docs = root / "skills/cangjie-mcp"
+            docs.mkdir(parents=True)
+            (docs / "SKILL.md").write_text("# Task index: café\n", encoding="utf-8")
+            (docs / "alias.md").symlink_to("SKILL.md")
+            outside = root / "outside.md"
+            outside.write_text("outside the skill", encoding="utf-8")
+            (docs / "escape.md").symlink_to(outside)
+            project = root / "project"
+            project.mkdir()
+            response = self._api_docs_script(binary, project, """
+assert recipes.files() == ['SKILL.md', 'alias.md']
+assert recipes.read() == recipes.read('alias.md')
+try:
+    recipes.read('escape.md')
+except ValueError:
+    pass
+else:
+    raise AssertionError('external recipe link accepted')
+result = recipes.read()
+""")
+            self.assertIsNone(response["error"], response)
+            self.assertEqual(response["result"], "# Task index: café\n")
+
     def test_api_doc_selection(self):
         with tempfile.TemporaryDirectory(prefix="cjmcp-api-selection-") as directory:
             response = self._api_docs_script(BINARY, Path(directory), '''
@@ -187,9 +255,13 @@ result = True
             fake = root / "project/api_docs/cjmcp/python.pyi"
             fake.parent.mkdir(parents=True)
             fake.write_text("unrelated workspace documentation", encoding="utf-8")
+            fake_recipe = root / "project/skills/cangjie-mcp/SKILL.md"
+            fake_recipe.parent.mkdir(parents=True)
+            fake_recipe.write_text("unrelated workspace recipes", encoding="utf-8")
             response = self._api_docs_script(binary, root / "project", """
 assert isinstance(workspace.files(), list)
-for operation in (api_docs.files, lambda: api_docs.read('cjmcp/python.pyi'),
+for operation in (recipes.files, recipes.read,
+                  api_docs.files, lambda: api_docs.read('cjmcp/python.pyi'),
                   lambda: api_docs.outline('cjmcp/python.pyi'),
                   lambda: api_docs.read_symbol('cjmcp/python.pyi', 'Workspace')):
     try:

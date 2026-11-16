@@ -82,7 +82,7 @@ class McpServerTest {
             JsonString("structuredDiagnostics"), JsonString("worktreeSessions"),
             JsonString("checkedSourceChanges"), JsonString("sourceExcerpts"),
             JsonString("outputBudget"), JsonString("semanticViews"), JsonString("apiDocs"),
-            JsonString("taskEvidence")
+            JsonString("recipes"), JsonString("taskEvidence")
         ]))
         @Expect(waiting["error"]["code"].asInteger(), -32600)
         @Expect(notification.isNone())

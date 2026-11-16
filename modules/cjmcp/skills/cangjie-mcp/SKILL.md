@@ -10,6 +10,11 @@ Text search also serves literals, comments, candidates and residual-name checks;
 it does not prove symbol relationships. Keep selection and computation in Python,
 return bounded evidence, and verify changed relationships in a fresh call.
 
+The running server supplies this skill and its recipes through runPython:
+`recipes.read()` returns this task index, `recipes.files()` lists available paths,
+and `recipes.read("references/inference.md")` reads a selected recipe. Prefer
+these bundled documents for the running server; no filesystem search is needed.
+
 For a simple lookup, use the server's query map directly. For a traversal or
 refactor, read the matching recipe below before constructing your own workflow.
 Reuse already-read guidance. Open API discovery only for the missing contract;

@@ -21,7 +21,8 @@ tar -xzf cjmcp-linux-x86_64-*.tar.gz
 
 The archive includes `BUILD-INFO` with the source commit, SDK pin and target,
 plus the SDK checksum pins, licenses and generated `.pyi` API reference in
-`api_docs/`. Keep that directory beside the executable when moving the installation.
+`api_docs/`, plus task recipes in `skills/`. Keep both directories beside the
+executable when moving the installation.
 Actions retains the download for 30 days;
 it is an experimental artifact, separate from cjls releases. CI runs the protocol
 unit tests and the real-process MCP tests against the unpacked executable before
@@ -103,7 +104,8 @@ process. Incoming messages must end in a newline and are limited to 8 MiB.
 The server instructions contain a compact query map, including macro expansion,
 navigation, inference, members and formatting. Use it directly; the
 [Python query map](python-api.md#query-map) is the readable counterpart.
-Use one
+Read the task index with `recipes.read()` or a known recipe with
+`recipes.read("references/inference.md")` through runPython. Use one
 [task recipe](skills/cangjie-mcp/SKILL.md) for an unfamiliar operation. Configure
 the connection with [agent setup](agent-setup.md).
 

@@ -7,6 +7,13 @@ Use runPython for Cangjie source analysis, reading and editing. Shell is for
 Git, builds, tests and non-Cangjie files; report partial analysis without a shell
 fallback. workspace and native types are injected; do not import loupe.
 
+Task recipes are supplied by this server through runPython:
+- result = recipes.read() returns the task index (SKILL.md).
+- result = recipes.read("references/inference.md") reads a selected recipe.
+- result = recipes.files() lists available paths relative to the skill root.
+Use these for the recipe links below; no filesystem search or skill installation
+is needed. Read only the recipe needed for the task.
+
 Choose evidence in this order:
 1. Query the analysis database for syntax and semantics. Select declarations and
    resolved references/types/hierarchies; use syntax nodes for expression shape,

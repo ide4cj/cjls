@@ -349,6 +349,29 @@ Native filesystem watchers, editor buffers, cancellation, HTTP and parallel tool
 requests are outside this experiment. The existing macro host limitations,
 including K28's conflicting loaded libraries within a load, still apply.
 
+## Task recipes
+
+Each script receives `recipes`, independent of the selected workspace and revision:
+
+```python
+result = recipes.read()  # SKILL.md: choose the recipe for the task.
+```
+
+`recipes.files()` returns sorted Markdown paths relative to the skill root.
+`recipes.read("references/inference.md")` returns the complete UTF-8 recipe.
+Paths in the task index use this same root. Read a known recipe directly; listing
+all files or reading the index is optional. The normal runPython output budget
+applies; recipes are never silently truncated.
+
+The server uses `skills/cangjie-mcp/` beside its executable, or
+`modules/cjmcp/skills/cangjie-mcp/` in the owning checkout for a source build in
+`<checkout>/target/<profile>/bin/`. It never searches the analyzed workspace or
+working directory. Keep `skills/` alongside a relocated executable.
+Missing recipes/files raise `FileNotFoundError`; absolute paths, parent traversal,
+non-`.md` paths and links outside the skill root raise `ValueError`.
+Non-string paths raise `TypeError`. The `recipes` feature in `server_info` advertises
+this interface; installing the skill in the agent is optional.
+
 ## API documentation
 
 Each script receives `api_docs`, which reads the generated `.pyi` reference

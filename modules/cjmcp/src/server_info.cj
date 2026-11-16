@@ -33,6 +33,7 @@ func serverInfo(): McpServerInfo {
                 "outputBudget",
                 "semanticViews",
                 "apiDocs",
+                "recipes",
                 "taskEvidence"
             ]
         )
