@@ -219,28 +219,47 @@ class MacroBuilderTest {
     }
 
     @TestCase
-    func librariesFromTheUnversionedBuildRecipeAreRebuilt() {
+    func librariesFromTheUnversionedBuildRecipeAreRebuilt(): Unit {
+        // arrange
         let (src, out) = sources(["ms"])
         try {
             let units = [unit(src, "ms", isMacro: true)]
-            MacroBuilder(out, "cjc 1", FakeToolchain()).build(units).getOrThrow()
-            // Reproduce the old stamp without changing any source or compiler input.
-            let legacy = StringBuilder("cjc 1")
-            for (file in sourcesOf(src.join("ms"))) {
-                legacy.append("\u{0}${file}")
-            }
+            MacroBuilder(out, "cjc 1", FakeToolchain())
+                .build(units)
+                .getOrThrow { IllegalStateException("The fresh test directory must not be locked") }
+            let legacy = String.join(
+                ["cjc 1"].concat(sourcesOf(src.join("ms"))),
+                delimiter: "\u{0}"
+            )
             let stampFile = out.join("m").join("m.ms.stamp")
-            let previous = readStamp(stampFile)
-            let legacyStamp = legacy.toString().hashCode()
-            @Expect(previous != Some(legacyStamp))
-            File.writeTo(stampFile, "${legacyStamp}".toArray())
-            @Expect(readStamp(stampFile), Some(legacyStamp))
+            let legacyStamp = legacy.hashCode()
+            File.writeTo(stampFile, legacyStamp.toString().toArray())
             let toolchain = FakeToolchain()
             let builder = MacroBuilder(out, "cjc 1", toolchain)
 
-            let rebuilt = builder.build(units).getOrThrow()
-            let cached = builder.build(units).getOrThrow()
+            // act
+            let rebuilt =
+                builder
+                    .build(units)
+                    .getOrThrow {
+                        IllegalStateException(
+                            "The previous build must have released the cache lock"
+                        )
+                    }
 
+            // assert
+            @Expect(toolchain.names(), ["ms"])
+            @Expect(stampOf(rebuilt, "m.ms") != legacyStamp)
+
+            // act
+            let cached =
+                builder
+                    .build(units)
+                    .getOrThrow {
+                        IllegalStateException("The rebuild must have released the cache lock")
+                    }
+
+            // assert
             @Expect(toolchain.names(), ["ms"])
             @Expect(stampOf(rebuilt, "m.ms"), stampOf(cached, "m.ms"))
         } finally {
@@ -354,9 +373,44 @@ class MacroBuilderTest {
 @Test
 class MacroBuilderSdkTest {
     @TestCase
-    func aMacroPackageCanImportRuntimeCodeGeneratedByAnotherMacro() {
+    func aMacroPackageCanImportRuntimeCodeGeneratedByAnotherMacro(): Unit {
         // arrange
         let (src, out) = sources(["base", "generator", "util", "ms", "app"])
+        writeTransitiveRuntimeFixture(src)
+        let toolchain = SdkToolchain(testSdkPaths())
+        let version =
+            toolchain
+                .version()
+                .getOrThrow {
+                    IllegalStateException("The test SDK must provide a compiler version")
+                }
+
+        // act
+        let built =
+            MacroBuilder(out, version, toolchain)
+                .build(
+                    [
+                        unit(src, "base"),
+                        unit(src, "generator", isMacro: true),
+                        unit(src, "util", deps: ["generator", "base"]),
+                        unit(src, "ms", isMacro: true, deps: ["generator", "base", "util"]),
+                        unit(src, "app", deps: ["generator", "base", "util", "ms"])
+                    ]
+                )
+                .getOrThrow { IllegalStateException("The fresh test directory must not be locked") }
+
+        // assert
+        for (name in ["m.generator", "m.ms"]) {
+            match (built.get(name)) {
+                case Some(Built(library, _)) => @Expect(exists(library))
+                case Some(NotBuilt(reason)) => @Fail(reason)
+                case _ => @Fail("${name} was not built")
+            }
+        }
+        @Expect(exists(out.join("m").join("libm.app.a")))
+    }
+
+    private func writeTransitiveRuntimeFixture(src: Path): Unit {
         File.writeTo(
             src.join("base").join("base.cj"),
             "package m.base\npublic func baseAnswer(): Int64 { 42 }\n".toArray()
@@ -373,8 +427,8 @@ public macro Identity(input: Tokens): Tokens { input }
             src.join("util").join("util.cj"),
             ##"
 package m.util
-import m.generator.*
 import m.base.*
+import m.generator.*
 @Identity
 public func answer(): Int64 { baseAnswer() }
 "##.toArray()
@@ -401,30 +455,6 @@ public func generated(): Int64 { 0 }
 public let value = generated()
 "##.toArray()
         )
-        let toolchain = SdkToolchain(testSdkPaths())
-
-        // act
-        let built = MacroBuilder(out, toolchain.version().getOrThrow(), toolchain)
-            .build(
-                [
-                    unit(src, "base"),
-                    unit(src, "generator", isMacro: true),
-                    unit(src, "util", deps: ["generator", "base"]),
-                    unit(src, "ms", isMacro: true, deps: ["generator", "base", "util"]),
-                    unit(src, "app", deps: ["generator", "base", "util", "ms"])
-                ]
-            )
-            .getOrThrow()
-
-        // assert
-        for (name in ["m.generator", "m.ms"]) {
-            match (built.get(name)) {
-                case Some(Built(library, _)) => @Expect(exists(library))
-                case Some(NotBuilt(reason)) => @Fail(reason)
-                case _ => @Fail("${name} was not built")
-            }
-        }
-        @Expect(exists(out.join("m").join("libm.app.a")))
     }
 }
 
