@@ -194,7 +194,10 @@ public class MacroBuilder {
         }
         if (unit.isMacro) {
             // cjc loads macro libraries while compiling; only runtime packages are linked into the result.
-            for ((module, dep) in unit.deps where !macros.contains(dep)) {
+            // Static archives must follow their users; the plan lists providers first for compilation.
+            let linked = unit.deps.clone()
+            linked.reverse()
+            for ((module, dep) in linked where !macros.contains(dep)) {
                 arguments.add(all: ["-L", out.join(module).toString(), "-l${dep}"])
             }
             for (cjo in unit.binaries) {
@@ -218,7 +221,8 @@ public class MacroBuilder {
      * the stamps of its source dependencies, including macros used during compilation.
      */
     private func stampOf(unit: BuildUnit, stamps: HashMap<String, Int64>): Int64 {
-        let text = StringBuilder(version)
+        // Invalidate libraries linked with an older build recipe even when their inputs are unchanged.
+        let text = StringBuilder("macro-build-v2\u{0}${version}")
         for (file in sourcesOf(unit.dir)) {
             text.append("\u{0}${file}")
         }
