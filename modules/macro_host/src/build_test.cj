@@ -219,6 +219,36 @@ class MacroBuilderTest {
     }
 
     @TestCase
+    func librariesFromTheUnversionedBuildRecipeAreRebuilt() {
+        let (src, out) = sources(["ms"])
+        try {
+            let units = [unit(src, "ms", isMacro: true)]
+            MacroBuilder(out, "cjc 1", FakeToolchain()).build(units).getOrThrow()
+            // Reproduce the old stamp without changing any source or compiler input.
+            let legacy = StringBuilder("cjc 1")
+            for (file in sourcesOf(src.join("ms"))) {
+                legacy.append("\u{0}${file}")
+            }
+            let stampFile = out.join("m").join("m.ms.stamp")
+            let previous = readStamp(stampFile)
+            let legacyStamp = legacy.toString().hashCode()
+            @Expect(previous != Some(legacyStamp))
+            File.writeTo(stampFile, "${legacyStamp}".toArray())
+            @Expect(readStamp(stampFile), Some(legacyStamp))
+            let toolchain = FakeToolchain()
+            let builder = MacroBuilder(out, "cjc 1", toolchain)
+
+            let rebuilt = builder.build(units).getOrThrow()
+            let cached = builder.build(units).getOrThrow()
+
+            @Expect(toolchain.names(), ["ms"])
+            @Expect(stampOf(rebuilt, "m.ms"), stampOf(cached, "m.ms"))
+        } finally {
+            remove(src.parent, recursive: true)
+        }
+    }
+
+    @TestCase
     func whatDidNotChangeIsNotBuiltAgain() {
         // arrange
         let (src, out) = sources(["util", "ms"])
@@ -326,7 +356,11 @@ class MacroBuilderSdkTest {
     @TestCase
     func aMacroPackageCanImportRuntimeCodeGeneratedByAnotherMacro() {
         // arrange
-        let (src, out) = sources(["generator", "util", "ms", "app"])
+        let (src, out) = sources(["base", "generator", "util", "ms", "app"])
+        File.writeTo(
+            src.join("base").join("base.cj"),
+            "package m.base\npublic func baseAnswer(): Int64 { 42 }\n".toArray()
+        )
         File.writeTo(
             src.join("generator").join("generator.cj"),
             ##"
@@ -340,8 +374,9 @@ public macro Identity(input: Tokens): Tokens { input }
             ##"
 package m.util
 import m.generator.*
+import m.base.*
 @Identity
-public func answer(): Int64 { 42 }
+public func answer(): Int64 { baseAnswer() }
 "##.toArray()
         )
         File.writeTo(
@@ -372,10 +407,11 @@ public let value = generated()
         let built = MacroBuilder(out, toolchain.version().getOrThrow(), toolchain)
             .build(
                 [
+                    unit(src, "base"),
                     unit(src, "generator", isMacro: true),
-                    unit(src, "util", deps: ["generator"]),
-                    unit(src, "ms", isMacro: true, deps: ["generator", "util"]),
-                    unit(src, "app", deps: ["generator", "util", "ms"])
+                    unit(src, "util", deps: ["generator", "base"]),
+                    unit(src, "ms", isMacro: true, deps: ["generator", "base", "util"]),
+                    unit(src, "app", deps: ["generator", "base", "util", "ms"])
                 ]
             )
             .getOrThrow()

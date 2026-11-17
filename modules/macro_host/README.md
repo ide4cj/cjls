@@ -26,7 +26,10 @@ Unchanged stamps skip rebuilding. Stamps follow symlinks for source files, binar
 packages and native libraries, so target changes invalidate cached builds. Tests use a fake toolchain as well as SDK cjc.
 Source macro dependencies are built and included in stamps, but are not passed
 to the linker as runtime libraries: cjc loads them during compilation. Runtime
-source dependencies remain statically linked into macro libraries. Ordinary `std`
+source dependencies remain statically linked into macro libraries. Their archives
+are linked in reverse dependency order (users before providers), while packages
+are built in dependency order. Build stamps include a format version so changes
+to the build recipe invalidate existing cached libraries. Ordinary `std`
 packages are always supplied by the selected SDK, including when their sources
 are workspace packages. In particular, rebuilding `std.ast` as an ordinary
 library omits compiler-facing declarations needed by macro wrappers and `quote`.
